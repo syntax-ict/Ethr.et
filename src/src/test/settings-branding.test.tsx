@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { server } from "./msw/server";
 import { BrandingCard } from "@/features/settings/components/branding-card";
@@ -128,12 +129,37 @@ describe("<OrganizationCard>", () => {
     await waitFor(() => expect(body).not.toBeNull());
     // The kind in force is not re-sent: on the server, choosing it again
     // would have said nothing, and once it withdrew a scheduled change (K-57).
+    // Nor is the industry, unless it changed: the server refuses a changed
+    // one it does not know, and a legacy value must save as it is.
     expect(body).toEqual({
       name: "Acme Ethiopia PLC",
-      type: "private",
       timezone: "Africa/Addis_Ababa",
       locale: "en",
     });
+  });
+
+  it("sends the industry when it was changed", async () => {
+    let body: Record<string, unknown> | null = null;
+    server.use(
+      http.put("*/settings/organization", async ({ request }) => {
+        body = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ message: "Organization updated" });
+      }),
+    );
+    const user = userEvent.setup();
+
+    renderWithClient(
+      <OrganizationCard organization={{ ...org, type: "bank" }} />,
+    );
+
+    await user.click(screen.getByRole("combobox", { name: /industry/i }));
+    await user.click(
+      await screen.findByRole("option", { name: "Hospital / Health" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /save organisation/i }));
+
+    await waitFor(() => expect(body).not.toBeNull());
+    expect(body).toMatchObject({ type: "hospital" });
   });
 
   it("offers the kinds of organisation from the catalogue, in the reader's language", async () => {

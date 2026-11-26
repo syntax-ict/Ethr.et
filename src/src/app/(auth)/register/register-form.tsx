@@ -24,9 +24,11 @@ import {
   registerTenant,
 } from "@/features/auth/sign-in";
 import { useT } from "@/lib/i18n/useT";
+import { useHydrated } from "@/lib/hooks/useHydrated";
 import { useOrganizationTypes } from "@/features/settings/api";
 import {
   groupOrgKinds,
+  narrowOrgKinds,
   orgKindGroupLabel,
   orgKindName,
 } from "@/features/settings/org-kind";
@@ -36,6 +38,7 @@ import {
   registerSchema,
   type RegisterFormValues,
 } from "@/features/auth/register-schema";
+import { EthrSymbol } from "@/components/shared/ethr-logo";
 
 const orgTypeKeys = [
   "government",
@@ -47,6 +50,17 @@ const orgTypeKeys = [
   "university",
   "general",
 ] as const;
+
+const ORG_TYPE_FALLBACKS: Record<(typeof orgTypeKeys)[number], string> = {
+  government: "Government Office",
+  bank: "Bank / Financial",
+  hospital: "Hospital / Healthcare",
+  manufacturing: "Manufacturing",
+  ngo: "NGO",
+  hotel: "Hotel / Hospitality",
+  university: "University / Education",
+  general: "General Company",
+};
 
 const steps = ["organization", "admin", "security"] as const;
 type Step = (typeof steps)[number];
@@ -66,6 +80,7 @@ const SELECT_CLASS =
 export function RegisterForm() {
   const router = useRouter();
   const { t, locale } = useT();
+  const hydrated = useHydrated();
   const orgKinds = useOrganizationTypes();
   const [stepIndex, setStepIndex] = useState(() => {
     if (typeof window !== "undefined") {
@@ -87,6 +102,7 @@ export function RegisterForm() {
     register,
     handleSubmit,
     watch,
+    getValues,
     setValue,
     trigger,
     formState: { errors, isSubmitting },
@@ -94,7 +110,7 @@ export function RegisterForm() {
     resolver: zodResolver(registerSchema),
     defaultValues: {
       organization_name: "",
-      organization_type: "general",
+      organization_type: "",
       organization_kind: "",
       subdomain: "",
       admin_name: "",
@@ -135,6 +151,10 @@ export function RegisterForm() {
   const subdomain = watch("subdomain");
   const orgName = watch("organization_name");
   const orgKind = watch("organization_kind");
+  const orgType = watch("organization_type");
+  const [showAllKinds, setShowAllKinds] = useState(false);
+  const kindSplit = narrowOrgKinds(orgKinds.data ?? [], orgType, orgKind);
+  const kindsNarrowed = kindSplit.rest.length > 0 && !showAllKinds;
   const adminName = watch("admin_name");
   const adminEmail = watch("admin_email");
   const adminPhone = watch("admin_phone");
@@ -208,6 +228,7 @@ export function RegisterForm() {
 
   const step1Valid =
     orgName.trim().length >= 2 &&
+    orgType !== "" &&
     orgKind !== "" &&
     subdomain.trim().length >= 3 &&
     subdomainAvailable !== false;
@@ -355,9 +376,7 @@ export function RegisterForm() {
   return (
     <div className="w-full max-w-lg mx-auto">
       <div className="mb-8">
-        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary shadow-sm">
-          <span className="text-base font-bold text-primary-foreground">E</span>
-        </div>
+        <EthrSymbol className="h-11 w-11" />
         <h1 className="mt-6 text-2xl font-bold tracking-tight text-foreground">
           {t("auth.create_account", "Create your account")}
         </h1>
@@ -407,7 +426,7 @@ export function RegisterForm() {
         ))}
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)}>
+      <form method="post" onSubmit={handleSubmit(onSubmit)}>
         {/* Step 1: Organization */}
         {currentStep === "organization" && (
           <div className="space-y-5">
@@ -451,15 +470,44 @@ export function RegisterForm() {
               </Label>
               <select
                 id="org_type"
-                {...register("organization_type")}
+                {...register("organization_type", {
+                  onChange: (event: { target: { value: string } }) => {
+                    // A kind the new type does not suggest is cleared, not
+                    // kept hidden: the person chooses again from what fits.
+                    const next = narrowOrgKinds(
+                      orgKinds.data ?? [],
+                      event.target.value,
+                    );
+                    if (
+                      next.rest.some(
+                        (kind) => kind.code === getValues("organization_kind"),
+                      )
+                    ) {
+                      setValue("organization_kind", "");
+                    }
+                    setShowAllKinds(false);
+                  },
+                })}
+                aria-invalid={Boolean(errors.organization_type)}
                 className={SELECT_CLASS}
               >
+                <option value="">
+                  {t("auth.org_kind_choose", "Choose one")}
+                </option>
                 {orgTypeKeys.map((key) => (
                   <option key={key} value={key}>
-                    {t(`auth.org_type_${key}`)}
+                    {t(`auth.org_type_${key}`, ORG_TYPE_FALLBACKS[key])}
                   </option>
                 ))}
               </select>
+              {errors.organization_type && (
+                <p role="alert" className="text-xs text-destructive">
+                  {t(
+                    errors.organization_type.message!,
+                    "Choose the type of organisation.",
+                  )}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -479,7 +527,9 @@ export function RegisterForm() {
                 <option value="">
                   {t("auth.org_kind_choose", "Choose one")}
                 </option>
-                {groupOrgKinds(orgKinds.data ?? []).map((section) => (
+                {groupOrgKinds(
+                  kindsNarrowed ? kindSplit.suggested : (orgKinds.data ?? []),
+                ).map((section) => (
                   <optgroup
                     key={section.group || "other"}
                     label={orgKindGroupLabel(section.group, t)}
@@ -498,6 +548,23 @@ export function RegisterForm() {
                   "Decides which tax, pension and labour rules apply to your payroll.",
                 )}
               </p>
+              {kindSplit.rest.length > 0 && (
+                <button
+                  type="button"
+                  className="text-sm text-primary underline-offset-4 hover:underline"
+                  onClick={() => setShowAllKinds((all) => !all)}
+                >
+                  {kindsNarrowed
+                    ? t(
+                        "settings.org_kind_show_all",
+                        "Show every kind of organisation in law",
+                      )
+                    : t(
+                        "settings.org_kind_show_suggested",
+                        "Show only the kinds that match your type of organisation",
+                      )}
+                </button>
+              )}
               {orgKinds.isError && (
                 <p role="alert" className="text-xs text-destructive">
                   {t(
@@ -511,7 +578,7 @@ export function RegisterForm() {
                   {errors.organization_kind
                     ? t(
                         errors.organization_kind.message!,
-                        "Choose the kind of organisation.",
+                        "Choose the kind of organisation in law.",
                       )
                     : fieldErrors.organization_kind[0]}
                 </p>
@@ -819,7 +886,7 @@ export function RegisterForm() {
             <Button
               type="submit"
               className="flex-1 h-11 shadow-sm"
-              disabled={isSubmitting || !step3Valid}
+              disabled={!hydrated || isSubmitting || !step3Valid}
             >
               {isSubmitting ? (
                 <>

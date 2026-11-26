@@ -30,6 +30,10 @@ import { describe, expect, it } from "vitest";
  * images or gradients. AA for large text (3:1) is not asserted, so a pair used
  * only at >=24px is held to the stricter bar here — deliberately, since a token
  * is not sized.
+ *
+ * 2026-11-16: the token is now Slate `#475569`, 7.58:1 on white, 7.24:1 on
+ * `--surface-secondary`, 6.95:1 on Paper. The old `#64748b` measured 4.37:1 on
+ * Paper, under AA, which is why Paper could not ship without this change.
  */
 const CSS = readFileSync(
   join(__dirname, "..", "styles", "globals.css"),
@@ -95,6 +99,8 @@ describe("design token contrast", () => {
     ["text-secondary", "surface-secondary"],
     ["text-primary", "surface-primary"],
     ["text-primary", "surface-secondary"],
+    ["text-primary", "surface-paper"],
+    ["text-secondary", "surface-paper"],
   ])("light theme: --%s on --%s clears AA", (fg, bg) => {
     const ratio = contrast(token(fg, LIGHT), token(bg, LIGHT));
 
@@ -105,8 +111,9 @@ describe("design token contrast", () => {
   });
 
   it("the sidebar's own text clears AA against the sidebar surface", () => {
-    // Its own pair: the sidebar is #0a2e4a in both themes, so a token change made
-    // for the page body can break it without touching anything that looks related.
+    // Its own pair: the light sidebar is Midnight #0a2540, so a token change
+    // made for the page body can break it without touching anything that looks
+    // related.
     const ratio = contrast(
       token("text-on-sidebar", LIGHT),
       token("surface-sidebar", LIGHT),

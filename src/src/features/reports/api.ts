@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
+import { saveBlob } from "@/lib/utils/csv-export";
 import type { components, operations } from "@/api/generated";
 
 type Schemas = components["schemas"];
@@ -33,14 +34,41 @@ export type ReportPreset = Omit<
 };
 
 /**
- * The body of `POST /reports/generate`. Scramble reads the `array` rule on
- * `filters` as a list; ReportEngine reads it as a field → value map.
- * `format` belongs to `/reports/export`, which the page does not call.
+ * The body of `POST /reports/generate`. `filters` is typed by the contract:
+ * dates, a `year` number, a `period` key and unit ids. `format` belongs to
+ * `/reports/export`, which the page does not call.
  */
-export type ReportConfig = Omit<
-  Schemas["GenerateReportRequest"],
-  "filters" | "format"
-> & { filters?: Record<string, string> };
+export type ReportConfig = Omit<Schemas["GenerateReportRequest"], "format">;
+
+/** `filters.period`: a window the server resolves on the day, in the organisation's calendar. */
+export type ReportPeriod = NonNullable<
+  NonNullable<ReportConfig["filters"]>["period"]
+>;
+
+/** The periods a timesheet takes: it covers 31 days at most, and the server refuses a longer window. */
+const TIMESHEET_PERIODS: readonly ReportPeriod[] = [
+  "this_month",
+  "last_month",
+  "yesterday",
+  "last_7_days",
+];
+
+/** The periods the picker offers for a report's data, in the order it lists them. */
+export function reportPeriodsFor(dataSource: string): readonly ReportPeriod[] {
+  return dataSource === "timesheet" ? TIMESHEET_PERIODS : REPORT_PERIODS;
+}
+
+/** Every period key, in the order the picker lists them. */
+export const REPORT_PERIODS: readonly ReportPeriod[] = [
+  "this_month",
+  "last_month",
+  "last_3_months",
+  "last_12_months",
+  "yesterday",
+  "last_7_days",
+  "this_fiscal_year",
+  "last_fiscal_year",
+];
 
 /**
  * Rows are the source's column map. `summary` is `[]` when ungrouped, else
@@ -178,9 +206,24 @@ export function useDeleteScheduledReport() {
   });
 }
 
-// No hook for POST /reports/export, deliberately. It runs the same
-// ReportEngine::generate() call as /reports/generate — same 1000-row limits —
-// so the rows the Reports page already holds from its preview are exactly the
-// rows an export would return, and the page builds the CSV from them through
-// csvCell, which neutralises spreadsheet formulas. ReportEngine::toCsv() does
-// not. The server route stays for API clients and the PDF format.
+// No hook for the CSV side of POST /reports/export, deliberately. It runs the
+// same ReportEngine::generate() call as /reports/generate — same 1000-row
+// limits — so the rows the Reports page already holds from its preview are
+// exactly the rows an export would return, and the page builds the CSV from
+// them through csvCell, which neutralises spreadsheet formulas.
+// ReportEngine::toCsv() does not. The PDF is made only by the server, so it
+// has a download function: downloadReportPdf.
+
+/** The body of a PDF export: a report configuration with its source and format. */
+export type ReportPdfRequest = ReportConfig & { format: "pdf" };
+
+/** The server's PDF of a report (A4 landscape, organisation heading, page numbers), saved as a file. */
+export async function downloadReportPdf(
+  body: ReportPdfRequest,
+  filename: string,
+): Promise<void> {
+  const { data } = await apiClient.post("/reports/export", body, {
+    responseType: "blob",
+  });
+  saveBlob(filename, data);
+}

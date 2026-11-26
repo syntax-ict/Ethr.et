@@ -21,20 +21,19 @@
         .amount { text-align: right; font-family: monospace; white-space: nowrap; }
         .missing { color: #B91C1C; }
         tr.total td { font-weight: bold; border-top: 2px solid #0F4C75; border-bottom: none; }
-        .sign { margin-top: 22px; width: 100%; }
-        .sign td { width: 33%; padding-top: 18px; border-top: 1px solid #94A3B8; color: #64748B; }
         .footer { margin-top: 10px; font-size: 7px; color: #94A3B8; }
     </style>
 </head>
 <body>
+    @include('pdf.partials.letterhead', ['letterhead' => $letterhead ?? ['name' => (string) ($header['employer_name'] ?? ''), 'logo' => null, 'lines' => []], 'compact' => true])
     <h1>{{ $header['title'] }}</h1>
     <p class="agency">{{ $header['agency'] }}</p>
 
     <table class="meta">
         <tr><td class="label">Employer</td><td>{{ $header['employer_name'] }}</td>
-            <td class="label">Employer TIN</td><td class="{{ $header['employer_tin'] ? '' : 'missing' }}">{{ $header['employer_tin'] ?? 'Not set — Settings → Payroll' }}</td></tr>
+            <td class="label">Employer TIN</td><td class="{{ $header['employer_tin'] ? '' : 'missing' }}">{{ $header['employer_tin'] ?? 'Not set. Add it in Settings, Payroll' }}</td></tr>
         <tr><td class="label">Period</td><td>{{ $header['period'] }}</td>
-            <td class="label">Tax centre</td><td>{{ $header['tax_center'] ?? '—' }}</td></tr>
+            <td class="label">Tax centre</td><td>{{ $header['tax_center'] ?? '' }}</td></tr>
     </table>
 
     @unless($header['approved'])
@@ -67,9 +66,11 @@
         </tbody>
     </table>
 
-    <table class="sign">
-        <tr><td>Prepared by</td><td>Checked by</td><td>Authorised signature and stamp</td></tr>
-    </table>
+    @include('pdf.partials.signatures', ['labels' => [
+        __('report.signatures.prepared', [], 'en'),
+        __('report.signatures.checked', [], 'en'),
+        __('report.signatures.authorised', [], 'en'),
+    ]])
 
     <p class="footer">Generated {{ $header['generated_at'] }} by ETHR. Amounts in ETB.</p>
 </body>

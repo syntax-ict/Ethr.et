@@ -90,6 +90,20 @@ describe("buildCsv (the contract it had before the rewrite)", () => {
  * without one, every Amharic name is garbled (2026-10-20, blueprint RP20). A
  * file another system imports opts out.
  */
+describe("buildCsv, a note under the rows", () => {
+  it("ends with an empty line and the note as one escaped cell", () => {
+    const csv = buildCsv([{ a: "1" }, { a: "2" }], {
+      note: 'Showing 2 of 9, "newest"',
+    });
+    expect(csv).toBe('a\n1\n2\n\n"Showing 2 of 9, ""newest"""');
+  });
+
+  it("adds nothing without a note, and nothing to an empty file", () => {
+    expect(buildCsv([{ a: "1" }], { note: null })).toBe("a\n1");
+    expect(buildCsv([], { note: "x" })).toBe("");
+  });
+});
+
 describe("saveCsv", () => {
   async function savedBytes(options?: { byteOrderMark?: boolean }) {
     let saved: Blob | undefined;

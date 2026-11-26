@@ -18,6 +18,8 @@ import { useZodForm } from "@/lib/forms/use-zod-form";
 import { queryOrganisation, signInHref } from "@/lib/auth/entry-organisation";
 import { useAuthHostContext } from "@/lib/auth/use-auth-host-context";
 import { useT } from "@/lib/i18n/useT";
+import { useHydrated } from "@/lib/hooks/useHydrated";
+import { EthrSymbol } from "@/components/shared/ethr-logo";
 
 const activateSchema = z
   .object({
@@ -45,13 +47,24 @@ function Activate() {
   const params = useSearchParams();
   const router = useRouter();
   const { t } = useT();
+  const hydrated = useHydrated();
 
-  const tenant = params.get("tenant") ?? "";
   const carryOrganisation = queryOrganisation(params.toString());
 
   const [showPassword, setShowPassword] = useState(false);
   const [done, setDone] = useState(false);
-  const { context, tenantName, tenantBrand } = useAuthHostContext();
+  const {
+    context,
+    tenantSlug,
+    tenantName,
+    tenantBrand,
+    tenantContextLoading,
+    hostLookupPending,
+  } = useAuthHostContext();
+  // The link names the organisation, or, on the organisation's own address,
+  // the host already does. Only the apex with no `?tenant=` has no answer.
+  const tenant =
+    params.get("tenant") || (context === "tenant" ? (tenantSlug ?? "") : "");
   const organisationName = context === "tenant" ? tenantName : null;
 
   const {
@@ -89,6 +102,14 @@ function Activate() {
   }, [setValue]);
 
   const password = watch("password");
+
+  if (!tenant && (tenantContextLoading || hostLookupPending)) {
+    return (
+      <div className="flex w-full max-w-sm justify-center" aria-busy="true">
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   if (!tenant) {
     return (
@@ -183,9 +204,7 @@ function Activate() {
             initialClassName="text-lg"
           />
         ) : (
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary">
-            <span className="text-lg font-bold text-primary-foreground">E</span>
-          </div>
+          <EthrSymbol className="mx-auto h-12 w-12" />
         )}
         <h1 className="mt-4 text-2xl font-bold text-foreground">
           {t("auth.activate_title", "Activate your account")}
@@ -199,6 +218,7 @@ function Activate() {
       </div>
 
       <form
+        method="post"
         onSubmit={submit(
           onSubmit,
           t("auth.activate_failed", "Could not activate the account."),
@@ -290,7 +310,11 @@ function Activate() {
           />
         </FormField>
 
-        <Button type="submit" className="w-full" disabled={isSubmitting}>
+        <Button
+          type="submit"
+          className="w-full"
+          disabled={!hydrated || isSubmitting}
+        >
           {isSubmitting ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />{" "}

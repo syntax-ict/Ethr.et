@@ -30,6 +30,9 @@ final class PortalHead
 {
     public const DESCRIPTION_MAX = 160;
 
+    /** The Open Graph locale of each shipped language. */
+    private const OG_LOCALES = ['en' => 'en_US', 'am' => 'am_ET', 'om' => 'om_ET'];
+
     private const EMPLOYMENT_TYPES = [
         'full_time' => 'FULL_TIME',
         'part_time' => 'PART_TIME',
@@ -83,9 +86,7 @@ final class PortalHead
             '<meta property="og:image:width" content="'.PortalPreviewImage::WIDTH.'">',
             '<meta property="og:image:height" content="'.PortalPreviewImage::HEIGHT.'">',
             '<meta property="og:image:alt" content="'.$e($name).'">',
-            '<meta property="og:locale" content="en_US">',
-            '<meta property="og:locale:alternate" content="am_ET">',
-            '<meta property="og:locale:alternate" content="om_ET">',
+            self::localeTags($tenant),
             '<meta name="twitter:card" content="summary_large_image">',
             '<meta name="twitter:title" content="'.$e($name).'">',
             '<meta name="twitter:description" content="'.$e($description).'">',
@@ -99,10 +100,6 @@ final class PortalHead
         return implode("\n", $tags);
     }
 
-    /**
-     * The head of the organisation's news page (`/news`): its title and a
-     * line saying what the page is, at its canonical address.
-     */
     /**
      * The robots line of a news page, which has one more question to answer
      * than the rest of the portal: an organisation that has published
@@ -122,20 +119,59 @@ final class PortalHead
         return $hasArticles || str_contains($robots, 'noindex') ? $robots : 'noindex, follow';
     }
 
-    public static function news(Tenant $tenant, bool $hasArticles = true): string
+    /**
+     * The head of the organisation's news page (`/news`): its title and a
+     * line saying what the page is, at its canonical address, and the stories
+     * its first page lists as a CollectionPage and an ItemList, in the order
+     * the page itself shows them. An organisation with no stories has no list.
+     *
+     * @param  list<Announcement>  $articles  the first page of public stories, in `Announcement::scopeNewsOrder()` order
+     */
+    public static function news(Tenant $tenant, array $articles): string
     {
         $landing = TenantLanding::present($tenant);
         $name = $tenant->name;
+        $locale = self::locale($tenant);
+        $word = __('general.portal_news_title', [], $locale);
+        $url = self::newsUrl($tenant);
+        $title = "{$word} · {$name}";
+
+        $jsonLd = [];
+        if ($articles !== []) {
+            $jsonLd[] = [
+                '@context' => 'https://schema.org',
+                '@type' => 'CollectionPage',
+                'name' => $title,
+                'url' => $url,
+                'mainEntity' => [
+                    '@type' => 'ItemList',
+                    'itemListElement' => array_map(
+                        fn (Announcement $article, int $at): array => [
+                            '@type' => 'ListItem',
+                            'position' => $at + 1,
+                            'url' => self::newsUrl($tenant, $article->public_id),
+                            'name' => Str::limit($article->title, 110, '…'),
+                        ],
+                        $articles,
+                        array_keys($articles),
+                    ),
+                ],
+            ];
+        }
+        $jsonLd[] = self::breadcrumb([
+            ['name' => $name, 'url' => FrontendUrl::at($tenant, 'login')],
+            ['name' => $word, 'url' => $url],
+        ]);
 
         return self::page(
             $tenant,
             $landing,
-            title: "News · {$name}",
-            description: "News and announcements from {$name}.",
-            url: self::newsUrl($tenant),
+            title: $title,
+            description: __('general.portal_news_description', ['name' => $name], $locale),
+            url: $url,
             type: 'website',
-            jsonLd: [],
-            robots: self::newsRobots($tenant, $hasArticles),
+            jsonLd: $jsonLd,
+            robots: self::newsRobots($tenant, $articles !== []),
         );
     }
 
@@ -150,36 +186,48 @@ final class PortalHead
         $landing = TenantLanding::present($tenant);
         $brand = TenantBrand::present($tenant);
         $url = self::newsUrl($tenant, $article->public_id);
-        $text = trim((string) preg_replace('/\s+/u', ' ', strip_tags($article->body)));
-        $description = Str::limit($text, self::DESCRIPTION_MAX, '…');
+        $description = PlainExcerpt::line($article->body, self::DESCRIPTION_MAX, '…');
         $published = Carbon::make($article->published_at);
+        $modified = Carbon::make($article->updated_at);
         $cover = $article->coverPresented($tenant->public_id);
+        $locale = self::locale($tenant);
+        $body = PlainExcerpt::of($article->body, 5000);
+        $home = FrontendUrl::at($tenant, 'login');
+        $headline = Str::limit($article->title, 110, '…');
 
         return self::page(
             $tenant,
             $landing,
             title: Str::limit($article->title, 90, '…').' · '.$tenant->name,
-            description: $description === '' ? "News from {$tenant->name}." : $description,
+            description: $description === '' ? __('general.portal_news_description', ['name' => $tenant->name], $locale) : $description,
             url: $url,
             type: 'article',
             jsonLd: [array_filter([
                 '@context' => 'https://schema.org',
                 '@type' => 'NewsArticle',
-                'headline' => Str::limit($article->title, 110, '…'),
+                'headline' => $headline,
                 'description' => $description === '' ? null : $description,
+                'articleBody' => $body === '' ? null : $body,
+                'inLanguage' => self::articleLanguage($article, $locale),
                 'image' => $cover === null ? null : FrontendUrl::to($cover['url']),
                 'datePublished' => $published?->toIso8601String(),
-                'dateModified' => Carbon::make($article->updated_at)?->toIso8601String() ?? $published?->toIso8601String(),
+                'dateModified' => $modified?->toIso8601String() ?? $published?->toIso8601String(),
                 'url' => $url,
                 'mainEntityOfPage' => $url,
+                'author' => ['@type' => 'Organization', 'name' => $tenant->name, 'url' => $home],
                 'publisher' => array_filter([
                     '@type' => 'Organization',
                     'name' => $tenant->name,
-                    'url' => FrontendUrl::at($tenant, 'login'),
+                    'url' => $home,
                     'logo' => is_string($brand['logo_url'] ?? null) ? ['@type' => 'ImageObject', 'url' => self::absolute($brand['logo_url'])] : null,
                 ], static fn ($v) => $v !== null),
-            ], static fn ($v) => $v !== null)],
+            ], static fn ($v) => $v !== null), self::breadcrumb([
+                ['name' => $tenant->name, 'url' => $home],
+                ['name' => __('general.portal_news_title', [], $locale), 'url' => self::newsUrl($tenant)],
+                ['name' => $headline, 'url' => $url],
+            ])],
             published: $published,
+            modified: $modified,
             image: $cover === null ? null : [
                 'url' => FrontendUrl::to($cover['url']),
                 'width' => $cover['width'],
@@ -222,6 +270,7 @@ final class PortalHead
         string $type,
         array $jsonLd,
         ?Carbon $published = null,
+        ?Carbon $modified = null,
         ?array $image = null,
         ?string $robots = null,
     ): string {
@@ -264,12 +313,13 @@ final class PortalHead
             '<meta property="og:image:width" content="'.$image['width'].'">',
             '<meta property="og:image:height" content="'.$image['height'].'">',
             '<meta property="og:image:alt" content="'.$e($image['alt']).'">',
-            '<meta property="og:locale" content="en_US">',
-            '<meta property="og:locale:alternate" content="am_ET">',
-            '<meta property="og:locale:alternate" content="om_ET">',
+            self::localeTags($tenant),
         );
         if ($published !== null) {
             $tags[] = '<meta property="article:published_time" content="'.$e($published->toIso8601String()).'">';
+        }
+        if ($modified !== null) {
+            $tags[] = '<meta property="article:modified_time" content="'.$e($modified->toIso8601String()).'">';
         }
         array_push(
             $tags,
@@ -283,6 +333,87 @@ final class PortalHead
         }
 
         return implode("\n", $tags);
+    }
+
+    /**
+     * The organisation's own language, which the fixed words of its news
+     * heads are said in and its Open Graph locale follows. The application's
+     * locale is left alone: this is passed to `__()` explicitly.
+     */
+    private static function locale(Tenant $tenant): string
+    {
+        return Locales::orDefault($tenant->default_locale);
+    }
+
+    /** The Open Graph locale of a shipped language; English when none is named. */
+    public static function ogLocale(string $locale): string
+    {
+        return self::OG_LOCALES[$locale] ?? self::OG_LOCALES[Locales::DEFAULT];
+    }
+
+    /**
+     * `og:locale` for the organisation's language and the other two as
+     * alternates: one place, for the sign-in portal's head and the news heads.
+     *
+     * Several tags in one string, so a caller can place them as one entry.
+     */
+    private static function localeTags(Tenant $tenant): string
+    {
+        $primary = self::ogLocale(self::locale($tenant));
+        $tags = ['<meta property="og:locale" content="'.$primary.'">'];
+        foreach (self::OG_LOCALES as $og) {
+            if ($og !== $primary) {
+                $tags[] = '<meta property="og:locale:alternate" content="'.$og.'">';
+            }
+        }
+
+        return implode("\n", $tags);
+    }
+
+    /**
+     * The language a story is written in, or null when that cannot be said
+     * with confidence: a wrong language is worse than none. Ethiopic letters
+     * in the majority count only for an Amharic organisation, Latin letters
+     * in the majority only for an English or Afaan Oromoo one, because the
+     * script alone does not tell Amharic from Tigrinya, or English from
+     * Afaan Oromoo, and the organisation's own language is what is known.
+     */
+    private static function articleLanguage(Announcement $article, string $locale): ?string
+    {
+        $text = $article->title.' '.strip_tags($article->body);
+        $ethiopic = (int) preg_match_all('/\p{Ethiopic}/u', $text);
+        $latin = (int) preg_match_all('/\p{Latin}/u', $text);
+
+        if ($ethiopic > $latin && $locale === 'am') {
+            return 'am';
+        }
+        if ($latin > $ethiopic && ($locale === 'en' || $locale === 'om')) {
+            return $locale;
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  list<array{name: string, url: string}>  $crumbs  from the organisation's home to the page
+     * @return array<string, mixed>
+     */
+    private static function breadcrumb(array $crumbs): array
+    {
+        return [
+            '@context' => 'https://schema.org',
+            '@type' => 'BreadcrumbList',
+            'itemListElement' => array_map(
+                static fn (array $crumb, int $at): array => [
+                    '@type' => 'ListItem',
+                    'position' => $at + 1,
+                    'name' => $crumb['name'],
+                    'item' => $crumb['url'],
+                ],
+                $crumbs,
+                array_keys($crumbs),
+            ),
+        ];
     }
 
     /**
@@ -319,6 +450,15 @@ final class PortalHead
      * sweep in `statePayloadRobots()`, which runs on every response. The
      * other half is the rendered-DOM check in that runbook.
      *
+     * The description is written into the payload for the same reason. The
+     * exports carry their own generic one there ("News and announcements.",
+     * "Sign in to your ETHR workspace."), so after hydration a page held two
+     * description tags, the organisation's and the export's. Measured
+     * 2026-11-23 on `/login`, `/news` and an article. Unlike robots it is
+     * free text an organisation or an author wrote, so it is encoded
+     * (`statePayloadDescription()`). The description is read back out of
+     * `$head`, so the head and the payload cannot disagree.
+     *
      * The `.txt` payload files beside each page are left alone. They are read
      * only for navigation between pages once the app is running, and a
      * crawler renders each address from its own HTML.
@@ -336,6 +476,9 @@ final class PortalHead
             $html = (string) preg_replace('#<link rel="(?:icon|apple-touch-icon)"[^>]*>#', '', $html);
         }
         $html = self::statePayloadRobots($html, $robots);
+        if (preg_match('#<meta name="description" content="([^"]*)">#', $head, $found) === 1) {
+            $html = self::statePayloadDescription($html, htmlspecialchars_decode($found[1], ENT_QUOTES));
+        }
 
         $at = stripos($html, '</head>');
         if ($at === false) {
@@ -362,19 +505,7 @@ final class PortalHead
      */
     private static function statePayloadRobots(string $html, string $robots): string
     {
-        $opening = '\"name\":\"robots\",\"content\":\"';
-        $closing = '\"';
-
-        $offset = 0;
-        while (($at = strpos($html, $opening, $offset)) !== false) {
-            $from = $at + strlen($opening);
-            $to = strpos($html, $closing, $from);
-            if ($to === false) {
-                break;
-            }
-            $html = substr_replace($html, $robots, $from, $to - $from);
-            $offset = $from + strlen($robots);
-        }
+        $html = self::rewritePayloadMeta($html, 'robots', $robots);
 
         if (! str_contains($robots, 'noindex') && str_contains($html, 'noindex')) {
             Log::error('A portal page still says noindex after its robots line was stated.', [
@@ -384,6 +515,113 @@ final class PortalHead
         }
 
         return $html;
+    }
+
+    /**
+     * The organisation's description written over every `description` entry
+     * in the page's React payload, so the tag React renders at hydration says
+     * what the head says (see `inject()`).
+     *
+     * A description is free text, so it is encoded the way the payload holds
+     * it: JSON, with `<`, `>` and `&` as escapes so it can never close the
+     * `<script>` it sits in, then the quotes and backslashes of that JSON
+     * escaped again for the JavaScript string around it. A value that starts
+     * with `$` gets a second one, which is how React's payload writes a
+     * literal dollar sign rather than a reference.
+     *
+     * The sweep says that the export's shape is no longer recognised when a
+     * description entry is left that was not rewritten, or one that does not
+     * read back as what was written. It never throws: the page is still served.
+     */
+    private static function statePayloadDescription(string $html, string $description): string
+    {
+        $encoded = self::payloadString(str_starts_with($description, '$') ? '$'.$description : $description);
+        $html = self::rewritePayloadMeta($html, 'description', $encoded);
+
+        $named = substr_count($html, '\"name\":\"description\"');
+        $recognised = 0;
+        $unchanged = true;
+        $opening = '\"name\":\"description\",\"content\":\"';
+        $offset = 0;
+        while (($at = strpos($html, $opening, $offset)) !== false) {
+            $from = $at + strlen($opening);
+            $to = self::payloadValueEnd($html, $from);
+            $recognised++;
+            if ($to === null || substr($html, $from, $to - $from) !== $encoded) {
+                $unchanged = false;
+            }
+            $offset = $from;
+        }
+
+        if ($named !== $recognised || ! $unchanged) {
+            Log::error('A portal page still carries a description that was not the one stated: the shape of the export is no longer recognised.', [
+                'likely_cause' => 'the exported page serialises its description in a shape PortalHead no longer recognises',
+            ]);
+        }
+
+        return $html;
+    }
+
+    /**
+     * Every `{name, content}` entry for `$name` in the React payload, its
+     * content replaced by `$encoded`, which is already in payload form.
+     * Scanned rather than matched with a pattern: the surrounding text is
+     * full of backslashes, and a pattern for it is unreadable and easy to get
+     * subtly wrong.
+     */
+    private static function rewritePayloadMeta(string $html, string $name, string $encoded): string
+    {
+        $opening = '\"name\":\"'.$name.'\",\"content\":\"';
+
+        $offset = 0;
+        while (($at = strpos($html, $opening, $offset)) !== false) {
+            $from = $at + strlen($opening);
+            $to = self::payloadValueEnd($html, $from);
+            if ($to === null) {
+                break;
+            }
+            $html = substr_replace($html, $encoded, $from, $to - $from);
+            $offset = $from + strlen($encoded);
+        }
+
+        return $html;
+    }
+
+    /**
+     * Where the payload string that starts at `$from` ends: the offset of the
+     * backslash of the escaped quote that closes it, or null when it never
+     * closes. The closing quote is written `\"` (one backslash). A quote that
+     * is part of the value is JSON `\"`, which the JavaScript string writes
+     * `\\\"` (three), and a value that ends in a backslash closes as `\\\\\"`
+     * (five). So a quote closes the value when the run of backslashes before
+     * it is one more than a multiple of four.
+     */
+    private static function payloadValueEnd(string $html, int $from): ?int
+    {
+        $length = strlen($html);
+        $run = 0;
+        for ($i = $from; $i < $length; $i++) {
+            $char = $html[$i];
+            if ($char === '\\') {
+                $run++;
+
+                continue;
+            }
+            if ($char === '"' && $run % 4 === 1) {
+                return $i - 1;
+            }
+            $run = 0;
+        }
+
+        return null;
+    }
+
+    /** `$value` as it is held inside a payload string, without its outer quotes. */
+    private static function payloadString(string $value): string
+    {
+        $json = json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_THROW_ON_ERROR);
+
+        return str_replace(['\\', '"'], ['\\\\', '\\"'], substr($json, 1, -1));
     }
 
     /**

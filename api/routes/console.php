@@ -2,11 +2,14 @@
 
 use App\Jobs\AccrueLeaveBalancesJob;
 use App\Jobs\ApplyDuePersonnelActionsJob;
+use App\Jobs\BackfillBankAccountHashesJob;
 use App\Jobs\CarryForwardLeaveBalancesJob;
 use App\Jobs\CleanupExpiredDataJob;
 use App\Jobs\GenerateMonthlyInvoicesJob;
 use App\Jobs\HandleOverdueInvoicesJob;
 use App\Jobs\NotifyExpiringTrialsJob;
+use App\Jobs\ProcessDeviceInboundPunchesJob;
+use App\Jobs\RecordHeldPunchesJob;
 use App\Jobs\RollForwardHolidaysJob;
 use App\Jobs\RunDashboardDigestsJob;
 use App\Jobs\RunScheduledReportsJob;
@@ -19,6 +22,7 @@ use App\Services\Leave\LeaveYear;
 use App\Services\Observability\QueueHealth;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('inspire', function () {
@@ -27,6 +31,19 @@ Artisan::command('inspire', function () {
 
 // Pull events from all registered biometric devices every 5 minutes
 Schedule::command('devices:sync')->everyFiveMinutes()->withoutOverlapping();
+
+// A terminal that only sends to ETHR (ADMS, Hikvision push, ZKTeco or Suprema
+// with no address) goes quiet while its organisation is at work: tell the
+// tenant and HR admins, at most once a day per device. Every fifteen minutes,
+// a multiple of the five the external scheduler caller ticks at; the limits
+// (30 and 60 minutes) already allow for that caller running 10 to 20 minutes
+// late. Skips pulled terminals, which PullDeviceEventsJob already reports.
+Schedule::command('devices:watch-silence')->everyFifteenMinutes()->name('devices-watch-silence')->withoutOverlapping();
+
+// Tell the admins when an account that follows its job title starts waiting for
+// someone who may give it the role the title names. One notice per organisation
+// per new set of waiting accounts, so a bulk change is one notice, not many.
+Schedule::command('access:watch-held-titles')->everyFifteenMinutes()->name('access-watch-held-titles')->withoutOverlapping();
 
 // Close check-ins left open past the shift's end, at the shift's end, for
 // organisations that turned auto check-out on (AttendanceSetting). Every five
@@ -70,6 +87,15 @@ Schedule::command('tenancy:recheck-custom-domains')
 // The per-tenant sweeps below select Tenant::operational(): active tenants and
 // unexpired trials, the same set Tenant::isActive() accepts. Not
 // where('status', 'active'), which skipped every tenant on its six-month trial.
+
+// Pushed terminal punches still waiting after two minutes: a run that failed
+// all its tries leaves them pending and a heartbeat adds no row to queue
+// another, so the evening's last punches would wait for the next new one.
+Schedule::call(fn () => ProcessDeviceInboundPunchesJob::sweepStranded())->everyFiveMinutes()->name('device-inbox-sweep')->withoutOverlapping();
+
+// Held punches of a badge whose number has since been written on one current
+// employee are recorded without a click (BASELINE §25t). A name alone never.
+Schedule::call(fn () => RecordHeldPunchesJob::sweep())->everyFiveMinutes()->name('held-punches-auto-record')->withoutOverlapping();
 
 // Scan previous workday for missing punches — 18:30 EAT = 15:30 UTC
 Schedule::call(function () {
@@ -133,6 +159,20 @@ Schedule::call(function () {
     });
 })->hourlyAt(5)->name('apply-due-personnel-actions')->withoutOverlapping();
 
+// Bank account hashes for the shared-account check before approval, on rows
+// saved before the hash existed (2026-11-22). Only operational organisations
+// with a row still to fill get a job, so once every row has one this queues
+// nothing.
+Schedule::call(function () {
+    DB::table('employee_bank_details')
+        ->whereNull('account_number_hash')
+        ->whereNotNull('account_number')
+        ->whereIn('tenant_id', Tenant::operational()->select('id'))
+        ->distinct()
+        ->pluck('tenant_id')
+        ->each(fn (mixed $tenantId) => BackfillBankAccountHashesJob::dispatch((int) $tenantId));
+})->hourlyAt(20)->name('backfill-bank-account-hashes')->withoutOverlapping();
+
 // Where each organisation is between sign-up and using ETHR, for the console
 // (docs/operations/TENANT-JOURNEY.md). Only snapshots older than fifty minutes
 // are recomputed, so an hourly tick refreshes each once.
@@ -168,15 +208,47 @@ Schedule::call(function () {
     });
 })->dailyAt('06:05')->name('send-expiry-reminders')->withoutOverlapping();
 
+// The three billing-and-cleanup entries below carry a ->name() and, unlike every
+// other entry in this file, deliberately NOT ->withoutOverlapping(). Both halves
+// were decided on 2026-11-13; the names were simply missing, and the absent
+// mutex needs the reasoning written down so it is not "fixed" later.
+//
+// Why a name: `schedule:list` showed these three as `App\Jobs\…` while every
+// neighbour showed a readable slug, and the per-task run ledger this file is
+// heading for (OPERATIONS-CENTRE-SPEC.md G3) keys on the event name. A ledger
+// half-keyed on class names is a ledger nobody can read.
+//
+// Why no mutex. For a Schedule::job() the event's "run" is only the dispatch, so
+// the mutex is held for microseconds and guards nothing that is not already
+// guarded twice over:
+//
+//   1. CronRunner::exclusively() holds a `cron:schedule` cache lock around the
+//      WHOLE scheduler run, shared by the /cron/schedule endpoint and the
+//      after-response hook, so two scheduler runs cannot overlap at all.
+//   2. Each of these three is re-run safe in its own right, which is the
+//      property that actually matters, because the lock has a 110 s TTL and a
+//      run that outlives it (ethr:backup is in the same sweep) could in
+//      principle let a second caller replay the window — ethr:schedule-run only
+//      writes its last-run marker at the end. generateMonthlyInvoice() is
+//      idempotent per calendar month and says so; HandleOverdueInvoicesJob
+//      advances invoices by status, so a second pass selects nothing; and
+//      CleanupExpiredDataJob deletes expired rows, where a repeat is a no-op.
+//
+// Against that, Laravel's default mutex expiry is 1440 minutes. A process killed
+// between creating the mutex and releasing it — this host kills long web
+// requests — would block a DAILY entry for 24 hours. That trades a harmless
+// repeat for a skipped day of dunning or cleanup, which is the worse failure.
+// If one of these ever stops being re-run safe, fix the job, not this line.
+
 // Generate monthly invoices on the 1st of each month at 03:00 UTC (06:00 EAT)
-Schedule::job(new GenerateMonthlyInvoicesJob)->monthlyOn(1, '03:00');
+Schedule::job(new GenerateMonthlyInvoicesJob)->monthlyOn(1, '03:00')->name('generate-monthly-invoices');
 
 // Handle overdue invoices daily at 04:00 UTC (07:00 EAT)
-Schedule::job(new HandleOverdueInvoicesJob)->dailyAt('04:00');
+Schedule::job(new HandleOverdueInvoicesJob)->dailyAt('04:00')->name('handle-overdue-invoices');
 
 // Cleanup expired data daily at 02:00 UTC (05:00 EAT)
 // Notifications: 90 days, Webhook deliveries: 30 days, Import staging: 7 days
-Schedule::job(new CleanupExpiredDataJob)->dailyAt('02:00');
+Schedule::job(new CleanupExpiredDataJob)->dailyAt('02:00')->name('cleanup-expired-data');
 
 // Full backup daily at 01:00 UTC (04:00 EAT) — before the 02:00 cleanup, so a
 // backup always exists from before data was pruned rather than after.
@@ -203,9 +275,15 @@ Schedule::command('ethr:backup')
 // Scheduler heartbeat — the cheapest entry here and the one that makes the rest
 // observable. Everything asynchronous in ETHR arrives through an external caller
 // POSTing to /api/v1/cron/schedule on a timer; if that stops, jobs stop and
-// nothing says so. This records that the scheduler ran, so `ethr:queue:check` and
-// the health endpoint can tell "quiet" from "dead". Because the caller is
-// off-host, there is no cron entry to inspect and this beat is the ONLY signal.
+// nothing says so. This records that the scheduler ran, so the health endpoint,
+// /admin/operations and `ethr:queue:check` can tell "quiet" from "dead".
+// Because the caller is off-host, there is no cron entry to inspect and this
+// beat is the ONLY signal the host has.
+//
+// Which of those three is watched in production: the health endpoint, polled by
+// an off-host monitor. `ethr:queue:check` is a command for a terminal — nothing
+// here runs it, and nothing should, since a watchdog this scheduler starts
+// cannot report that this scheduler stopped (docs/operations/QUEUE-MONITORING.md).
 //
 // `everyMinute()` is correct and is not a cadence claim: it means "beat on every
 // scheduler invocation". With the */5 caller that is a beat every five minutes,

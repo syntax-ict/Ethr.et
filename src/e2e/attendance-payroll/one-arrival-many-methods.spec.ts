@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { api } from "../helpers";
-import { addisDate, as, devicePunch, employeeId, live, minutesAgo, recordsOf } from "./support";
+import { addisDate, as, devicePunch, earlierToday, employeeId, live, minutesAgo, recordsOf, recordsWhen } from "./support";
 
 /**
  * J3, acceptance matrix A5 and A7: one arrival reported again and again. The
@@ -13,7 +13,7 @@ import { addisDate, as, devicePunch, employeeId, live, minutesAgo, recordsOf } f
  * planned after this suite.
  */
 test("one arrival reported four times is one live record", async ({ browser, request }) => {
-  const arrived = minutesAgo(120);
+  const arrived = earlierToday(120);
   const seenAgain = new Date(arrived.getTime() + 60_000);
 
   expect(await devicePunch(request, "e2e-att", "9002", "check_in", arrived)).toBe(1);
@@ -25,6 +25,12 @@ test("one arrival reported four times is one live record", async ({ browser, req
   const admin = await as(browser, "e2e-att", "admin");
 
   try {
+    const person = await employeeId(admin.page, "ATT-0002");
+    const day = { from: addisDate(minutesAgo(1560)), to: addisDate(new Date()) };
+    // The terminal is answered once its punches are in the inbox; the kiosk
+    // punch has to come after the queue has recorded them.
+    await recordsWhen(admin.page, person, day.from, day.to, (found) => live(found).length > 0);
+
     const kiosk = await api(admin.page, "POST", "/attendance/kiosk", {
       idempotency_key: `j3-kiosk-${Date.now()}`,
       employee_code: "ATT-0002",
@@ -35,8 +41,7 @@ test("one arrival reported four times is one live record", async ({ browser, req
     expect(kiosk.data.outcome.code).toBe("already_checked_in");
     expect(kiosk.data.outcome.by).toBe("biometric");
 
-    const person = await employeeId(admin.page, "ATT-0002");
-    const rows = await recordsOf(admin.page, person, addisDate(minutesAgo(1560)), addisDate(new Date()));
+    const rows = await recordsOf(admin.page, person, day.from, day.to);
     const open = live(rows);
 
     expect(open).toHaveLength(1);

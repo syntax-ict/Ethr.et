@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Enums\AttendanceStatus;
 use App\Models\AttendanceRecord;
 use App\Models\AttendanceSetting;
 use App\Models\AuditLog;
@@ -17,6 +18,7 @@ use App\Services\CurrentTenant;
 use App\Support\TenantTime;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 use Throwable;
 
 /**
@@ -83,6 +85,9 @@ class AutoCheckoutCommand extends Command
 
         AttendanceRecord::query()
             ->where('tenant_id', $tenant->id)
+            // A voided duplicate keeps its check-in and has no check-out; it
+            // is not an open day, and closing it would count it again.
+            ->where('status', '!=', AttendanceStatus::VOIDED)
             ->whereNotNull('check_in')
             ->whereNull('check_out')
             ->whereNotNull('shift_id')
@@ -90,7 +95,7 @@ class AutoCheckoutCommand extends Command
             // resolve, not something to close automatically.
             ->where('check_in', '>=', $now->copy()->subDays(2))
             ->with(['shift', 'employee.user'])
-            ->chunkById(200, function ($records) use ($zone, $now, $settings, $engine, &$closed): void {
+            ->chunkById(200, function ($records) use ($tenant, $zone, $now, $settings, $engine, &$closed): void {
                 foreach ($records as $record) {
                     /** @var AttendanceRecord $record */
                     if ($record->shift === null || $record->date === null) {
@@ -116,13 +121,39 @@ class AutoCheckoutCommand extends Command
                         continue;
                     }
 
-                    $record->update([
-                        'check_out' => $endUtc,
-                        'metadata' => array_merge($record->metadata ?? [], [
-                            'auto_checkout' => true,
-                            'auto_checkout_at' => $now->toIso8601String(),
-                        ]),
-                    ]);
+                    // The chunk was loaded earlier: the person's own check-out may
+                    // have landed since (a device backlog draining, the queue and
+                    // the schedule running together). Close the row only if it is
+                    // still open, merging metadata from the row as it is now, and
+                    // leave a record that is no longer open entirely alone.
+                    $closedNow = DB::transaction(function () use ($record, $tenant, $endUtc, $now): bool {
+                        $current = AttendanceRecord::query()
+                            ->where('tenant_id', $tenant->id)
+                            ->whereKey($record->id)
+                            ->whereNull('check_out')
+                            ->lockForUpdate()
+                            ->first();
+
+                        if ($current === null) {
+                            return false;
+                        }
+
+                        return AttendanceRecord::query()
+                            ->where('tenant_id', $tenant->id)
+                            ->whereKey($record->id)
+                            ->whereNull('check_out')
+                            ->update([
+                                'check_out' => $endUtc,
+                                'metadata' => json_encode(array_merge($current->metadata ?? [], [
+                                    'auto_checkout' => true,
+                                    'auto_checkout_at' => $now->toIso8601String(),
+                                ])),
+                            ]) === 1;
+                    });
+                    if (! $closedNow) {
+                        continue;
+                    }
+                    $record->refresh();
                     $engine->reclassify($record);
 
                     AuditLog::record('attendance.auto_checkout', $record, [

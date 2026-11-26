@@ -107,6 +107,22 @@ class AttendanceRecord extends Model
         return $paths;
     }
 
+    /**
+     * The selfies of check-outs that a return from a break undid, kept in the
+     * day's breaks. Not shown with the check-in and check-out ones
+     * (`photoPaths()`): they belong to retention, which must delete them.
+     *
+     * @return list<string>
+     */
+    public function breakPhotoPaths(): array
+    {
+        return collect((array) ($this->metadata['breaks'] ?? []))
+            ->pluck('photo')
+            ->filter(fn ($path) => is_string($path) && $path !== '')
+            ->values()
+            ->all();
+    }
+
     /** @return BelongsTo<User, $this> */
     public function photoHolder(): BelongsTo
     {

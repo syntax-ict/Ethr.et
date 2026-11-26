@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { templateCsv, toGrid } from "@/features/onboarding/v2/parse-people";
+import {
+  decodeText,
+  templateCsv,
+  toGrid,
+} from "@/features/onboarding/v2/parse-people";
 
 /*
  * The browser splits a list into cells and nothing more (2026-11-11). What a
@@ -74,5 +78,69 @@ describe("splitting a list of people into cells", () => {
     expect(toGrid(templateCsv(headers, "gregorian"))).toEqual([
       ["name", "hire_date (G.C.)", "date_of_birth (G.C.)", "department"],
     ]);
+  });
+});
+
+describe("reading a text file's bytes", () => {
+  const bytes = (...values: number[]) => new Uint8Array(values);
+  const ascii = (text: string) => [...text].map((c) => c.charCodeAt(0));
+
+  it("reads plain ASCII as UTF-8 without a note", () => {
+    expect(decodeText(bytes(...ascii("Name,Email\n")))).toEqual({
+      text: "Name,Email\n",
+      encoding: "utf-8",
+      guessed: false,
+    });
+  });
+
+  it("strips a UTF-8 byte order mark", () => {
+    const decoded = decodeText(bytes(0xef, 0xbb, 0xbf, ...ascii("Name")));
+    expect(decoded.text).toBe("Name");
+    expect(decoded.encoding).toBe("utf-8");
+    expect(decoded.guessed).toBe(false);
+  });
+
+  it("reads valid UTF-8 Amharic", () => {
+    const encoded = new TextEncoder().encode("ሙሉ ስም,ኢሜይል\nአበበ ከበደ,a@b.et");
+    const decoded = decodeText(encoded);
+    expect(decoded.text).toBe("ሙሉ ስም,ኢሜይል\nአበበ ከበደ,a@b.et");
+    expect(decoded.guessed).toBe(false);
+  });
+
+  it("reads UTF-16 little-endian by its mark", () => {
+    const units = [..."Name\tÉmile"].flatMap((c) => [c.charCodeAt(0), 0]);
+    const decoded = decodeText(bytes(0xff, 0xfe, ...units));
+    expect(decoded).toEqual({
+      text: "Name\tÉmile",
+      encoding: "utf-16le",
+      guessed: false,
+    });
+  });
+
+  it("reads UTF-16 big-endian by its mark", () => {
+    const units = [..."Name"].flatMap((c) => [0, c.charCodeAt(0)]);
+    const decoded = decodeText(bytes(0xfe, 0xff, ...units));
+    expect(decoded.text).toBe("Name");
+    expect(decoded.encoding).toBe("utf-16be");
+  });
+
+  it("falls back to Windows-1252 for bytes that are not valid UTF-8, and says it guessed", () => {
+    // "José,€5": 0xE9 on its own is not UTF-8, 0x80 is the euro sign in Windows-1252.
+    const decoded = decodeText(bytes(...ascii("Jos"), 0xe9, 0x2c, 0x80, 0x35));
+    expect(decoded).toEqual({
+      text: "José,€5",
+      encoding: "windows-1252",
+      guessed: true,
+    });
+  });
+
+  it("strips a UTF-8 mark even when the rest has to fall back", () => {
+    const decoded = decodeText(bytes(0xef, 0xbb, 0xbf, 0xe9));
+    expect(decoded.text).toBe("é");
+    expect(decoded.encoding).toBe("windows-1252");
+  });
+
+  it("reads nothing as nothing", () => {
+    expect(decodeText(bytes()).text).toBe("");
   });
 });

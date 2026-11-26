@@ -6,14 +6,17 @@ namespace App\Http\Controllers\Api\V1\Device;
 
 use App\Enums\Feature;
 use App\Http\Controllers\Controller;
+use App\Jobs\ProcessDeviceInboundPunchesJob;
 use App\Models\Device;
+use App\Models\DeviceInboundPunch;
 use App\Models\Tenant;
 use App\Services\CurrentTenant;
 use App\Services\Device\AdmsDeviceResolver;
 use App\Services\Device\AdmsProtocol;
 use App\Services\Device\AdmsRoster;
 use App\Services\Device\DeviceCommandQueue;
-use App\Services\Device\DevicePunchRecorder;
+use App\Services\Device\DeviceDayCounts;
+use App\Services\Device\DevicePunchKey;
 use App\Services\Device\ZktecoAdapter;
 use App\Services\Features\FeatureGate;
 use App\Support\FeatureUnavailable;
@@ -48,7 +51,6 @@ class AdmsController extends Controller
     public function __construct(
         private readonly AdmsDeviceResolver $resolver,
         private readonly DeviceCommandQueue $commands,
-        private readonly DevicePunchRecorder $punches,
         private readonly AdmsRoster $roster,
     ) {}
 
@@ -99,19 +101,51 @@ class AdmsController extends Controller
                 ->header('Retry-After', (string) FeatureUnavailable::RETRY_AFTER_SECONDS);
         }
 
+        // The batch goes into the inbox in one insert per 500 and is answered:
+        // the engine's work is the queue's (ProcessDeviceInboundPunchesJob),
+        // so a backlog after a power cut cannot run past the request limit.
         // A punch the database failed to store is not acknowledged: the
-        // terminal keeps the batch and sends it again (DevicePunchRecorder).
+        // terminal keeps the batch and sends it again.
         $punches = AdmsProtocol::attendanceLines($body);
+        $unreadable = AdmsProtocol::unreadableAttendanceLines($body);
+
         try {
+            $rows = [];
             foreach ($punches as $punch) {
-                $this->punches->recordBatched(
-                    $device,
-                    'adms',
-                    $punch['pin'],
-                    $punch['time'],
-                    ZktecoAdapter::directionFor($punch['status']),
-                );
+                $rows[] = [
+                    'tenant_id' => $device->tenant_id,
+                    'device_id' => $device->id,
+                    'badge' => mb_substr($punch['pin'], 0, 64),
+                    'punch_type' => mb_substr(ZktecoAdapter::directionFor($punch['status']), 0, 20),
+                    'occurred_raw' => $punch['time'],
+                    'idempotency_key' => DevicePunchKey::fit("webhook:adms:{$device->id}:{$punch['pin']}:{$punch['time']}"),
+                    'raw' => DeviceInboundPunch::capRaw($punch['line']),
+                ];
             }
+
+            $new = DeviceInboundPunch::stash($rows);
+
+            // A line that cannot be read is kept as it came, already in
+            // quarantine, so it is seen and not silently dropped.
+            $bad = [];
+            foreach ($unreadable as $line) {
+                $bad[] = [
+                    'tenant_id' => $device->tenant_id,
+                    'device_id' => $device->id,
+                    'badge' => '',
+                    'punch_type' => 'auto',
+                    'occurred_raw' => '',
+                    'idempotency_key' => DevicePunchKey::fit("webhook:adms:{$device->id}:bad:".sha1($line)),
+                    'raw' => DeviceInboundPunch::capRaw($line),
+                    'processed_at' => now(),
+                    'failed_at' => now(),
+                    'failure' => 'unreadable',
+                    'error' => 'The line could not be read.',
+                ];
+            }
+            $newBad = DeviceInboundPunch::stash($bad);
+
+            DeviceDayCounts::notePush($device, count($rows) + count($bad), $new + $newBad);
         } catch (QueryException|PDOException $e) {
             report($e);
 
@@ -119,7 +153,11 @@ class AdmsController extends Controller
                 ->header('Retry-After', (string) FeatureUnavailable::RETRY_AFTER_SECONDS);
         }
 
-        return $this->text('OK: '.count($punches));
+        if ($new > 0) {
+            ProcessDeviceInboundPunchesJob::dispatch($device->id, $device->tenant_id);
+        }
+
+        return $this->text('OK: '.(count($punches) + count($unreadable)));
     }
 
     #[ExcludeRouteFromDocs]

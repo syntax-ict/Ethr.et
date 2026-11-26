@@ -11,6 +11,7 @@ import axios from "axios";
 import { FormField } from "@/components/patterns/FormField";
 import { FormErrorSummary } from "@/components/patterns/FormErrorSummary";
 import { useT } from "@/lib/i18n/useT";
+import { useHydrated } from "@/lib/hooks/useHydrated";
 import { useZodForm } from "@/lib/forms/use-zod-form";
 import { rules, fieldMessage } from "@/lib/forms/rules";
 import { PasswordStrengthMeter } from "@/components/shared/password-strength";
@@ -22,6 +23,7 @@ import {
 import { prepareCsrfCookie } from "@/features/auth/sign-in";
 import { useAuthHostContext } from "@/lib/auth/use-auth-host-context";
 import { OrgMark } from "@/components/shared/org-mark";
+import { EthrSymbol } from "@/components/shared/ethr-logo";
 
 const resetSchema = z
   .object({
@@ -41,6 +43,7 @@ function ResetForm() {
   const params = useSearchParams();
   const router = useRouter();
   const { t } = useT();
+  const hydrated = useHydrated();
 
   const token = params.get("token") ?? "";
   const email = params.get("email") ?? "";
@@ -147,9 +150,7 @@ function ResetForm() {
             initialClassName="text-lg"
           />
         ) : (
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary">
-            <span className="text-lg font-bold text-primary-foreground">E</span>
-          </div>
+          <EthrSymbol className="mx-auto h-12 w-12" />
         )}
         <h1 className="mt-4 text-2xl font-bold text-foreground">
           {t("auth.reset_title", "Set a new password")}
@@ -160,6 +161,7 @@ function ResetForm() {
       </div>
 
       <form
+        method="post"
         onSubmit={submit(onSubmit, t("auth.reset_failed", "Reset failed."))}
         className="space-y-4"
         noValidate
@@ -220,7 +222,11 @@ function ResetForm() {
           />
         </FormField>
 
-        <Button type="submit" className="w-full" disabled={isSubmitting}>
+        <Button
+          type="submit"
+          className="w-full"
+          disabled={!hydrated || isSubmitting}
+        >
           {isSubmitting ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />{" "}

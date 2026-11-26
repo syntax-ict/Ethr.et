@@ -42,6 +42,7 @@ class SentryScrubber
         'bank_account',
         'national_id',
         'national_id_hash',
+        'account_number_hash',
         'tin',
         'tin_number',
         'totp_secret',

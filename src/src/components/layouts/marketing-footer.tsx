@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useT } from "@/lib/i18n/useT";
 import { useLocaleHref } from "@/lib/i18n/route-locale";
 import { pickLocalised, useSiteContent } from "@/features/marketing/api";
+import { EthrSymbol, EthrWordmark } from "@/components/shared/ethr-logo";
 import { SOLUTIONS } from "@/components/marketing/solutions";
 
 export function MarketingFooter() {
@@ -13,13 +14,13 @@ export function MarketingFooter() {
 
   // The name falls back to the literal that was hardcoded here, so an operator
   // who has set nothing sees exactly what shipped before.
-  const brandName =
-    pickLocalised(
-      locale,
-      site.platform_name_am,
-      site.platform_name,
-      site.platform_name_om,
-    ) ?? "ETHR";
+  const operatorName = pickLocalised(
+    locale,
+    site.platform_name_am,
+    site.platform_name,
+    site.platform_name_om,
+  );
+  const brandName = operatorName ?? "ETHR";
   const tagline = pickLocalised(
     locale,
     site.tagline_am,
@@ -97,10 +98,9 @@ export function MarketingFooter() {
           {/* Brand column */}
           <div className="lg:col-span-2">
             {/* Name and mark come from platform_settings when an operator has
-                set them. The E-in-a-box is the fallback, not the default — it
-                was duplicated verbatim here and in the header, so a rebrand
-                meant finding both. */}
-            <Link href={href("/")} className="inline-flex items-center gap-2.5">
+                set them and take precedence. With none set, the drawn ETHR
+                symbol and wordmark are the fallback. */}
+            <Link href={href("/")} className="inline-flex items-center gap-2">
               {site.logo_url ? (
                 // eslint-disable-next-line @next/next/no-img-element -- the URL
                 // is operator-supplied and arbitrary, so it cannot be in
@@ -112,15 +112,15 @@ export function MarketingFooter() {
                   className="h-8 w-8 rounded-lg object-contain"
                 />
               ) : (
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary shadow-sm">
-                  <span className="text-sm font-bold text-primary-foreground">
-                    E
-                  </span>
-                </div>
+                <EthrSymbol className="h-8 w-8" />
               )}
-              <span className="text-lg font-bold tracking-tight text-foreground">
-                {brandName}
-              </span>
+              {operatorName ? (
+                <span className="text-lg font-bold tracking-tight text-foreground">
+                  {brandName}
+                </span>
+              ) : (
+                <EthrWordmark className="h-6 w-auto text-foreground" />
+              )}
             </Link>
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-muted-foreground">
               {tagline ??

@@ -203,8 +203,58 @@ upper-cased, persisted to `national_id_hash` (kept in sync by the model's
 hash — the strongest signal (weight 0.95) — without ever decrypting. Covered by
 `NationalIdMatchingTest`.
 
+## Seeing the links, and finding people recorded twice (2026-11-12)
+
+The last part of the plan: until now the links that decide who a punch or an
+imported line is could not be seen, and nothing looked for records made
+before the gateway existed.
+
+**On a profile** (`EmployeeIdentityController`, the Employment tab's "Known
+elsewhere as" card):
+
+| method | path | does |
+|---|---|---|
+| GET | `/employees/{employee}/identities` | `created_via`, and each link: `kind` (`device`, `other_system`, `other`), `source` (the terminal's name, kept after the terminal is removed, or the saved source's name), the identifier and whether a person confirmed it. Needs `view` on the employee |
+| POST | `/employees/{employee}/identities/{identity}/verify` | sets `verified_at`. A link ETHR inferred follows a better match if one appears (`link()` above); a confirmed one does not. Needs `update` |
+| DELETE | `/employees/{employee}/identities/{identity}` | removes a wrong link. The employee's record is not changed; the next punch or list that brings the id is matched afresh or held. Needs `update` |
+
+- A link that is another employee's, or another organisation's, answers 404:
+  the routes are scoped through `Employee::identities()`.
+- An identifier of type `national_id` is never returned and never written to
+  the audit record (`identity.verified`, `identity.unlinked`).
+- `created_via` is null for a record older than 2026-11-11.
+
+**Possible duplicates** (`PossibleDuplicates`,
+`GET /employees/possible-duplicates`, the page `/employees/duplicates`):
+current employees who share something a person has only one of.
+
+| reason | compared as |
+|---|---|
+| `national_id` | the blind index `national_id_hash` |
+| `email` | lower-cased, trimmed |
+| `phone` | `EthiopianPhone::canonicalOrRaw`, digits only, so `0911…` is `+251911…` |
+| `badge_number` | lower-cased, trimmed |
+| `name_and_birth_date` | lower-cased name with the date of birth; a name alone is not a reason |
+
+- **Read-only.** It lists; joining two records into one is not built.
+- Only people employed now (`EmployeeStatus::current()`), among the employees
+  the reader may see (`scopeAccessibleEmployees`), and for someone who may add
+  employees. A leaver hired again is a second record on purpose, and a deleted
+  record is already out of the way.
+- A pair that shares several things is one group with every reason, listed
+  first. At most 100 groups; `truncated` says there were more.
+- The values shared are never returned: the reason says a national id is the
+  same, not what it is.
+- The values are read as two columns per reason and grouped in PHP, not with
+  `GROUP BY`, so "the same phone" is the resolver's rule and not a second one
+  written in SQL. Five small reads for an organisation of a few thousand.
+
 ## Tests
 
+- `Identity/EmployeeIdentitiesTest` — the links on a profile: named, confirmed,
+  removed, and closed to another employee's and another organisation's.
+- `Identity/PossibleDuplicatesReportTest` — each reason, the order, who is
+  compared, and that no value is returned.
 - `IdentityResolutionTest` — scoring, mappings, the pull and the import.
 - `IdentityResolverContradictionTest` — phone forms, the three contradictions,
   archived and former verdicts, the guarded `link()`, and what the import and the
@@ -218,7 +268,12 @@ hash — the strongest signal (weight 0.95) — without ever decrypting. Covered
 
 ## Known follow-ups
 
-From the plan, in order; none is built yet:
+What the plan left, and what has turned up since:
+
+- **Two records cannot be joined into one.** The duplicates page finds them
+  and links to both profiles. Moving one record's attendance, leave and pay
+  history onto the other is a piece of work of its own and was never in the
+  plan.
 
 - **A match through the older import endpoints is still not an update.** The
   employee import screen is a staged list since 2026-11-11
@@ -240,8 +295,8 @@ From the plan, in order; none is built yet:
   that there is no account.
 - **A login put on an existing employee does not fill their e-mail.** The login
   holds the directory's address; the employee record's stays blank.
-- **No database uniqueness** on badge number or national ID. Only after a
-  duplicates report shows production is clean.
+- **No database uniqueness** on badge number or national ID. Only after the
+  duplicates page (above) shows production is clean.
 - `username` login identifier (Slice 7 deferral) still needs a column.
 - A phone stored with a character the generated column does not strip
   (`091/234-5678`) still never matches (BASELINE §15e).

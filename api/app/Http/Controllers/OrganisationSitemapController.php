@@ -8,10 +8,12 @@ use App\Models\Announcement;
 use App\Models\Tenant;
 use App\Services\CurrentTenant;
 use App\Support\FrontendUrl;
+use App\Support\Locales;
 use App\Support\PortalHead;
 use App\Support\TenantLanding;
 use Dedoc\Scramble\Attributes\ExcludeRouteFromDocs;
 use Illuminate\Http\Response;
+use Illuminate\Support\Carbon;
 
 /**
  * The sitemap of organisation portals, named beside the site's own in
@@ -45,8 +47,8 @@ class OrganisationSitemapController extends Controller
             // value is on, which a JSON path in SQL cannot say portably.
             ->filter(fn (Tenant $tenant): bool => TenantLanding::present($tenant)['listed'])
             ->map(fn (Tenant $tenant): string => implode("\n", array_map(
-                self::entry(...),
-                [FrontendUrl::at($tenant, 'login'), ...self::news($tenant)],
+                fn (array $page): string => self::entry($page[0], $page[1]),
+                [[FrontendUrl::at($tenant, 'login'), null], ...self::news($tenant)],
             )))
             ->implode("\n");
 
@@ -70,11 +72,11 @@ class OrganisationSitemapController extends Controller
      * kept. The articles are read through the tenant scope, set for this
      * organisation and released after.
      *
-     * @return list<string>
+     * @return list<array{0: string, 1: Carbon|null}> the address and when it last changed
      */
     private static function news(Tenant $tenant): array
     {
-        if (! TenantLanding::publicSections($tenant)['announcements']
+        if (! TenantLanding::showsNews($tenant)
             || FrontendUrl::canonicalOrigin($tenant) === null) {
             return [];
         }
@@ -82,12 +84,11 @@ class OrganisationSitemapController extends Controller
         $currentTenant = app(CurrentTenant::class);
         $currentTenant->set($tenant);
         try {
-            $ids = Announcement::query()
+            $stories = Announcement::query()
                 ->publiclyListed()
                 ->orderByDesc('published_at')
                 ->limit(self::ARTICLES)
-                ->pluck('public_id')
-                ->all();
+                ->get(['public_id', 'updated_at']);
         } finally {
             $currentTenant->forget();
         }
@@ -95,25 +96,42 @@ class OrganisationSitemapController extends Controller
         // An organisation that has published nothing has no news page worth
         // listing: it is the same empty page for every one of them, and it
         // says `noindex` for that reason (PortalHead::news()).
-        if ($ids === []) {
+        if ($stories->isEmpty()) {
             return [];
         }
 
+        // The news page changed when its newest story did.
+        $newest = $stories->map(fn (Announcement $story): ?Carbon => Carbon::make($story->updated_at))->filter()->max();
+
         return [
-            PortalHead::newsUrl($tenant),
-            ...array_map(fn ($id): string => PortalHead::newsUrl($tenant, (string) $id), $ids),
+            [PortalHead::newsUrl($tenant), $newest],
+            ...$stories->map(fn (Announcement $story): array => [
+                PortalHead::newsUrl($tenant, (string) $story->public_id),
+                Carbon::make($story->updated_at),
+            ])->all(),
         ];
     }
 
-    private static function entry(string $address): string
+    private static function entry(string $address, ?Carbon $changed): string
     {
         $url = htmlspecialchars($address, ENT_XML1 | ENT_QUOTES, 'UTF-8');
         $joiner = str_contains($url, '?') ? '&amp;' : '?';
 
+        // One alternate per shipped language, the same set the page itself
+        // declares (PortalHead). A literal list here left Afaan Oromoo out
+        // when it shipped, and a sitemap that disagrees with the page's own
+        // hreflang is a contradiction to a search engine.
+        $alternates = '';
+        foreach (Locales::SHIPPED as $locale) {
+            $alternates .= "<xhtml:link rel=\"alternate\" hreflang=\"{$locale}\" href=\"{$url}{$joiner}lang={$locale}\"/>";
+        }
+
+        $lastmod = $changed === null ? '' : '<lastmod>'.$changed->toIso8601String().'</lastmod>';
+
         return '  <url>'
             ."<loc>{$url}</loc>"
-            ."<xhtml:link rel=\"alternate\" hreflang=\"en\" href=\"{$url}{$joiner}lang=en\"/>"
-            ."<xhtml:link rel=\"alternate\" hreflang=\"am\" href=\"{$url}{$joiner}lang=am\"/>"
+            .$lastmod
+            .$alternates
             ."<xhtml:link rel=\"alternate\" hreflang=\"x-default\" href=\"{$url}\"/>"
             .'</url>';
     }

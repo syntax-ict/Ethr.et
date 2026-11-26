@@ -29,9 +29,11 @@ import { initiateSso, login, prepareCsrfCookie } from "@/features/auth/sign-in";
 import { PASSWORD_CHANGE_PATH } from "@/api/client";
 import { InstallAppBanner } from "@/components/shared/install-app";
 import { useT } from "@/lib/i18n/useT";
+import { useHydrated } from "@/lib/hooks/useHydrated";
 import { useAuthHostContext } from "@/lib/auth/use-auth-host-context";
 import { TenantLookupErrorState } from "@/components/shared/tenant-lookup-error-state";
 import { cn } from "@/lib/utils";
+import { EthrSymbol } from "@/components/shared/ethr-logo";
 
 /**
  * What a person may type in the sign-in field, as AuthIdentifierResolver
@@ -125,6 +127,7 @@ export function LoginForm() {
   const queryClient = useQueryClient();
   const pathname = usePathname();
   const { t, locale } = useT();
+  const hydrated = useHydrated();
   const {
     context: hostAppContext,
     tenantSlug: subdomainFromHost,
@@ -496,16 +499,7 @@ export function LoginForm() {
         {/* The tile beside the heading, not above it: on a phone it took a
             line of its own and pushed the form down. */}
         <div className="flex items-center gap-3">
-          {showMark && (
-            <div
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary shadow-sm lg:hidden"
-              aria-hidden="true"
-            >
-              <span className="text-base font-bold text-primary-foreground">
-                E
-              </span>
-            </div>
-          )}
+          {showMark && <EthrSymbol className="h-10 w-10 lg:hidden" />}
           <h1 className="min-w-0 text-title text-balance text-foreground">
             {heading}
           </h1>
@@ -562,7 +556,12 @@ export function LoginForm() {
 
       {/* noValidate: the browser's own bubble for a malformed email would
           speak over the form's translated message. */}
-      <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-5">
+      <form
+        method="post"
+        onSubmit={handleSubmit(onSubmit)}
+        noValidate
+        className="space-y-5"
+      >
         {tenantFieldVisible && (
           <div className="space-y-2">
             <Label htmlFor="tenant">
@@ -714,7 +713,7 @@ export function LoginForm() {
         <Button
           type="submit"
           className="h-11 w-full text-base shadow-sm"
-          disabled={isSubmitting}
+          disabled={!hydrated || isSubmitting}
         >
           {isSubmitting ? (
             <>

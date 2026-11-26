@@ -236,7 +236,9 @@ it('flags a web punch outside the branch, a fed-in location and an impossible jo
         'date' => now()->subDay()->toDateString(), 'check_in' => now()->subDay(),
         'latitude' => 9.1, 'longitude' => 38.9,
     ]);
-    // An hour ago, in Bahir Dar.
+    // An hour ago, in Bahir Dar, the same day, closed: the web check-in below
+    // is a return from a break and reopens this record, so the journey is
+    // read from the record's own earlier point (IntegrityInspector).
     AttendanceRecord::factory()->create([
         'tenant_id' => $tenant->id, 'employee_id' => $employee->id,
         'date' => now()->toDateString(), 'check_in' => now()->subHour(), 'check_out' => now()->subMinutes(50),
@@ -330,4 +332,27 @@ it('still rejects a punch when the notice to the employee cannot be delivered', 
     test()->actingAs($hr)->putJson(integrityUrl($tenant, "/attendance/integrity/{$flag->public_id}/review"), [
         'decision' => 'reject', 'note' => 'Outside the branch.',
     ])->assertOk()->assertJsonPath('status', 'rejected');
+});
+
+// The same journey read against another work day's record, so the comparison
+// does not depend on a day being reopened.
+it('flags an impossible journey from the previous work day\'s record too', function () {
+    $tenant = createTenant();
+    $branch = geofencedBranch($tenant);
+    [$employee, $user] = integrityEmployee($tenant, ['branch_id' => $branch->id]);
+
+    // An hour ago, in Bahir Dar, on the record of another work day (a night
+    // shift's, say), so the check-in below opens a record of its own.
+    AttendanceRecord::factory()->create([
+        'tenant_id' => $tenant->id, 'employee_id' => $employee->id,
+        'date' => now()->subDay()->toDateString(), 'check_in' => now()->subHour(), 'check_out' => now()->subMinutes(50),
+        'latitude' => 11.5936, 'longitude' => 37.3908,
+    ]);
+
+    test()->actingAs($user)->postJson(integrityUrl($tenant, '/attendance/check-in'), [
+        'idempotency_key' => 'web-travel-prev', 'latitude' => 9.1, 'longitude' => 38.9, 'accuracy' => 0,
+    ])->assertSuccessful();
+
+    expect(AttendanceIntegrityFlag::withoutGlobalScopes()->where('employee_id', $employee->id)->pluck('type')->all())
+        ->toContain('impossible_travel');
 });

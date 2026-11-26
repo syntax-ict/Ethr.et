@@ -369,6 +369,48 @@ A backup on the same 5 GB account it is protecting is a convenience, not a backu
 
 While storage is saved here it **takes over from `.env`**, even switched off: an operator who switched copies off here does not want them going somewhere else. `ethr:backup --disk=s3` still names the `.env` disk explicitly. The secret and the key are encrypted columns in `backup_storage_settings` (`APP_KEY` encrypts them), so the key you saved is what opens the copies if the host and its database are both lost.
 
+### Google Drive as the fallback destination
+
+**Added 2026-11-15.** The owner can run with no storage subscription at all, or keep Drive as a second place for the night a copy to the main storage fails. Drive sits behind the same interface as the S3 disk (`App\Services\Backup\GoogleDrive\GoogleDriveAdapter`, over Google's REST API with Laravel's HTTP client; no Google package).
+
+**The order is one rule, in `BackupService::offHostTargets()`:**
+
+1. The primary: storage saved in the console, else the `.env` disk. These are the two cases above.
+2. Google Drive, once connected, tested and switched on.
+
+`copyOffHost()` tries the usable destinations in that order. A failure on one is reported and the next is tried; the run fails only when **every** usable destination failed, and its message names each one. The copy is recorded in the backup's manifest as `off_host: {destination, disk, key, bytes, copied_at, fell_back}`. `fell_back` is true when an earlier destination failed. Pruning keeps the newest `BACKUP_OFF_HOST_KEEP` archives on **every** usable destination; a failure pruning one is reported and does not stop the others. `--disk=` still means that `.env` disk alone, and never Drive.
+
+**Drive has its own encryption key**, generated and shown exactly like the storage key (*Show the Google Drive key*, saved away from the host, ticked as saved), and switching Drive on is refused until the connection has passed its test and the key is confirmed. A copy is opened with the key of the destination it went to, so the manifest's `destination` says which key to use:
+
+```bash
+php artisan ethr:backup:unpack backups/ethr-20261115-010004.tar.gz.ethrbak --from-disk --destination=google_drive
+```
+
+Without `--destination` the first usable destination is read, which is today's behaviour.
+
+**Art. 22 note.** Proclamation 1321/2024 Art. 22 asks for local storage. Google Drive stores files outside Ethiopia. The files are encrypted on this server before they leave, so Google holds only ciphertext, but that does not change where they are held: Drive is a fallback for the night the main storage fails, not a replacement for storage in Ethiopia.
+
+**What the health panel says.** `off_host.destination` is where the newest copy went. A copy that exists only because the primary failed raises the warning `off_host_fell_back` (amber, not red): the data is safe, but the primary needs looking at before Drive is the only thing between the data and its loss.
+
+#### Owner steps in Google Cloud (once)
+
+1. In Google Cloud Console, create a project (or pick one).
+2. **APIs and services**, enable the **Google Drive API**.
+3. **OAuth consent screen**: user type **External**, app name and support email, and add only the scope `https://www.googleapis.com/auth/drive.file`. Publish the app and **check that its publishing status reads *In production***. An app left in *Testing* has its refresh tokens expire after 7 days, which would quietly end the fallback a week after it was connected. That is why the status matters.
+4. **Credentials**, create an OAuth client of type **Web application**. Under *Authorized redirect URIs* paste the exact address the console shows under *Redirect URI for Google Cloud* (for production, `https://admin.ethr.et/admin/backups`).
+5. In the console, **Backups, Google Drive (fallback)**: paste the client ID and secret, **Save client**, then **Connect Google Drive**, sign in with the Google account that should hold the copies and allow access. The page returns with the connection made.
+6. **Test Google Drive**, show and save the Drive key, tick that it is saved, then switch **Use Google Drive when the main storage fails** on.
+
+The scope is `drive.file` only: ETHR can reach just the folder (`ETHR backups`) and files it created itself, never the rest of the Drive. Disconnecting revokes the token at Google (best effort) and leaves the files and the folder in Drive; delete them there if they are no longer wanted. Changing the client ID or secret disconnects Drive and switches it off until it is connected and tested again.
+
+**How the connect page works.** Google returns the browser to the console page itself with `code` and `state` in its address. The page posts them to `POST /api/v1/admin/backups/google-drive/callback` through the normal API client, cleans its address, and shows the answer, so no route answers an unauthenticated browser redirect. `state` is random, held for 10 minutes, tied to the signed-in user and single use.
+
+**Timing.** Every call has a limit so a dead primary cannot use the night up: S3 connects within 10 s and each request is bounded at 120 s (`BACKUP_STORAGE_CONNECT_TIMEOUT`, `BACKUP_STORAGE_TIMEOUT`); Drive connects within 10 s, metadata calls are bounded at 60 s and each 8 MiB upload chunk at 120 s. These are limits, not guarantees: a primary that is merely slow, not dead, uses up its time before Drive is tried, so a very slow primary can still leave less time than the fallback needs.
+
+**Before the migration.** The release deploys the code first and the owner runs `migrate` afterwards. Until `backup_drive_settings` exists every read path treats Drive as not set up (the nightly backup, the operations centre and the console page), so nothing breaks in between.
+
+**Not proven yet.** The Drive path is exercised against a fake of Google (`Tests\Support\FakeGoogleDrive`) only. It is proven end to end when the owner connects a real account and the first nightly copy lands in Drive.
+
 ### Setting it up in `.env` (without the console)
 
 | Setting | What it is |

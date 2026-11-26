@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Noto_Sans_Ethiopic } from "next/font/google";
+import { Inter, Manrope, Noto_Sans_Ethiopic } from "next/font/google";
 import "@/styles/globals.css";
 import { Providers } from "./providers";
 import { RouteLocaleProvider } from "@/lib/i18n/route-locale";
@@ -47,6 +47,18 @@ const notoEthiopic = Noto_Sans_Ethiopic({
 });
 
 /**
+ * The display face for headings and dashboard figures. Not preloaded, for the
+ * same reason as the Ethiopic face: a page with no Latin heading never fetches
+ * it, and `display: "swap"` covers the gap.
+ */
+const manrope = Manrope({
+  subsets: ["latin"],
+  variable: "--font-manrope",
+  display: "swap",
+  preload: false,
+});
+
+/**
  * Everything the old single root layout put in `<head>`, minus the parts a
  * locale changes.
  *
@@ -69,8 +81,11 @@ export const baseMetadata: Metadata = {
   description:
     "HR, payroll, attendance and leave software for Ethiopian organizations, with Ethiopian income tax, pension and the Ethiopian calendar built in.",
   icons: {
-    icon: "/favicon.ico",
-    apple: "/app-icons/icon-192.png",
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/app-icons/favicon.svg", type: "image/svg+xml" },
+    ],
+    apple: "/app-icons/apple-touch-icon.png",
   },
   manifest: "/manifest.json",
   appleWebApp: {
@@ -139,7 +154,7 @@ export function RootShell({
   return (
     <html
       lang={lang}
-      className={`${inter.variable} ${notoEthiopic.variable}`}
+      className={`${inter.variable} ${manrope.variable} ${notoEthiopic.variable}`}
       suppressHydrationWarning
     >
       {IS_STATIC_EXPORT && (

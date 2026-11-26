@@ -29,7 +29,7 @@ export const PILLARS = [
     },
     am: {
       over: "መገኘት",
-      h: "ከመስመር ውጭ መስራቱን ይቀጥላል",
+      h: "ኢንተርኔት ባይኖርም መስራቱን ይቀጥላል",
       p: "መዝገቦቹ በመሣሪያው ላይ ተሰልፈው ይቆያሉ፤ ግንኙነቱ እንደተመለሰ በራሳቸው ይላካሉ።",
     },
   },
@@ -176,7 +176,7 @@ export const LABELS = {
     cta: ["6-month free trial", "No credit card", "Cancel anytime"],
   },
   am: {
-    offline: "ከመስመር ውጪ",
+    offline: "ከመስመር ውጭ",
     synced: "ተመሳስሏል",
     checkIn: "መግቢያ",
     payslip: "የደመወዝ ወረቀት",

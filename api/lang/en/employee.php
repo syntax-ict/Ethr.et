@@ -27,6 +27,10 @@ return [
     'import_field_email' => 'email',
     'import_field_badge_number' => 'badge number',
     'import_field_external_id' => 'ID in the other system',
+    'import_field_grade' => 'grade',
+    'import_field_cost_center' => 'cost centre',
+    'import_row' => 'Row :row: :message',
+    'import_not_stored' => 'These columns are not stored by this route: :columns. Use the Import screen to bring them in.',
     'import_excel_rounded' => 'The :attribute was rounded by the spreadsheet. Format the column as text and type the whole number.',
     'number_format_invalid' => 'Use one {SEQ:n} token, n from 1 to 8, with letters, digits, - _ . or / around it. For example EMP-{SEQ:4}.',
     'cannot_change_own_pay' => 'Someone else in your organisation must change your own pay or bank details.',
@@ -36,4 +40,6 @@ return [
     'cannot_review_filed_profile' => 'You filed this change, so someone else must review it.',
     'invalid_transition' => 'Cannot change status from :from to :to.',
     'bulk_update_failed' => 'This employee could not be updated. Try again, or change them from their profile.',
+    'bulk_archive_failed' => 'This person could not be archived. Try again.',
+    'bulk_restore_failed' => 'This person could not be restored. Try again.',
 ];

@@ -8,7 +8,7 @@ return [
     'employee_limit_reached' => 'ለዕቅድዎ የሰራተኛ ገደብ ደርሰዋል።',
     'limit_check_busy' => 'ሌላ የሰራተኞች ቁጥር ለውጥ በመቀመጥ ላይ ነው። ትንሽ ቆይተው እንደገና ይሞክሩ።',
     'branch_limit_reached' => 'ለዕቅድዎ የቅርንጫፍ ገደብ ደርሰዋል።',
-    'device_limit_reached' => 'ለዕቅድዎ የመሳሪያ ገደብ ደርሰዋል።',
+    'device_limit_reached' => 'ለዕቅድዎ የመሣሪያ ገደብ ደርሰዋል።',
 
     'feature_not_in_plan' => 'ዕቅድዎ :feature አያካትትም። ለመጠቀም ያሻሽሉ።',
     'feature_unavailable' => 'ድርጅትዎ በአሁኑ ጊዜ :feature መጠቀም አይችልም።',

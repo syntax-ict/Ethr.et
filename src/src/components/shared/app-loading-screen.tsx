@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import { Loader2 } from "lucide-react";
+import { EthrSymbol } from "@/components/shared/ethr-logo";
 
 const LABEL_ID = "app-loading-label";
 
@@ -49,9 +50,7 @@ export function AppLoadingScreen({
   return (
     <div className="flex min-h-screen items-center justify-center bg-background">
       <div className="flex flex-col items-center gap-3">
-        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary">
-          <span className="text-lg font-bold text-primary-foreground">E</span>
-        </div>
+        <EthrSymbol className="h-12 w-12" />
         <Loader2 className="h-6 w-6 animate-spin text-primary" />
         {labels ? (
           <>

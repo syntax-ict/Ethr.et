@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import {
+  reportCutNote,
   reportFieldLabel,
   reportSourceLabel,
 } from "@/features/reports/field-labels";
@@ -162,6 +164,40 @@ const PRESET_TEXT: Record<string, (t: T) => { title: string; desc: string }> = {
       "Days present, late and absent for the month, totalled per branch or site.",
     ),
   }),
+  late_and_early: (t) => ({
+    title: t(
+      "reports_page.presets.late_and_early.title",
+      "Late and early leave",
+    ),
+    desc: t(
+      "reports_page.presets.late_and_early.desc",
+      "Each person's late days and early departures, with the minutes, and the lateness payroll will deduct.",
+    ),
+  }),
+  overtime_by_rate: (t) => ({
+    title: t("reports_page.presets.overtime_by_rate.title", "Overtime by rate"),
+    desc: t(
+      "reports_page.presets.overtime_by_rate.desc",
+      "Overtime hours in each rate payroll pays (day, night, rest day, holiday), with the unapproved hours and the days over the legal limit.",
+    ),
+  }),
+  missing_punches: (t) => ({
+    title: t("reports_page.presets.missing_punches.title", "Missing punches"),
+    desc: t(
+      "reports_page.presets.missing_punches.desc",
+      "People whose days have a punch still to fix, or no attendance at all, for the month.",
+    ),
+  }),
+  attendance_by_department: (t) => ({
+    title: t(
+      "reports_page.presets.attendance_by_department.title",
+      "Attendance by department",
+    ),
+    desc: t(
+      "reports_page.presets.attendance_by_department.desc",
+      "Days present, late, absent and on leave, and the hours short, for the month, totalled per department.",
+    ),
+  }),
   payroll_by_cost_center: (t) => ({
     title: t(
       "reports_page.presets.payroll_by_cost_center.title",
@@ -225,10 +261,14 @@ export function QuickTab() {
   const month =
     picked.calendar === calendar ? picked : currentReportMonth(calendar);
   const [running, setRunning] = useState<string | null>(null);
+  // The settings the result on screen was run with, for its printed period.
+  const [ranWith, setRanWith] = useState<ReportConfig | undefined>(undefined);
 
   function handleGenerate(preset: ReportPreset) {
+    const config = forMonth(preset.config, month);
     setRunning(preset.key);
-    generate.mutate(forMonth(preset.config, month), {
+    setRanWith(config);
+    generate.mutate(config, {
       // The result, not `generate.data`, which still holds the previous
       // run inside onSuccess: the first run said "Generated 0 records" (N67).
       onSuccess: (data) =>
@@ -252,6 +292,7 @@ export function QuickTab() {
       buildCsv(result.data, {
         label: (key) => reportFieldLabel(t, key),
         value: centsAsAmount,
+        note: reportCutNote(t, result),
       }),
     );
   }
@@ -293,9 +334,16 @@ export function QuickTab() {
     },
   ].filter((section) => section.items.length > 0);
 
+  // The month and the cards are for choosing; once a report is on screen the
+  // paper carries the report alone (`print:hidden`).
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end gap-3">
+      <div
+        className={cn(
+          "flex flex-wrap items-end gap-3",
+          generate.data && "print:hidden",
+        )}
+      >
         <div className="space-y-1">
           <p className="text-sm font-medium">
             {t("reports_page.fields.month", "Month")}
@@ -318,7 +366,10 @@ export function QuickTab() {
         </div>
       ) : (
         sections.map((section) => (
-          <section key={section.key} className="space-y-3">
+          <section
+            key={section.key}
+            className={cn("space-y-3", generate.data && "print:hidden")}
+          >
             <div>
               <h2 className="flex items-center gap-2 text-sm font-semibold">
                 {section.key === "recommended" && (
@@ -373,6 +424,24 @@ export function QuickTab() {
                         )}
                         {t("reports_page.run")}
                       </Button>
+                      {preset.key === "monthly_timesheet" ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="ml-2"
+                          asChild
+                        >
+                          <Link
+                            href={`/reports/timesheet?from=${reportMonthRange(month).from}&to=${reportMonthRange(month).to}`}
+                          >
+                            <CalendarCheck className="mr-2 h-3 w-3" />
+                            {t(
+                              "reports_page.timesheet.open_grid",
+                              "Open as a day-by-day grid",
+                            )}
+                          </Link>
+                        </Button>
+                      ) : null}
                     </CardContent>
                   </Card>
                 );
@@ -384,31 +453,17 @@ export function QuickTab() {
 
       {generate.data && (
         <>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-muted-foreground">
-                {t("reports_page.records_count", ":count records", {
-                  count: generate.data.total,
-                })}
-                {running && PRESET_TEXT[running] && (
-                  <> · {PRESET_TEXT[running](t).title}</>
-                )}
-              </p>
-              {generate.data.truncated && (
-                <p role="note" className="mt-1 text-xs text-status-warning">
-                  {t(
-                    "reports_page.truncated",
-                    "Only the newest 1,000 rows are shown. Narrow the dates to see the rest.",
-                  )}
-                </p>
-              )}
-            </div>
+          <div className="flex justify-end print:hidden">
             <Button size="sm" onClick={downloadCsv}>
               <Download className="mr-2 h-3 w-3" />{" "}
               {t("reports_page.download_csv")}
             </Button>
           </div>
-          <PreviewResult result={generate.data} />
+          <PreviewResult
+            result={generate.data}
+            title={running ? PRESET_TEXT[running]?.(t).title : undefined}
+            config={ranWith}
+          />
         </>
       )}
     </div>

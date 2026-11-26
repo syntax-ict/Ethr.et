@@ -11,12 +11,14 @@ use App\Http\Requests\Organization\UpdateBranchRequest;
 use App\Http\Resources\BranchResource;
 use App\Models\AuditLog;
 use App\Models\Branch;
+use App\Models\ReferenceItem;
 use App\Services\CurrentTenant;
 use App\Services\PlanLimitService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\ValidationException;
 
 class BranchController extends Controller
 {
@@ -83,7 +85,25 @@ class BranchController extends Controller
     {
         Gate::authorize('org.update');
 
-        $branch->update($request->validated());
+        $data = $request->validated();
+        // A city typed or changed without the codes beside it is typed text:
+        // the codes the branch had belonged to the place it replaces.
+        $regionSent = array_key_exists('region_code', $data);
+        $townSent = array_key_exists('town_code', $data);
+        if (! $regionSent && ! $townSent && array_key_exists('city', $data)) {
+            $data += ['region_code' => null, 'town_code' => null];
+        } elseif ($regionSent && ! $townSent) {
+            // A town belongs to one region: a new region with no new town
+            // drops the old town.
+            $data['town_code'] = null;
+        } elseif ($townSent && ! $regionSent && ! empty($data['town_code']) && $branch->region_code !== null) {
+            // A town sent alone must fit the region the branch already has.
+            $parent = ReferenceItem::query()->where('code', $data['town_code'])->value('parent_code');
+            if ($parent !== null && $parent !== $branch->region_code) {
+                throw ValidationException::withMessages(['town_code' => __('validation.exists', ['attribute' => 'town code'])]);
+            }
+        }
+        $branch->update($data);
 
         AuditLog::record('branch.updated', $branch);
 

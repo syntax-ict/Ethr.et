@@ -79,6 +79,82 @@ test('the timesheet counts each employee\'s month by the same rule as absences',
         ->and((float) $row['worked_hours'])->toBeGreaterThan(0.0);
 });
 
+test('a punch on a rest day is not a second classification: present and absent add up to the workdays', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+    // QA Employee A on production: a pending record on a Saturday, and on
+    // Monday a record by day and a second that runs past midnight.
+    $nega = Employee::factory()->create(['tenant_id' => $tenant->id, 'hire_date' => '2025-01-01', 'name' => 'Nega Tesfaye']);
+    AttendanceRecord::factory()->create([
+        'tenant_id' => $tenant->id, 'employee_id' => $nega->id, 'date' => '2026-10-10', 'status' => AttendanceStatus::PENDING,
+        'check_in' => Carbon::parse('2026-10-10 09:00', 'Africa/Addis_Ababa'), 'check_out' => null,
+    ]);
+    rpAttend($tenant, $nega, '2026-10-12');
+    AttendanceRecord::factory()->create([
+        'tenant_id' => $tenant->id, 'employee_id' => $nega->id, 'date' => '2026-10-12', 'status' => AttendanceStatus::PRESENT,
+        'check_in' => Carbon::parse('2026-10-12 20:12', 'Africa/Addis_Ababa'), 'check_out' => Carbon::parse('2026-10-13 02:30', 'Africa/Addis_Ababa'),
+    ]);
+
+    $response = test()->postJson(rpUrl($tenant, 'generate'), [
+        'source' => 'timesheet',
+        'filters' => ['month' => '2026-10'],
+    ])->assertOk();
+
+    $row = collect($response->json('data'))->firstWhere('employee_name', 'Nega Tesfaye');
+    // October 1-15: 11 Monday-to-Friday workdays. Only the 12th was attended.
+    expect($row['work_days'])->toBe(11)
+        ->and($row['present_days'])->toBe(1)
+        ->and($row['absent_days'])->toBe(10)
+        ->and($row['present_days'] + $row['absent_days'])->toBe($row['work_days'])
+        // The hours of all three records are still counted.
+        ->and((float) $row['worked_hours'])->toBeGreaterThan(15.0);
+});
+
+test('a late punch on a rest day is not a late day, so late never exceeds present', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'hire_date' => '2025-01-01', 'name' => 'Hana Girma']);
+    rpAttend($tenant, $employee, '2026-10-10', AttendanceStatus::LATE);
+    rpAttend($tenant, $employee, '2026-10-12', AttendanceStatus::LATE);
+
+    $row = collect(test()->postJson(rpUrl($tenant, 'generate'), ['source' => 'timesheet', 'filters' => ['month' => '2026-10']])
+        ->assertOk()->json('data'))->firstWhere('employee_name', 'Hana Girma');
+
+    // Saturday the 10th is a rest day: its hours count, its lateness does not.
+    expect($row['present_days'])->toBe(1)
+        ->and($row['late_days'])->toBe(1)
+        ->and($row['late_days'])->toBeLessThanOrEqual($row['present_days']);
+});
+
+test('a punch on a day of approved leave is not also a present day', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'hire_date' => '2025-01-01', 'name' => 'Selam Bekele']);
+    rpAttend($tenant, $employee, '2026-10-12');
+    LeaveRequest::factory()->approved()->create([
+        'tenant_id' => $tenant->id,
+        'employee_id' => $employee->id,
+        'leave_type_id' => LeaveType::factory()->create(['tenant_id' => $tenant->id])->id,
+        'start_date' => '2026-10-12',
+        'end_date' => '2026-10-12',
+        'days' => 1,
+    ]);
+
+    $row = collect(test()->postJson(rpUrl($tenant, 'generate'), ['source' => 'timesheet', 'filters' => ['month' => '2026-10']])
+        ->assertOk()->json('data'))->firstWhere('employee_name', 'Selam Bekele');
+
+    // October 1-15: 11 workdays, one of them leave. The day is leave once,
+    // and the hours punched on it are still in the total.
+    expect($row['leave_days'])->toBe(1)
+        ->and($row['work_days'])->toBe(10)
+        ->and($row['present_days'])->toBe(0)
+        ->and($row['present_days'] + $row['absent_days'])->toBe($row['work_days'])
+        ->and((float) $row['worked_hours'])->toBeGreaterThan(0.0);
+});
+
 test('a timesheet for a month that has not started yet is empty', function () {
     $tenant = createTenant();
     actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);

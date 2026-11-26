@@ -83,6 +83,9 @@ import {
 } from "@/features/attendance/components/day-note";
 import { punchOutcomeText } from "@/features/attendance/punch-outcome";
 import { PrintAction } from "@/components/shared/print-action";
+import { downloadReportPdf } from "@/features/reports/api";
+import { registerPdfRequest } from "@/features/attendance/register-pdf";
+import { PrintScope, usePrintDateRange } from "@/components/shared/print-scope";
 
 // The values the address may carry; anything else falls back to "all".
 const SOURCES = [
@@ -109,6 +112,7 @@ export default function AttendancePage() {
   const { formatTime } = useDateFormatters();
   const { t, locale } = useT();
   const { formatDate } = useCalendar();
+  const dateRangeText = usePrintDateRange();
   const [page, setPage] = useState(1);
   // In the address, so "who is absent today" can be opened from the
   // command palette or sent as a link, and survives a reload.
@@ -178,6 +182,31 @@ export default function AttendancePage() {
     (viewAll && (sourceFilter !== "all" || statusFilter !== "all")) ||
     dateFrom ||
     dateTo;
+
+  // The whole register, as the server's report PDF, for a manager who may run
+  // reports. The page holds 25 rows of many; the PDF carries up to 1,000.
+  const registerPdf = registerPdfRequest({
+    status: statusFilter,
+    source: sourceFilter,
+    from: dateFrom,
+    to: dateTo,
+  });
+
+  async function downloadRegister() {
+    try {
+      await downloadReportPdf(
+        registerPdf.body,
+        `attendance-register-${new Date().toISOString().slice(0, 10)}.pdf`,
+      );
+    } catch {
+      toast.error(
+        t(
+          "attendance.register_pdf_failed",
+          "The register PDF could not be made. Try again.",
+        ),
+      );
+    }
+  }
 
   function clearFilters() {
     filters.clear();
@@ -312,21 +341,42 @@ export default function AttendancePage() {
                 {t("attendance.manual_entry", "Manual Entry")}
               </Button>
             )}
-            <PrintAction />
+            <PrintAction
+              pdf={
+                viewAll && can.viewReports
+                  ? {
+                      label: t(
+                        "attendance.register_pdf",
+                        "Full register as PDF",
+                      ),
+                      onDownload: downloadRegister,
+                      note: registerPdf.unapplied.length
+                        ? t(
+                            "attendance.register_pdf_not_applied",
+                            "The PDF does not apply the :filter filter.",
+                            { filter: t("attendance.source", "Source") },
+                          )
+                        : undefined,
+                    }
+                  : undefined
+              }
+            />
           </div>
         }
       />
 
       <DayNote day={shift?.day} />
 
-      <MyExceptionsCard />
+      <div className="no-print">
+        <MyExceptionsCard />
+      </div>
 
       {/* Sub-nav — each link gated on the ability its page's API checks.
           Grouped by what the person is there to do: twelve links in one
           wrapping row read as a scatter of buttons, not as navigation. */}
       <nav
         aria-label={t("attendance.sub_nav", "Attendance pages")}
-        className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-4 gap-y-1 rounded-xl border border-border bg-card px-4 py-3 shadow-xs"
+        className="no-print grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-4 gap-y-1 rounded-xl border border-border bg-card px-4 py-3 shadow-xs"
       >
         <SubNavGroup label={t("attendance.group_check_in", "Check in")}>
           <SubNav href="/attendance/scan" icon={QrCode}>
@@ -389,10 +439,41 @@ export default function AttendancePage() {
         )}
       </nav>
 
-      {can.manageAttendance && <SetupStatusPanel compact />}
+      {can.manageAttendance && (
+        <div className="no-print">
+          <SetupStatusPanel compact />
+        </div>
+      )}
+
+      <PrintScope
+        items={[
+          {
+            label: t("common.date", "Date"),
+            value: dateRangeText(dateFrom, dateTo),
+          },
+          ...(viewAll
+            ? [
+                {
+                  label: t("attendance.source", "Source"),
+                  value:
+                    sourceFilter === "all"
+                      ? ""
+                      : t(`attendance.source_${sourceFilter}`, sourceFilter),
+                },
+                {
+                  label: t("common.status", "Status"),
+                  value:
+                    statusFilter === "all"
+                      ? ""
+                      : t(`attendance.status_${statusFilter}`, statusFilter),
+                },
+              ]
+            : []),
+        ]}
+      />
 
       {/* Filters */}
-      <div className="space-y-3">
+      <div className="no-print space-y-3">
         <div className="flex items-center gap-2">
           <Button
             variant={

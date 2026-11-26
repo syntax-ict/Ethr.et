@@ -10,9 +10,8 @@ use App\Http\Requests\Admin\UpdateBackupSettingsRequest;
 use App\Models\AuditLog;
 use App\Models\BackupStorageSetting;
 use App\Services\Backup\BackupCipher;
-use App\Services\Backup\BackupService;
+use App\Services\Backup\BackupConsoleState;
 use App\Services\Backup\BackupStorageDisk;
-use App\Support\BackupHealth;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
@@ -33,14 +32,14 @@ use Illuminate\Validation\ValidationException;
  */
 class BackupStorageController extends Controller
 {
-    public function show(BackupService $backups, BackupHealth $health): JsonResponse
+    public function show(BackupConsoleState $console): JsonResponse
     {
         Gate::authorize('admin.manage');
 
-        return response()->json($this->state($backups, $health));
+        return response()->json($console->state());
     }
 
-    public function saveStorage(SaveBackupStorageRequest $request, BackupService $backups, BackupHealth $health): JsonResponse
+    public function saveStorage(SaveBackupStorageRequest $request, BackupConsoleState $console): JsonResponse
     {
         Gate::authorize('admin.manage');
 
@@ -78,10 +77,10 @@ class BackupStorageController extends Controller
             'copies_switched_off' => $switchedOff,
         ]);
 
-        return response()->json($this->state($backups, $health));
+        return response()->json($console->state());
     }
 
-    public function updateSettings(UpdateBackupSettingsRequest $request, BackupService $backups, BackupHealth $health): JsonResponse
+    public function updateSettings(UpdateBackupSettingsRequest $request, BackupConsoleState $console): JsonResponse
     {
         Gate::authorize('admin.manage');
 
@@ -115,10 +114,10 @@ class BackupStorageController extends Controller
             AuditLog::record('platform.backup_storage_updated', $settings, ['changed' => $changed]);
         }
 
-        return response()->json($this->state($backups, $health));
+        return response()->json($console->state());
     }
 
-    public function testStorage(BackupStorageDisk $disk, BackupService $backups, BackupHealth $health): JsonResponse
+    public function testStorage(BackupStorageDisk $disk, BackupConsoleState $console): JsonResponse
     {
         Gate::authorize('admin.manage');
 
@@ -136,7 +135,7 @@ class BackupStorageController extends Controller
 
         AuditLog::record('platform.backup_storage_tested', $settings, ['ok' => $error === null]);
 
-        return response()->json($this->state($backups, $health));
+        return response()->json($console->state());
     }
 
     /**
@@ -156,44 +155,5 @@ class BackupStorageController extends Controller
         AuditLog::record('platform.backup_key_revealed', $settings);
 
         return response()->json(['key' => $settings->encryption_key]);
-    }
-
-    /** @return array<string, mixed> */
-    private function state(BackupService $backups, BackupHealth $health): array
-    {
-        $settings = BackupStorageSetting::current();
-        $target = $backups->offHostTarget();
-
-        $source = match (true) {
-            $settings instanceof BackupStorageSetting => 'console',
-            ! in_array($target['blocker'], ['off_host_disk_missing', 'off_host_not_configured'], true) => 'env',
-            default => 'none',
-        };
-
-        return [
-            'source' => $source,
-            'enabled' => $settings instanceof BackupStorageSetting && $settings->enabled,
-            'available' => $target['blocker'] === null,
-            'blocker' => $target['blocker'],
-            'keep' => (int) config('backup.off_host_keep', 14),
-            'storage' => $settings instanceof BackupStorageSetting ? [
-                'endpoint' => $settings->endpoint,
-                'region' => $settings->region,
-                'bucket' => $settings->bucket,
-                'access_key_id' => $settings->access_key_id,
-                'secret_set' => $settings->hasSecret(),
-                'path_style' => $settings->path_style,
-                'verified' => $settings->isVerified(),
-                'verified_at' => $settings->verified_at?->toIso8601String(),
-                'last_test_at' => $settings->last_test_at?->toIso8601String(),
-                'last_test_ok' => $settings->last_test_ok,
-                'last_test_error' => $settings->last_test_error,
-            ] : null,
-            'key' => $settings instanceof BackupStorageSetting ? [
-                'revealed_at' => $settings->key_revealed_at?->toIso8601String(),
-                'saved_at' => $settings->key_saved_at?->toIso8601String(),
-            ] : null,
-            'health' => $health->snapshot(),
-        ];
     }
 }

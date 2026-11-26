@@ -16,10 +16,17 @@ cases for the 2026-11-09 review fixes (PRs #654 to #680, up to `8431f382a8`, the
 [01, section 2.3](01-TEST-PLAN.md#23-changes-since-the-first-edition)), makes the pack runnable by
 Claude Code, with Playwright or Chrome ([11](11-CLAUDE-CODE-AND-PLAYWRIGHT.md)), and adds the org-type-aware
 configuration cases from [#682](https://github.com/syntax-ict/Ethr.et/pull/682), written before it merged:
-they are recorded Blocked until #682 is deployed. The figures
+#682 has since been deployed (live since `v2026.11.10.1` at the latest; contained in `d591fb2ad33c`), so they are run, no longer recorded Blocked. **The fifth edition** (2026-11-12) adds the
+employee identity and import slice (#690 to #701, up to `c8cc3a4b2d`): one gateway that asks
+before creating a second employee, one reader for every list of people with the import as its
+staged review, the workbook template and saved column names, one starting password for a batch,
+a Hikvision terminal that sends to ETHR instead of being called, and the robots line that
+survives hydration. **The sixth edition** (2026-11-14) adds cases for #707 to #723, up to `d591fb2ad33c` (`v2026.11.14.3`): push terminals that say what state they are in and why a call was refused, an unrecognised badge to a person with its punches replayed, the Add Employee menu, the kind of organisation narrowing the lists after it, the three-request cap, the new ETHR mark and the 404 page's language. It also brings the [UAT guide](02-UAT-GUIDE.md) up to date with everything shipped since 2026-10-29; its first run is `docs/audit/QA-PRODUCTION-2026-11-14-log.md`. The baseline marker below stays at the fifth edition because [10](10-TEMPLATES-AND-REFERENCE.md) was not re-audited in this pass. **The seventh edition** (2026-11-17) adds cases for every user-visible pull request from #731 to #781, up to `d993487e1f` (production since 2026-11-17): long lists staged in slices, the employee workbook and the import screen (#731, #745, #747, #750 to #753, #759, #764), first setup order, the Sign in column, the "No sign-in" badge and the daily invitation ceiling (#772, #775 to #779), terminals that are retried, the one actions menu, the Health Dashboard and the Quiet state (#735, #742, #748, #754, #765, #769, #780), the phone punch tap (#781), reports that count every row, Amharic receipts, Google Drive backups and releases without `optimize` (#736 to #739, #741, #766), the kind of organisation in the console and under impersonation, and the brand palette (#744, #746, #767, #768). It also corrects what the 2026-11-17 UAT pass showed to be wrong (HOL-001, UAT-A8 step 3, UAT-F4 step 1, REP-006, MASS-002h) and brings the UAT guide up to date; the log is `docs/audit/QA-PRODUCTION-2026-11-17-log.md`. The baseline marker still stays at the fifth edition: [10](10-TEMPLATES-AND-REFERENCE.md) and [11](11-CLAUDE-CODE-AND-PLAYWRIGHT.md) were read only for what these pull requests change (three reference rows in 10 were corrected), not re-audited line by line. The figures
 here (limits, rates, messages) were read from the source, with file references, so a tester can
 tell a real defect from a misunderstanding. **When the product and this pack disagree, record a
 defect against one or the other and say which.** Do not silently adjust the expectation.
+
+**Since the seventh edition (2026-11-24)** the settings review's fixes, #838 to #872 (live on `1eecdaed20`), have cases in files 03, 05, 07, 08 and 09 (SSO-006 to SSO-008, PWD-016, ACT-014, AUTH-043, TEN-028, HOL-006, HOL-007, PAY-042, PAY-043, NOT-008 to NOT-010, SCIM-004 to SCIM-006 and UI-015 to UI-020), listed in [01, section 2.3](01-TEST-PLAN.md#23-changes-since-the-first-edition). Five existing cases were corrected where those fixes made them wrong (SSO-002, HOL-001, PAY-001, PAY-007, UI-005). The baseline marker below does not move: the pack as a whole was not re-audited.
 
 ## Read in this order
 
@@ -29,7 +36,7 @@ defect against one or the other and say which.** Do not silently adjust the expe
 | 2 | [02-UAT-GUIDE.md](02-UAT-GUIDE.md) | Business users, HR, finance, the owner | Persona-based acceptance scenarios in plain language, with a sign-off sheet |
 | 3 | [03-E2E-AUTH-TENANCY-ACCESS.md](03-E2E-AUTH-TENANCY-ACCESS.md) | Test engineer | Sign-in, MFA, sessions, in-person activation, tenancy, addresses and renaming, roles and permissions, plans and billing |
 | 4 | [04-E2E-PEOPLE-AND-ORGANISATION.md](04-E2E-PEOPLE-AND-ORGANISATION.md) | Test engineer | Setup wizard, organisation structure, employees, import and export, lifecycle and scheduled changes, self-service profile, recruitment |
-| 5 | [05-E2E-ATTENDANCE-SHIFTS-DEVICES.md](05-E2E-ATTENDANCE-SHIFTS-DEVICES.md) | Test engineer | Every punch method, rules by branch, work sites, setup status, status rules, corrections and missed punches, overtime, conflicts, integrity, risk score and liveness, field visits, photos, shifts, holidays, kiosks, devices, registered phones |
+| 5 | [05-E2E-ATTENDANCE-SHIFTS-DEVICES.md](05-E2E-ATTENDANCE-SHIFTS-DEVICES.md) | Test engineer | Every punch method, rules by branch, work sites, setup status, status rules, corrections and missed punches, overtime, conflicts, integrity, risk score and liveness, field visits, photos, shifts, holidays, kiosks, devices, registered phones, presence checks |
 | 6 | [06-E2E-LEAVE-AND-APPROVALS.md](06-E2E-LEAVE-AND-APPROVALS.md) | Test engineer | Leave types, balances, requests, the approval engine, letters, exit clearance, cases |
 | 7 | [07-E2E-PAYROLL.md](07-E2E-PAYROLL.md) | Test engineer, finance | Tax, pension, overtime, allowances, rounding, run lifecycle and payment, loans, cost sharing, exports, golden payslips, reconciliation, lateness deductions, statutory rules by kind of organisation |
 | 8 | [08-E2E-COMMUNICATION-INTEGRATIONS-CONSOLE.md](08-E2E-COMMUNICATION-INTEGRATIONS-CONSOLE.md) | Test engineer | Announcements, news, landing page and public listing, notifications, voice, search, Next steps, reports, API keys, webhooks, SCIM, SSO, platform console and operations centre, marketing site |
@@ -61,7 +68,7 @@ in this folder also reads [CLAUDE.md](CLAUDE.md), the rules for an agent running
 
 ## Keeping this pack current
 
-<!-- qa-pack-baseline: 6adc3a16c5 -->
+<!-- qa-pack-baseline: c8cc3a4b2d -->
 
 The pack is written by hand from the code, so it goes stale one merged PR at a time. The marker
 above names the last commit of `main` the whole pack was brought up to date from. To see what has
@@ -74,11 +81,13 @@ scripts/qa-pack-coverage.sh v2026.11.06.9  # up to the release under test
 
 It leaves out docs, chore, ci, test and build changes (`--all` shows them, and is worth a look
 before the marker moves: #688 was titled as a test harness and carried a fix). A PR in its list is not
-necessarily a gap: a refactor has nothing a tester can see. A user-visible change gets a case, and
-the case names the PR in [01, section 2.3](01-TEST-PLAN.md#23-changes-since-the-first-edition).
+necessarily a gap: a refactor has nothing a tester can see, and another branch may already be
+covering it. The script ends by naming the open pull requests that also change the pack, because
+cases waiting in one of those are invisible to the count above. A user-visible change gets a case,
+and the case names the PR in [01, section 2.3](01-TEST-PLAN.md#23-changes-since-the-first-edition).
 **Before a release pass, run it against the release tag:** a case for a change it lists is recorded
 as **Not covered** in the execution log, and the test summary says how many there were. Move the
-marker forward only when every file has been brought up to date (last moved 2026-11-10, fourth
+marker forward only when every file has been brought up to date (last moved 2026-11-12, fifth
 edition).
 
 ## The three rules that matter most on production

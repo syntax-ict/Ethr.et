@@ -62,7 +62,7 @@ Merged on `main` between `c2f86e234` and `87d12d4d0`, plus the kiosk rows at the
 case for a change that is not live is recorded as Blocked, not Fail.
 
 **The third edition's rows follow, file by file, up to `d4b3524ea4`, then the fourth edition's, up to
-`8431f382a8`.** A change merged after that is not in this table: list it with `scripts/qa-pack-coverage.sh <release tag>`
+`8431f382a8`, the fifth edition's, up to `c8cc3a4b2d`, and the sixth edition's (2026-11-14), up to `d591fb2ad33c` (`v2026.11.14.3`).** A change merged after that is not in this table: list it with `scripts/qa-pack-coverage.sh <release tag>`
 ([README](README.md#keeping-this-pack-current)) and record each user-visible one as **Not covered** in
 the execution log.
 
@@ -126,6 +126,7 @@ the execution log.
 | Notices in the reader's language and only to active people; vacancies on the public site and not over-filled; announcements fit | #466, #482, #510, #624 | NOT-006, NOT-007, VAC-004, ANN-009; NOT-005, VAC-001 changed |
 | Public site: what the product does, call links, feed out of shared caches | #507, #519, #632 | MKT-013, MKT-014, LAND-009; MKT-006, NEWS-003 changed |
 | Webhooks: delivery id signed, held deliveries expire, connect to the checked address | #489, #624 | WH-008, WH-009; WH-003, KEY-006 changed |
+| An announcement reads the same everywhere, and every reader can open one in full | #836, #843 | ANN-010 to ANN-018 |
 
 **Third edition, stage 2, file 05** (2026-11-08). #646 merged after the rest; check S-01 before running its cases:
 
@@ -134,6 +135,8 @@ the execution log.
 | A single-use, short-lived QR on the kiosk screen | #641 | KIO-026 to KIO-028; KIO-010, PHN-007 changed |
 | One record a day across every method; no duplicate departure | #644 | PUNCH-007, PUNCH-009, AIMP-004; ATT-006, AIMP-002 changed |
 | Every punch method names the day type and what the punch came to; a second check-in answers "Already checked in" instead of opening a conflict | #646 | MOB-013, PUNCH-008, PUNCH-010; ATT-001, ATT-002, ATT-004, ATT-005, ATT-007, KIO-003, CON-001, MOB-011 changed |
+| A return from a break inside the work day (within 180 minutes, before the shift's end) reopens the day's record instead of making a flagged second one | #794 | PUNCH-011, PUNCH-012; PUNCH-010, CON-001 changed |
+| A day recorded before that as two records and a conflict is joined into one from Conflicts, one at a time or in bulk; any other merged pair changes nothing | #796 | PUNCH-013, PUNCH-014; CON-003 |
 | ADMS terminals report who is enrolled, and belong to the organisation whose address they call | #461, #498 | DEV-014, DEV-015 |
 | The attendance page title says whose records it shows; times in the reader's clock | #511, #508, #512, #514 | ATT-014, ATT-015; MOB-012, SHF-012 changed |
 | A-Z review: a required geofence for QR and web too, a retry key answers only its own person, check-out photo consent and size, corrections, offline order, devices | #624 | QR-009, ATT-013, COR-010, OFF-010, DEV-016; ATT-011, MOB-003, MOB-007, MOB-008 changed |
@@ -216,8 +219,8 @@ the execution log.
 | Running the pack by machine: the scripted smoke checks, and Claude Code with the guarded Playwright browser or with Chrome | this edition | [11](11-CLAUDE-CODE-AND-PLAYWRIGHT.md); 10 sections 2 and 3 |
 
 **Fourth edition, org-type-aware configuration** ([#682](https://github.com/syntax-ict/Ethr.et/pull/682), written from its
-branch before it merged on 2026-11-09 as `7adf8dfec4`). **Run these only once #682 is deployed (S-01:
-the live commit contains `7adf8dfec4`); until then record Blocked.**
+branch before it merged on 2026-11-09 as `7adf8dfec4`). **#682 is deployed (live since `v2026.11.10.1` at the latest;
+contained in `d591fb2ad33c`): run these. On an older release, S-01 says whether the live commit contains `7adf8dfec4`.**
 Each changed case keeps its old expectation for a release without #682:
 
 | Change | PRs | Cases |
@@ -248,8 +251,101 @@ https://www.ethr.et`); a case whose commit is not live yet is recorded Blocked, 
 | A punch a terminal pushes to the vendor webhook is recorded for the device's organisation (`86ff8df226`). The PR is titled as a test harness; the fix rides in it | #688 | DEV-007, DEV-008 changed; K-70 |
 | The attendance-to-payslip journeys (`src/e2e/attendance-payroll/`) and the punch race test join the gates: L0 only, never production | #688 | Section 3, L0; [11, section 4](11-CLAUDE-CODE-AND-PLAYWRIGHT.md#4-running-the-scripted-checks-playwright-cli) |
 | Sign-up holds the admin step until the phone is valid; the industry must be one the catalogue knows; the admin and the organisation take the form's language | #689 | ORG-012 to ORG-014; K-69 |
+| One employee, however they arrive: adding someone who is already here is refused or asked about; a deleted record is restored, not remade; a contradicted match goes to review; a phone in another spelling is the same person | #692, #694 | IDN-001 to IDN-004, IDN-006, IDN-007 |
+| The import screen is the staged review: lines are read on the server, shown matched, and added only on commit; a matched line fills blanks and asks about differences; a long list is added in parts; staged lists are kept 30 days from their last activity | #693, #695, #696 | IDN-005, IDN-008 to IDN-011; IMP-E-002 to IMP-E-006 and IMP-E-014 now describe the API only |
+| National ID and TIN are kept out of the `employee.updated` audit record, and out of a staged review | #690 | IDN-009 |
+| The employee template is an Excel workbook with dropdowns, and an `.xlsx` file is read in the browser | #699 | XLS-001 to XLS-003; IMP-E-001 lists 18 of the 20 columns |
+| Another system's column names are matched once and saved as a source; its ids find the same people; a saved source's columns read the same on every database | #700, #701 | MAP-001 to MAP-003 |
+| Mass activation: a list arrives as hired, on probation or confirmed; invitations go out by default; a printable sheet of one-time codes; a code for an invitation unanswered for 3 days | #703 | MASS-001 to MASS-005; MIG-001 changed |
+| One starting password for a batch of employees, changed at first sign-in | #691 | SPW-001 |
+| What a person is known as elsewhere, on the profile, confirmed or removed; a read-only list of current employees who may be recorded twice | #705 | IDN-012 to IDN-015; DUP-001 to DUP-003 |
 | The contact form is Mode X, not R: it stores a lead and mails the contact inbox | pack correction | MKT-004 changed |
+| National ID and TIN are recorded in the `employee.updated` audit entry as `[redacted]`, `[changed]` or `[unchanged]`, never by value | #690 | EMP-022 |
+| An impersonating platform operator cannot issue a starting password: the action joins `BlockImpersonatedActions`, so the step-up is no longer the only thing in the way. Measured: without the guard the request answers 201 (K-72) | #706 | STP-011 changed |
+| One starting password for a batch of employees with no email, 12 characters from an alphabet without I, L, O, 0 or 1, 200 at a time, forced change at first sign-in, unused after 72 hours; 20 failed tries pause them all for 15 minutes | #691 | Section 5c of [03](03-E2E-AUTH-TENANCY-ACCESS.md), STP-001 to STP-012; MIG-001 changed |
+| One gateway creates every employee and asks before making a second record, as a 409 `employee-exists` (not overruled) or `employee-needs-confirmation` (overruled with `confirm_new`); SCIM and SSO attach the login to the employee already there, and provision nothing when it is uncertain | #694, #692 | Section 3a of [04](04-E2E-PEOPLE-AND-ORGANISATION.md), EMP-017 to EMP-021, EMP-023 |
+| One reader for every list of people, and the import **is** the staged review: a matched row fills blanks and asks about differences, and a list is committed in slices | #696, #695 | Section 4a of [04](04-E2E-PEOPLE-AND-ORGANISATION.md), STG-001 to STG-007, STG-017, STG-018 |
+| The employee template is a workbook (`Employees`, `Instructions`, `Lists`) with dropdowns, and an uploaded Excel file is read in the browser; a number the spreadsheet rounded is refused | #699 | STG-008 to STG-010, STG-019 |
+| Another system's column names are matched once, saved per source (at most 30) and answered key by key afterwards | #700, #701 | STG-011 to STG-016 |
+| A staged list is kept while anyone is working on it and deleted after 30 days of no activity; one number read and one placeholder hash per list | #693 | STG-020 |
+| The CSV import refuses, rather than skipping or adding, a row that contradicts the person it matches, one for a deleted employee, and one that may be someone already here; the template gains `status` and `external_id` | #692, #699, #700 | IMP-E-001 changed; IMP-E-018 to IMP-E-021, STG-021 |
+| A Hikvision terminal on an office network sends to ETHR instead of being called: no address, four values typed on the terminal, and the scheduled pull skips it so a silent terminal no longer looks healthy | #697 | DEV-018 to DEV-023 |
+| An organisation's robots line is written into the page's React payload too, so the tag after hydration agrees with the head and the header; a news page with no story is `noindex, follow` | #698 | LAND-010, LAND-011, NEWS-004 |
 | The read-only guard also blocks service workers; Chrome joins as an unguarded agent browser with its own rules | this edition | [11](11-CLAUDE-CODE-AND-PLAYWRIGHT.md) sections 1.1, 4 and 6; [CLAUDE.md](CLAUDE.md) |
+| **Sixth edition (2026-11-14).** A receives-only (push) terminal is not offered for reading its roster: 409 `device-roster-unavailable`, no empty batch; Hikvision's roster is read page by page | #707, #710 | DEV-024 to DEV-027 |
+| The Add Employee split button lists every way in (one person, a file, a terminal, unrecognised badges), each shown only to who can use it; "Other ways to add"; the from-device Back link | #708, #710 | EMP-024 to EMP-027 |
+| A push terminal reads "Not connected yet" until heard, Online within 15 minutes of last contact, Quiet for the rest of 24 hours, then Offline (changed 2026-11-17); a failed pull says why, with advice per error; Test, Pull, Discover and Import history hidden for a push terminal | #709 | DEV-028 to DEV-032 |
+| An unrecognised badge resolves again on every read (matched, probable, new), is assigned with its punches replayed, becomes a new employee with the badge and hire date prefilled, or is downloaded as a workbook; suggestions only for `attendance.manage` within the viewer's reach | #710 | DEV-033 to DEV-038; EMP-028 to EMP-030; XLS-004 |
+| A refused terminal call (retired, cut-off or missing token, address not allowed) shows on the device page for a week, to organisation admins only | #712 | DEV-039, DEV-040 |
+| Three schedule entries named (`generate-monthly-invoices`, `handle-overdue-invoices`, `cleanup-expired-data`) and `ethr:queue:check` deliberately unscheduled; nothing on production shows either | #714 | OPC-010 |
+| The kind of organisation narrows the lists after it: sign-up kinds by industry, the wizard's workforce and policy, Settings; an odd pair is accepted and flagged; "Private company" leaves the industry list | #715 | ORG-015 to ORG-017; SET-023 to SET-028; ORG-009 and SET-018 changed |
+| One browser holds at most three API requests at once; a read the host turns away (502, 503, 504) is asked again, never a write | #717 | PERF-013 |
+| The new ETHR mark: icons, favicon, manifest, public header, sign-in panel, sidebar and loading screen | #719 | PWA-011, UI-010, MKT-016; UI-009 and AUTH-034 changed |
+| A Hikvision push is answered with one insert and a 200; the queue records the punch; a re-sent event is one punch; a 600-a-minute limiter replaces the shared 60 | #720 | DEV-041 to DEV-044 |
+| A saved session with no sign-in, an expired one, or one for another host is skipped with the reason | #721 | [11](11-CLAUDE-CODE-AND-PLAYWRIGHT.md) section 3 |
+| Public pages no longer prefetch the sign-in shell and its Amharic dictionary | #722 | PERF-009 changed |
+| The 404 page reads in the language its address names | #723 | L10N-022; SEC-003 and NEWS-001 changed |
+| The organisations sitemap is expected to name `om` as the page does (product defect D-1, 2026-11-14 log) | pack correction | MKT-006 changed |
+| The UAT guide brought up to date with what shipped since 2026-10-29 | this edition | [02](02-UAT-GUIDE.md): UAT-E14, E15, H14 to H18, F6, A8, P1 steps 10 and 11; twelve scenarios changed |
+| The wizard's policy names lose their em dash; the organisations sitemap names `om`; a device with no branch is refused in plain words and the dialog asks for one; a Hikvision push terminal's Sync History has the push wording | #727 | SET-023, SET-024, MKT-006, DEV-030 (expectations already as fixed) |
+| The setup wizard's industries, profiles, shifts, leave types and allowances read in Afaan Oromoo | #729 | L10N-023 |
+| The wizard proposal's "Confirm before you apply" notes follow the header language | #732 | L10N-024 |
+| The wizard proposal's departments, positions and grades, and the kind of organisation in law, read in Amharic and Afaan Oromoo | #734 (open) | L10N-025 |
+| **Phone punch screen (2026-11-16).** The button and the reason it cannot be pressed on the first screen at 360 × 640; location and selfie in one list, with guidance in the reader's language for a refused location or camera; one punch in flight at a time; a fix renewed once it is a minute old; a note for an account with no employee record; the old clock card and the separate location and selfie cards are gone | #770 | MOB-015 to MOB-020; MOB-001 to MOB-003, MOB-005, MOB-006, MOB-009, MOB-014, PHN-004, PHN-008 changed |
+| The shift drawn as a rail with "Starts in", "so far · ends in" and "Worked" under it (no grace period); the confirmation in the place the button was, with My history and Done; "Sending N punches…" then "All punches sent." | #771 | MOB-021 to MOB-023; MOB-010, MOB-013, OFF-002 changed |
+| A phone punch the server never answered: "Save on this phone" (recorded at the time of the first tap, under the same key) and "Try again"; a real refusal offers neither; the same offer after 8 seconds of a slow send; no save where offline punches are off | #773 (open) | MOB-024 to MOB-026 |
+| The selfie frame is portrait, mirrored, with a face guide, the blink or turn instruction over the picture and a shutter flash | #773 (open) | MOB-027 |
+| Staging a long list is done in slices: the Import screen shows "Matching people: :done of :total", keeps a list whose matching stopped and offers "Carry on", and a list still being matched refuses a commit or a decision with a 409 | #731 | STG-022 to STG-024 |
+| A pulled device that read Offline or Error is pulled again by the schedule, no sooner than 15 minutes after its last attempt (or its own interval if longer); Sync All includes it and skips a terminal that only sends; "device offline" and "sync failed" notices go out at most once a day per device | #735 | DEV-045 to DEV-047; DEV-012 changed |
+| A release that changes routes works without a manual `optimize`: the first request after a deploy drops a configuration or route cache older than the release, and the next scheduler tick rebuilds them | #736 | OPS-007, OPS-008; OPC-004, OPC-008 changed; 01 section 7.1 changed |
+| A receipt prints an Amharic organisation name and the address its sign-in link uses; the report and statutory-schedule PDFs number their pages, and the report PDF is headed with the organisation | #737 | PRN-003 to PRN-007; PLAN-010, OUT-004 changed |
+| Off-host copies work on S3 storage that refuses the SDK's default checksums (Ethio Telecom's): no screen or message changes | #738 | covered by BAK-001 and BAK-004 (client setting only, seen as a passing storage test and a copy that lands) |
+| A failed job's "Retry job" and "Dismiss job" sit together at the end of its row and read as words from 640 px wide | #739 | CON-P-011 changed |
+| Reports count and total every matching row, not only the newest 1,000: group totals over all rows, a rolling Period filter ("This month" to "Last fiscal year") resolved on the organisation's calendar, files and scheduled emails that state the period and say when rows were cut, only the person who saved a report may schedule it, a monthly schedule on the organisation's own month start, 20 reports a minute per person, malformed settings a 422 | #741 | REP-010 to REP-021; REP-001, REP-003, REP-006 changed |
+| One actions menu on the device list and the Health Dashboard (View details, Connection, Address, Staff and clock, Manage), offered by device kind and role, with a note for a terminal that only sends; regenerating a token asks first, from the menu, the device page and the dashboard | #742 | DEV-048 to DEV-051; DEV-010 and DEV-011 gain the menu and the confirmation |
+| An operator impersonating an organisation cannot change its kind of organisation in law or its pension scheme, fiscal year, Pagume rule or working days per month, by Settings or by the setup wizard's apply; the wizard's preview and a name, timezone or language correction stay open | #744 | IMP-009 to IMP-012; IMP-004 changed |
+| One list of employee import columns: the template serves each column's group, kind and whether it is pay or masked, and the Import page's column guide reads it, in the template's order, with help for nationality that was missing. A refactor otherwise: nothing else a tester sees | #745 | XLS-009; IMP-E-001 changed |
+| The platform console lists each organisation's kind in law beside its industry, with "Needs confirming" for an unconfirmed kind, filters the list by kind, and shows a read-only "Kind of organisation in law" card (and a scheduled change) on the organisation's page, which labels the industry "Industry" | #746 | CON-P-028 to CON-P-030; CON-P-002, CON-P-003, CON-P-019 changed |
+| The employee workbook has a coloured band for each group of columns, a note on every column header, an Example sheet with two invented people (never read) and an Instructions sheet grouped the same way | #747 | XLS-005 to XLS-007; XLS-001, XLS-004 and STG-008 changed |
+| A ZKTeco terminal is not sent a person number with a letter in it (recorded as "Not sent"); a terminal ETHR cannot write to keeps no commands switch; a pasted list warns of a badge number a terminal of the organisation would refuse; a device read keeps the terminal's own id as the badge number and flags one that does not fit | #748 | DEV-052 to DEV-055 |
+| A staged list brings a new person in with grade, cost centre, probation end, contract, bank account and emergency contact (eleven new columns, dropdowns for contract type, grade and cost centre); a bank column needs the pay permission; the employee export carries the profile columns, never the bank; the file import route says it does not store them | #750 | XLS-008, STG-025 to STG-028, STG-050; IMP-E-001, IMP-E-010 and IMP-E-011 changed |
+| A list can complete the people already here and add nobody (more fields filled, job and pay shown and left, bank account, emergency contact and contract added once, status moved through the transition), "Download to complete" on Employees, and the list filters for no department, position or gender | #751 | STG-029 to STG-035 |
+| The problems of a list are a table by column (with codes), the refused lines come as a file to correct and bring back, and what happened to a list comes as a file; a person the reviewer may not open has no number in it | #752 | STG-036 to STG-039; STG-007, IDN-010 and SET-011 changed |
+| After a list is committed the screen says what each attendance terminal holds (sent or waiting, not accepted, not sent for their number, people to enrol by hand with a downloadable list, people with no number or branch), and a failed send can be tried again | #753 | STG-045 to STG-049 |
+| A badge's held punches are brought in a slice of about 12 seconds at a time, with Stop and Carry on and one request per badge at a time (409); the new-employee screen says when some are still waiting; one click brings in the punches held for the people a list just added | #754 | DEV-056 to DEV-060; DEV-034 changed |
+| A list is read with its column names under a title (the line can be chosen), a name in three parts, a department written as a path, a text file that is not UTF-8, and a workbook of several sheets with a sheet picker | #759 | STG-040 to STG-044 |
+| A list in progress can be found again: the card "Lists in progress", Open, Discard (asks first, 409 once a list is being or has been added), `?batch=` so a reload returns to it, a list that is gone is let go quietly, and a reload after a commit sends no invitations | #764 | MASS-006 to MASS-011; SET-031 |
+| The Health Dashboard counts a device that has not connected yet in its own card; its "last heard" line and 24 hour counts ignore removed devices | #765 | DEV-061, DEV-066 |
+| Google Drive as the fallback off-host destination: connected in the console with the owner's own Google client, its own archive key, tried after the main storage, a fallen-back copy flagged "Needs a look" | #766 | BAK-007 to BAK-015; BAK-001, BAK-002, BAK-004 changed |
+| The brand palette and type reach the product: Midnight text and sidebar, Slate secondary text, ETHR Blue active row, Manrope for headings and figures, and Paper as the public site's ground (dark, high contrast and print keep their own surfaces); the ETHR mark itself did not change | #767 | UI-011, UI-012; MKT-017 |
+| A dropdown menu taller than the window scrolls and its first item is no longer cut off; the device dashboard keeps three status cards a row until 1536 px | #768 | UI-013, UI-014 |
+| The Health Dashboard, titled "Device health", counts what a sending terminal did (recorded, held, waiting), warns of unrecognised badges with a link to them, shows the sync figures only where ETHR pulls, and its Add Device button opens the register dialog | #769 | DEV-061 to DEV-065; DEV-013 changed |
+| **First setup and invitations (2026-11-16).** In the guided setup Sign-in comes before People (server step numbers unchanged, a reload opens on the first step not done), "Invite them to sign in as soon as they are added" starts unticked there only, and invitations are sent in slices of 200 | #772 | SET-029, SET-031; MASS-002a, MASS-002b (already written in the pull request); SET-004 changed; MASS-002b changed by #776 |
+| The Sign-in step's four option descriptions read in Amharic and Afaan Oromoo instead of English, and the employee number line says people without an email are activated in person (the Amharic admin guide and its screenshot follow the new order; no other user-visible change) | #775 | SET-030 |
+| A daily ceiling on email invitations per organisation (20 percent of the mail cap) and in all (40 percent); what does not fit stays queued with `held_until` for 08:00 Addis Ababa of a later day; the card, the Users page and the batch answer say so; resend and reminders skip a held person | #776 | INV-014 to INV-017; INV-001, INV-002, INV-003, INV-013 and MASS-002b changed |
+| A sign-in form submitted before the page hydrates no longer writes its fields into the address: every auth form says `method="post"` and its button is disabled until ready, a leaked address is cleaned on load, and a POST to the sign-in pages Laravel serves answers 303 | #777 | AUTH-040 to AUTH-042; ACT-002 checked, not changed |
+| The workbook gets an optional Sign in column (yes, no or blank) that outranks the tick, with a review-step card saying what adding the list will do about signing in; a person marked no is left out of the tick, the button, the code sheet and the starting password; the column is ignored by a list that completes people | #778 | MASS-002c to MASS-002f (already written in the pull request); MASS-012 to MASS-014; MIG-001 changed (the workbook rows XLS-001, STG-008 and STG-019 are with the import drafter) |
+| The Employees list says who cannot sign in yet ("No sign-in", "Invited, not activated"), `/employees?missing=sign_in` lists them, the bulk action "Give a way to sign in" sends in slices of 200, Next Steps counts them, and `POST /employees/logins` now stays inside the caller's reach | #779 | MASS-002g to MASS-002i (already written in the pull request); EMP-031, EMP-032; MASS-002h changed; EMP-016, MIG-007 and NXT-003 extended |
+| A terminal that only sends is Online only when heard in the last 15 minutes, then Quiet until 24 hours, then Offline, settled when a page is read and filterable; the device page says whether it reports in when idle; a ZKTeco ADMS terminal with automatic sync off goes Offline once silent | #780 | DEV-067 to DEV-069; DEV-029 already changed |
+| A tap on a phone punch button that cannot punch yet buzzes, shakes the reason, points at the row that fixes it and sends nothing; the button is disabled for real only while a punch is in flight | #781 | MOB-028 to MOB-031 |
+| The pack corrected against the code, from the 2026-11-17 UAT pass: HOL-001 (the three Islamic feasts are stored estimated, and the Holidays screen draws no mark), UAT-A8 step 3 (the setup's "How you pay" never asked the pension registration number), UAT-F4 step 1 (Reconcile opens on the Gregorian month to date, not the Ethiopian month), REP-006 (a timesheet span over 31 days is cut, never a 422), MASS-002h (the Employees list pages 25 at a time) | pack correction | HOL-001, REP-006, MASS-002h changed; [02](02-UAT-GUIDE.md): UAT-A8, UAT-F4 |
+| The UAT guide brought up to date with what shipped since 2026-11-14 | this edition | [02](02-UAT-GUIDE.md): UAT-A5, UAT-A8, UAT-E3, UAT-F4, UAT-H2, UAT-H6, UAT-H13, UAT-H15, UAT-H16, UAT-H18, UAT-P1 changed 2026-11-17 |
+| A held badge says what the Hikvision terminal calls it, offers the employees that name could be (never assigns), carries the name into "Add as a new employee" and the downloaded list | #785 | DEV-070 to DEV-072 |
+| A pulled terminal's sync interval has a floor of 5 minutes (the scheduler ticks every five), the select and the API refuse less, a device stored lower reads as 5, and the screen says "At most every :count min" with a hint that a late pull loses nothing | #788 | DEV-073 |
+| A committed list's additions can be undone: the button "Undo this list's additions" on the committed screen for someone who may delete employees, a preview that names who is archived and who is kept and why, archive in slices that spare anyone used since and close an unused login, one audit entry, the second group "Lists added recently" on the card; the people a list made are recorded on each row, and for older lists worked out | #808 | STG-051 to STG-054; MASS-006, MASS-010 changed |
+| SSO is offered on the sign-in page and shown as "Enabled" only when the entity ID, the SSO URL and a certificate are all set; otherwise the card reads "Not ready" and names what is missing, and a save that would leave SSO on without them is 422 | #838 | SSO-006, SSO-007; SSO-002 changed |
+| The SCIM page lists the organisation's own tokens (name, prefix, created, last used, expiry) and revokes them behind a confirmation, for holders of `apikey.manage`; anyone else is told who can; a switched-off feature is said on the page | #839 | SCIM-004 to SCIM-006 |
+| Payroll rules and their sidebar row follow `payroll.viewConfig` (change: `payroll.manageConfig`), not the Tenant Admin role; the four cards that save the organisation's settings need `settings.manage`; the accounting chart saves only with `payroll.manageConfig` | #841 | PAY-042, PAY-043; PAY-001, PAY-007 changed |
+| The organisation's language accepts only the shipped languages (English, Amharic, Afaan Oromoo); `ti` and `so` are 422 | #851 | TEN-028 |
+| Holidays marks estimated dates "Estimated" and warns, within 90 days of the last one-time holiday, that the next year's are missing | #852 | HOL-006, HOL-007; HOL-001 changed |
+| Notification templates take an Afaan Oromoo subject and body; a reader gets their own language's text before English; default names in sentence case and no em dash in any subject | #853 | NOT-008 to NOT-010 |
+| The SSO URL must be https; the sign-out URL and the attribute mapping, which nothing read, are no longer accepted | #856 | SSO-008 |
+| The Security tab gains Password rules (8 to 128, four switches), Activation codes (1 to 72 hours) and Sign-in methods, each saved on its own and audited | #857 | PWD-016, ACT-014, AUTH-043 |
+| `?tab=` is written back to the address when a tab is chosen, so a tab can be linked, survives a reload and Back leaves the page in one step | #861 | UI-015 |
+| Every settings page, and the General tab's Branding, Security and SSO tabs, is found from the command palette, filtered by permission, in all three languages | #864 | UI-016 |
+| Settings forms warn before the browser closes, reloads or leaves the page with an unsaved change (not for an in-app link), and one hidden status line announces "Settings saved" or the reason a save failed | #865 | UI-017, UI-018; UI-005 changed |
+| `GET /navigation/badges` draws the sidebar and tab bar counts instead of the whole manager dashboard; a count the person may not see is `null` | #866 | UI-019 |
+| Settings sub-pages read "Admin › Settings › page"; British spelling in route text and sidebar; "Not set" for an empty username; the Users search and each exit-checklist checkbox have names; General's card titles are h2 | #872 | UI-020 |
 
 **Not in the pack on 2026-11-10, on purpose.** Work that had no pull request that day (three
 pieces in local worktrees and one pushed branch) has no case: it can still change before anyone
@@ -396,9 +492,12 @@ notes, and never send its bank file anywhere.
 ### 7.1 Entry (before L1 starts)
 
 - The release is tagged and `release.json` on production names the expected commit.
-- The release steps for that release have been run (migrate, clear, optimize, and seeders when the
-  release notes say so). A new route answering 404 while old routes answer 401 means they did not
-  run; report it to the owner before going further.
+- The release steps for that release have been run (migrate, and seeders when the release notes say
+  so; `optimize` is no longer a step since #736, because the first request after a deploy drops a
+  stale configuration or route cache and the next scheduler tick rebuilds it, OPS-007). A new route
+  still answering 404 while old routes answer 401 after the first request following the deploy and
+  one scheduler tick means a step did not run or the sweep did not act; report it to the owner
+  before going further.
 - `/api/v1/health` reports healthy, `queue_detail` shows a scheduler heartbeat less than 15
   minutes old, and `schema_detail.pending_migrations` is `0`.
 - The QA accounts and organisations in section 5 exist and the tester has their credentials.

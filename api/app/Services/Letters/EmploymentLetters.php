@@ -11,7 +11,9 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Notifications\LetterDecidedNotification;
 use App\Notifications\LetterRequestedNotification;
+use App\Support\Letterhead;
 use App\Support\Locales;
+use App\Support\PdfPages;
 use App\Support\ReaderDates;
 use App\Traits\SendsNotifications;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -25,13 +27,22 @@ use Illuminate\Support\Facades\File;
  *
  * The letter states only what the record says: name, employee number,
  * employment dates, position and department, and the basic monthly salary
- * when the employee asked for it to be included. It is generated when
- * downloaded, from the record as it stands then, and carries the reference
- * and issue date fixed when HR issued it.
+ * when the employee asked for it to be included.
+ *
+ * An issued letter never changes: what it says is fixed as an encrypted
+ * snapshot when HR issues it, and every download prints that snapshot, never
+ * the employee record as it stands later. A letter issued before snapshots
+ * existed has none, so it is frozen from the live record at its first
+ * download after that release (audited as `letter.frozen`, `late`); until
+ * then it could not have been frozen. The logo is the one exception, read
+ * live on purpose: it is an image of up to 1 MB, the same organisation's mark.
  */
 final class EmploymentLetters
 {
     use SendsNotifications;
+
+    /** Bump when the snapshot's keys change, so old snapshots can be told apart. */
+    public const SNAPSHOT_VERSION = 1;
 
     /** @param array{purpose: string, addressed_to?: string|null, include_salary?: bool, language?: string} $data */
     public function request(Employee $employee, array $data): EmploymentLetterRequest
@@ -75,6 +86,8 @@ final class EmploymentLetters
                 'decided_at' => now(),
             ]);
 
+            $letter->update(['snapshot' => $this->facts($letter), 'snapshot_at' => now()]);
+
             AuditLog::record('letter.issued', $letter, ['reference' => $letter->reference]);
             $this->notifyEmployee($letter);
 
@@ -107,21 +120,57 @@ final class EmploymentLetters
         $pdf->setPaper('a4', 'portrait');
         $pdf->setOption('isFontSubsettingEnabled', true);
 
-        return $pdf->output();
+        return PdfPages::render($pdf);
     }
 
     /**
-     * What the letter prints.
+     * What the letter prints: the frozen facts with the organisation's
+     * current logo. A letter with no snapshot is frozen here, once.
      *
      * @return array<string, mixed>
      */
     public function data(EmploymentLetterRequest $letter): array
     {
+        $facts = $letter->snapshot;
+        if (! is_array($facts)) {
+            $facts = $this->freeze($letter);
+        }
+
+        $tenant = Tenant::query()->findOrFail($letter->tenant_id);
+        $letterhead = is_array($facts['letterhead'] ?? null) ? $facts['letterhead'] : ['name' => (string) $tenant->name, 'lines' => []];
+        $letterhead['logo'] = Letterhead::for($tenant, Locales::orDefault($letter->language))['logo'];
+        $facts['letterhead'] = $letterhead;
+
+        return $facts;
+    }
+
+    /**
+     * Freeze a letter issued before snapshots existed.
+     *
+     * @return array<string, mixed>
+     */
+    private function freeze(EmploymentLetterRequest $letter): array
+    {
+        $facts = $this->facts($letter);
+        $letter->update(['snapshot' => $facts, 'snapshot_at' => now()]);
+        AuditLog::record('letter.frozen', $letter, ['reference' => $letter->reference, 'late' => true]);
+
+        return $facts;
+    }
+
+    /**
+     * Everything the letter says, as text, from the record as it stands now,
+     * without the logo. Stored as the snapshot when the letter is issued.
+     *
+     * @return array<string, mixed>
+     */
+    public function facts(EmploymentLetterRequest $letter): array
+    {
         $employee = Employee::query()
             ->with(['position:id,title', 'department:id,name'])
             ->findOrFail($letter->employee_id);
         $tenant = Tenant::query()->findOrFail($letter->tenant_id);
-        $letter->loadMissing('decider');
+        $letter->loadMissing('decider.employee.position');
         $locale = Locales::orDefault($letter->language);
         // Dates in the organisation's calendar. An Ethiopian date is followed
         // by the Gregorian one, since a bank or an embassy reads the letter.
@@ -131,8 +180,13 @@ final class EmploymentLetters
             ? $reader->date($d).' ('.$gregorian->date($d).')'
             : $reader->date($d));
 
+        $letterhead = Letterhead::for($tenant, $locale);
+        unset($letterhead['logo']);
+
         return [
+            'version' => self::SNAPSHOT_VERSION,
             'locale' => $locale,
+            'letterhead' => $letterhead,
             'organisation' => (string) $tenant->name,
             'reference' => (string) $letter->reference,
             'issued_on' => $date($letter->decided_at),
@@ -146,6 +200,7 @@ final class EmploymentLetters
             'salary' => $letter->include_salary && $employee->salary_cents > 0 ? number_format($employee->salary_cents / 100, 2) : null,
             'purpose' => $letter->purpose,
             'issuer' => (string) data_get($letter, 'decider.name', ''),
+            'issuer_position' => (string) data_get($letter, 'decider.employee.position.title', ''),
         ];
     }
 

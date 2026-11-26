@@ -6,6 +6,7 @@ namespace App\Http\Requests\Device;
 
 use App\Http\Requests\Device\Concerns\RefusesSimulatorOutsideDevelopment;
 use App\Http\Requests\Device\Concerns\ValidatesSerialUniqueness;
+use App\Models\Device;
 use App\Rules\DeviceConnectionConfig;
 use App\Rules\IpOrCidr;
 use Illuminate\Foundation\Http\FormRequest;
@@ -38,7 +39,7 @@ class StoreDeviceRequest extends FormRequest
             // (attendance QA H10), so a token was the only usable auth.
             'webhook_ip_allowlist' => ['nullable', 'array', 'max:20'],
             'webhook_ip_allowlist.*' => ['string', new IpOrCidr],
-            'sync_interval_minutes' => ['sometimes', 'integer', 'min:1', 'max:1440'],
+            'sync_interval_minutes' => ['sometimes', 'integer', 'min:'.Device::MIN_SYNC_INTERVAL_MINUTES, 'max:1440'],
             'connection_config' => ['required', 'array', new DeviceConnectionConfig($this->input('adapter_type'))],
             // IP-based vendors need ip/port; the generic HTTP adapter is URL-based
             // and needs base_url instead; mock needs neither.

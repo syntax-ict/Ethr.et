@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\EmployeeStatus;
 use App\Enums\UserRole;
+use App\Models\AuditLog;
 use App\Models\Branch;
 use App\Models\CostCenter;
 use App\Models\Department;
@@ -106,6 +107,30 @@ describe('employee CRUD', function () {
         ]);
 
         $response->assertOk()->assertJsonPath('phone', '+251922334455');
+    });
+
+    it('lets a record keep an older number it already holds while another field is edited', function () {
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+        // A partial number from before the phone rule existed.
+        $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'phone' => '551234']);
+
+        $this->putJson("/api/v1/employees/{$employee->public_id}", [
+            'phone' => '551234',
+            'name' => 'Renamed Person',
+        ])->assertOk();
+
+        expect($employee->fresh()->name)->toBe('Renamed Person');
+    });
+
+    it('checks a changed phone in full, even when the record holds an older number', function () {
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+        $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'phone' => '551234']);
+
+        $this->putJson("/api/v1/employees/{$employee->public_id}", [
+            'phone' => '55123',
+        ])->assertStatus(422)->assertJsonValidationErrors(['phone']);
     });
 
     it('sets supervisor, team and cost centre, and answers with all three', function () {
@@ -557,6 +582,25 @@ describe('employee emergency contacts', function () {
             ->assertJsonPath('relationship', 'spouse');
     });
 
+    it('records who added an emergency contact, and not the phone', function () {
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+        $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+
+        $this->postJson("/api/v1/employees/{$employee->public_id}/emergency-contacts", [
+            'name' => 'Almaz Hailu',
+            'relationship' => 'spouse',
+            'phone' => '0911999888',
+        ])->assertCreated();
+
+        $entry = AuditLog::query()->where('action', 'employee.emergency_contact.created')->sole();
+
+        expect($entry->auditable_id)->toBe($employee->id)
+            ->and($entry->user_id)->not->toBeNull()
+            ->and(json_encode($entry->payload))->not->toContain('911999888');
+    });
+
     it('canonicalizes an emergency contact phone typed in local 09... form', function () {
         $tenant = createTenant();
         actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
@@ -708,6 +752,27 @@ describe('employee education', function () {
         $response->assertCreated()
             ->assertJsonPath('institution', 'Jimma University')
             ->assertJsonPath('degree', 'MSc');
+    });
+
+    it('keeps the level beside the degree title, and refuses a level that is not on the ladder', function () {
+        $tenant = createTenant();
+        actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+        $employee = Employee::factory()->create(['tenant_id' => $tenant->id]);
+        $url = "/api/v1/employees/{$employee->public_id}/education";
+
+        $this->postJson($url, ['institution' => 'Bahir Dar University', 'degree' => 'BSc Accounting', 'level' => 'bachelor'])
+            ->assertCreated()
+            ->assertJsonPath('degree', 'BSc Accounting')
+            ->assertJsonPath('level', 'bachelor');
+
+        $this->postJson($url, ['institution' => 'Somewhere', 'degree' => 'Certificate in IT'])
+            ->assertCreated()
+            ->assertJsonPath('level', null);
+
+        $this->postJson($url, ['institution' => 'Somewhere', 'degree' => 'BSc', 'level' => 'bachelors'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('level');
     });
 
     it('deletes an education record', function () {

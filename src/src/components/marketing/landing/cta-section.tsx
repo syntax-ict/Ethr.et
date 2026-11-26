@@ -53,7 +53,7 @@ export function CtaSection({ section }: { section: MarketingSection }) {
             className="h-12 px-7 text-base"
             asChild
           >
-            <Link href="/register">
+            <Link href="/register" prefetch={false}>
               {t("marketing.hero.get_started", "Get Started")}
               <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
             </Link>

@@ -10,9 +10,11 @@ import { Input } from "@/components/ui/input";
 import { FormField } from "@/components/patterns/FormField";
 import { FormErrorSummary } from "@/components/patterns/FormErrorSummary";
 import { useT } from "@/lib/i18n/useT";
+import { useHydrated } from "@/lib/hooks/useHydrated";
 import { useZodForm } from "@/lib/forms/use-zod-form";
 import { rules, fieldMessage } from "@/lib/forms/rules";
 import { prepareCsrfCookie } from "@/features/auth/sign-in";
+import { EthrSymbol } from "@/components/shared/ethr-logo";
 
 const findSchema = z.object({ email: rules.email() });
 type FindValues = z.infer<typeof findSchema>;
@@ -29,6 +31,7 @@ type FindValues = z.infer<typeof findSchema>;
  */
 export function FindOrganisationForm() {
   const { t } = useT();
+  const hydrated = useHydrated();
   const [sent, setSent] = useState(false);
 
   const {
@@ -100,9 +103,7 @@ export function FindOrganisationForm() {
   return (
     <div className="w-full max-w-sm">
       <div className="mb-8 text-center">
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary">
-          <span className="text-lg font-bold text-primary-foreground">E</span>
-        </div>
+        <EthrSymbol className="mx-auto h-12 w-12" />
         <h1 className="mt-4 text-2xl font-bold text-foreground">
           {t("auth.find_org_title", "Find your organisation")}
         </h1>
@@ -115,6 +116,7 @@ export function FindOrganisationForm() {
       </div>
 
       <form
+        method="post"
         onSubmit={submit(
           onSubmit,
           t("auth.find_org_failed", "Something went wrong. Try again."),
@@ -139,7 +141,11 @@ export function FindOrganisationForm() {
           />
         </FormField>
 
-        <Button type="submit" className="w-full" disabled={isSubmitting}>
+        <Button
+          type="submit"
+          className="w-full"
+          disabled={!hydrated || isSubmitting}
+        >
           {isSubmitting ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />{" "}

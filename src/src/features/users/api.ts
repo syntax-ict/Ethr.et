@@ -31,15 +31,39 @@ export function useUsers(params?: {
   search?: string;
   /** `invited` lists the people who have not activated yet. */
   status?: UserStatus;
+  /** `held` lists accounts whose role differs from what their job title gives. */
+  titleAccess?: "held";
+  /** A custom role's public id: lists only the people who hold it. */
+  customRole?: string;
 }) {
   return useQuery<PaginatedResponse<TenantUser>>({
     queryKey: ["users", params],
     queryFn: async () => {
-      const { status, ...rest } = params ?? {};
+      const { status, titleAccess, customRole, ...rest } = params ?? {};
       const query: Record<string, string | number | undefined> = { ...rest };
       if (status) query["filter[status]"] = status;
+      if (titleAccess) query["filter[title_access]"] = titleAccess;
+      if (customRole) query["filter[custom_role]"] = customRole;
       return (await apiClient.get("/users", { params: query })).data;
     },
+  });
+}
+
+export type AssignableRole = NonNullable<
+  operations["user.assignableRoles"]["responses"][200]["content"]["application/json"]
+>["data"][number];
+
+/**
+ * The custom roles the signed-in person may give. Settings > Roles needs
+ * `settings.manage`, which an HR admin lacks, so the picker reads this
+ * instead. Pass `enabled: false` for someone who may not edit users.
+ */
+export function useAssignableRoles(enabled = true) {
+  return useQuery<AssignableRole[]>({
+    queryKey: ["users", "assignable-roles"],
+    enabled,
+    queryFn: async () =>
+      (await apiClient.get("/users/assignable-roles")).data.data,
   });
 }
 
@@ -82,6 +106,19 @@ export function useUpdateUser() {
         qc.invalidateQueries({ queryKey: ["auth", "me"] });
       }
     },
+  });
+}
+
+/**
+ * Gives an account the role its job title gives, as the signed-in person. The
+ * API refuses (422) when they may not give that role.
+ */
+export function useApplyTitleAccess() {
+  const qc = useQueryClient();
+  return useMutation<TenantUser, unknown, string>({
+    mutationFn: async (publicId) =>
+      (await apiClient.post(`/users/${publicId}/title-access`)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["users"] }),
   });
 }
 
@@ -143,14 +180,24 @@ export function useSendInvitations() {
   });
 }
 
-/** Where a batch stands. Polls while anything is still waiting to go out. */
+/**
+ * How long to wait before asking again. `queued` is what is still to go
+ * today; invitations held for a later morning are not in it, so a batch with
+ * only held ones left stops polling.
+ */
+export function invitationPollInterval(
+  data: Pick<InvitationBatch, "queued"> | undefined,
+): number | false {
+  return data && data.queued === 0 ? false : 15_000;
+}
+
+/** Where a batch stands. Polls while anything is still to go out today. */
 export function useInvitationBatch(batch: string | null) {
   return useQuery<InvitationBatch>({
     queryKey: ["users", "invitations", batch],
     enabled: batch !== null,
     queryFn: async () =>
       (await apiClient.get(`/users/invitations/${batch}`)).data,
-    refetchInterval: (query) =>
-      query.state.data && query.state.data.queued === 0 ? false : 15_000,
+    refetchInterval: (query) => invitationPollInterval(query.state.data),
   });
 }

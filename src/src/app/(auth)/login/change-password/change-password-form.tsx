@@ -15,6 +15,8 @@ import { rules, fieldMessage } from "@/lib/forms/rules";
 import { useZodForm } from "@/lib/forms/use-zod-form";
 import { useAuthHostContext } from "@/lib/auth/use-auth-host-context";
 import { useT } from "@/lib/i18n/useT";
+import { useHydrated } from "@/lib/hooks/useHydrated";
+import { EthrSymbol } from "@/components/shared/ethr-logo";
 
 const changeSchema = z
   .object({
@@ -44,6 +46,7 @@ type ChangeValues = z.infer<typeof changeSchema>;
  */
 export function ChangePasswordForm() {
   const { t } = useT();
+  const hydrated = useHydrated();
   const queryClient = useQueryClient();
   const [showPassword, setShowPassword] = useState(false);
   const [done, setDone] = useState(false);
@@ -114,9 +117,7 @@ export function ChangePasswordForm() {
             initialClassName="text-lg"
           />
         ) : (
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary">
-            <span className="text-lg font-bold text-primary-foreground">E</span>
-          </div>
+          <EthrSymbol className="mx-auto h-12 w-12" />
         )}
         <h1 className="mt-4 text-2xl font-bold text-foreground">
           {t("auth.change_password_title", "Choose your own password")}
@@ -130,6 +131,7 @@ export function ChangePasswordForm() {
       </div>
 
       <form
+        method="post"
         onSubmit={submit(
           onSubmit,
           t("auth.change_password_failed", "Your password was not changed."),
@@ -206,7 +208,11 @@ export function ChangePasswordForm() {
           />
         </FormField>
 
-        <Button type="submit" className="w-full" disabled={isSubmitting}>
+        <Button
+          type="submit"
+          className="w-full"
+          disabled={!hydrated || isSubmitting}
+        >
           {isSubmitting ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />{" "}

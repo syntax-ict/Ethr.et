@@ -55,7 +55,18 @@ const SETTINGS = {
     pagumen_proration_strategy: "full_month",
     retirement_age: 60,
   },
-  security: { mfa_policy: "required", session_timeout_minutes: 30 },
+  security: {
+    mfa_policy: "required",
+    session_timeout_minutes: 30,
+    password_policy: {
+      min_length: 8,
+      require_uppercase: false,
+      require_lowercase: false,
+      require_number: false,
+      require_symbol: false,
+    },
+    activation_code_hours: 24,
+  },
   display: { calendar: "gregorian" },
   employees: { number_format: "EMP-{SEQ:4}", next_code: "EMP-0001" },
   sso: {
@@ -66,6 +77,8 @@ const SETTINGS = {
     default_role: "employee",
     auto_provision: false,
     metadata_url: "https://api.ethr.et/api/v1/sso/saml/abay/metadata",
+    configured: true,
+    has_certificate: true,
   },
 };
 
@@ -108,7 +121,9 @@ describe("<SettingsPage> security tab", () => {
     );
     renderPage();
 
-    expect(await screen.findByRole("spinbutton")).toHaveValue(30);
+    expect(
+      await screen.findByLabelText("Session timeout (minutes)"),
+    ).toHaveValue(30);
     expect(screen.getByRole("combobox")).toHaveTextContent("Required");
   });
 
@@ -125,10 +140,12 @@ describe("<SettingsPage> security tab", () => {
     const user = userEvent.setup();
     renderPage();
 
-    const timeout = await screen.findByRole("spinbutton");
+    const timeout = await screen.findByLabelText("Session timeout (minutes)");
     await user.clear(timeout);
     await user.type(timeout, "45");
-    await user.click(screen.getByRole("button", { name: /Save/ }));
+    await user.click(
+      screen.getByRole("button", { name: "Save security settings" }),
+    );
 
     await waitFor(() => expect(body).not.toBeNull());
     expect(body).toEqual({ settings: { session_timeout_minutes: 45 } });
@@ -161,10 +178,12 @@ describe("<SettingsPage> security tab", () => {
     const user = userEvent.setup();
     renderPage();
 
-    const timeout = await screen.findByRole("spinbutton");
+    const timeout = await screen.findByLabelText("Session timeout (minutes)");
     await user.clear(timeout);
     await user.type(timeout, "60");
-    await user.click(screen.getByRole("button", { name: /Save/ }));
+    await user.click(
+      screen.getByRole("button", { name: "Save security settings" }),
+    );
 
     expect(
       await screen.findByText(
@@ -193,7 +212,7 @@ describe("<SettingsPage> security tab", () => {
     const user = userEvent.setup();
     renderPage();
 
-    const timeout = await screen.findByRole("spinbutton");
+    const timeout = await screen.findByLabelText("Session timeout (minutes)");
     await user.clear(timeout);
     await user.type(timeout, "3");
 
@@ -201,7 +220,9 @@ describe("<SettingsPage> security tab", () => {
       screen.getByText("Enter a whole number from 5 to 480."),
     ).toBeInTheDocument();
     expect(timeout).toHaveAttribute("aria-invalid", "true");
-    expect(screen.getByRole("button", { name: /Save/ })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Save security settings" }),
+    ).toBeDisabled();
     expect(sent).toBe(false);
   });
 
@@ -212,7 +233,9 @@ describe("<SettingsPage> security tab", () => {
     );
     renderPage();
 
-    expect(await screen.findByRole("spinbutton")).toBeInTheDocument();
+    expect(
+      await screen.findByLabelText("Session timeout (minutes)"),
+    ).toBeInTheDocument();
     expect(screen.queryByTestId("role-gate-denied")).not.toBeInTheDocument();
   });
 });
@@ -275,5 +298,83 @@ describe("<SettingsPage> SSO tab", () => {
       await screen.findByText(SETTINGS.sso.metadata_url),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Copy" })).toBeInTheDocument();
+  });
+
+  it("says Enabled when SSO is on and complete", async () => {
+    tab = "sso";
+    server.use(
+      me(["settings.manage"]),
+      http.get("*/api/v1/settings", () => HttpResponse.json(SETTINGS)),
+    );
+    renderPage();
+
+    expect(await screen.findByText("Enabled")).toBeInTheDocument();
+    expect(screen.queryByText("Not ready")).not.toBeInTheDocument();
+  });
+
+  it("says Not ready, and what is missing, when SSO is on but cannot work", async () => {
+    tab = "sso";
+    server.use(
+      me(["settings.manage"]),
+      http.get("*/api/v1/settings", () =>
+        HttpResponse.json({
+          ...SETTINGS,
+          sso: {
+            ...SETTINGS.sso,
+            idp_entity_id: null,
+            idp_sso_url: null,
+            configured: false,
+            has_certificate: false,
+          },
+        }),
+      ),
+    );
+    renderPage();
+
+    expect(await screen.findByText("Not ready")).toBeInTheDocument();
+    expect(screen.queryByText("Enabled")).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Still missing: IdP entity ID, IdP SSO URL, IdP certificate (PEM).",
+    );
+  });
+
+  it("names only the certificate when it is the one thing missing", async () => {
+    tab = "sso";
+    server.use(
+      me(["settings.manage"]),
+      http.get("*/api/v1/settings", () =>
+        HttpResponse.json({
+          ...SETTINGS,
+          sso: { ...SETTINGS.sso, configured: false, has_certificate: false },
+        }),
+      ),
+    );
+    renderPage();
+
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Still missing: IdP certificate (PEM).",
+    );
+  });
+
+  it("says Disabled, not Not ready, when SSO is off and incomplete", async () => {
+    tab = "sso";
+    server.use(
+      me(["settings.manage"]),
+      http.get("*/api/v1/settings", () =>
+        HttpResponse.json({
+          ...SETTINGS,
+          sso: {
+            ...SETTINGS.sso,
+            is_enabled: false,
+            configured: false,
+            has_certificate: false,
+          },
+        }),
+      ),
+    );
+    renderPage();
+
+    expect(await screen.findByText("Disabled")).toBeInTheDocument();
+    expect(screen.queryByText("Not ready")).not.toBeInTheDocument();
   });
 });

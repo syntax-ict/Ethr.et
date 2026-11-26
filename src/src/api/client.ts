@@ -1,10 +1,16 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from "axios";
 
-import { clearOfflineIdentity } from "@/features/auth/offline-identity";
+import {
+  clearOfflineIdentity,
+  readOfflineIdentity,
+} from "@/features/auth/offline-identity";
+import { clearOfflineOnSignOut } from "@/lib/offline-signout";
 import { clearApiCache } from "@/lib/api-cache";
 import { hostContext } from "@/lib/auth/host-context";
 import { getLocale } from "@/lib/i18n/translations";
 import { recordFailedRequest } from "@/lib/support/recent-failures";
+
+import { createLimiter } from "./request-limiter";
 
 export interface ApiError {
   type: string;
@@ -23,6 +29,24 @@ const apiClient = axios.create({
   withCredentials: true,
   timeout: 30000,
 });
+
+/**
+ * The host runs five PHP workers (`pm.max_children 5`, in
+ * docs/deployment/host-evidence/HOST-EVIDENCE.json), shared by every user, the
+ * cron caller and the devices. One browser takes at most three and leaves two
+ * for everyone else; past five busy workers the host answers a plain HTML 503.
+ */
+export const MAX_IN_FLIGHT = 3;
+
+const limiter = createLimiter(MAX_IN_FLIGHT);
+
+// A slot is held only while the request is on the network, not while it waits
+// in an interceptor. The bare `axios` calls (the CSRF cookie, the session
+// refresh) stay outside the cap on purpose.
+const send = axios.getAdapter(
+  apiClient.defaults.adapter ?? axios.defaults.adapter,
+);
+apiClient.defaults.adapter = (config) => limiter.run(() => send(config));
 
 apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   if (typeof window === "undefined") return config;
@@ -180,7 +204,40 @@ export function passwordChangeRedirect(
   return PASSWORD_CHANGE_PATH;
 }
 
+const BUSY_STATUSES = [502, 503, 504];
+const MAX_BUSY_RETRIES = 2;
+
+/** How long to wait before asking again: the host's own hint, else backoff with jitter. */
+function busyDelayMs(retryAfter: unknown, attempt: number): number {
+  const seconds = Number(retryAfter);
+  if (
+    retryAfter !== undefined &&
+    retryAfter !== "" &&
+    Number.isFinite(seconds) &&
+    seconds >= 0
+  ) {
+    return Math.min(seconds, 5) * 1000;
+  }
+  return 400 * 2 ** attempt + Math.random() * 250;
+}
+
 let redirectingToEnrolment = false;
+
+/**
+ * The `type` of a problem+json answer, or undefined. A file download asks for
+ * a Blob, and a Blob's own `type` is its MIME type ("text/html"), which is not
+ * a problem type: reading it as one made a busy host's page look like a
+ * deliberate answer, so the heaviest requests were never sent again.
+ */
+function problemType(data: unknown): string | undefined {
+  // The body of a download is a Blob, whose MIME type says what it holds: JSON
+  // is the API answering on purpose; anything else (the host's HTML page) is not.
+  if (typeof Blob !== "undefined" && data instanceof Blob) {
+    return data.type.includes("json") ? "problem" : undefined;
+  }
+  const type = (data as { type?: unknown } | null | undefined)?.type;
+  return typeof type === "string" ? type : undefined;
+}
 
 /** The refresh in flight, shared by every 401 that arrives while it runs. */
 let refreshing: Promise<unknown> | null = null;
@@ -189,6 +246,30 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError<ApiError>) => {
     const originalRequest = error.config;
+
+    // The host turned a read away because every PHP worker was busy. Its page
+    // is plain HTML; the API's own deliberate 503s (devices, SCIM, a paused
+    // portal section) carry a problem+json `type` and are answers, not
+    // congestion. Writes are never sent again: one may have run. This sits
+    // first so a request that recovers is not recorded as a failure.
+    const busyAttempt = originalRequest?._busyRetries ?? 0;
+    if (
+      originalRequest !== undefined &&
+      error.response !== undefined &&
+      BUSY_STATUSES.includes(error.response.status) &&
+      SAFE_METHODS.includes((originalRequest.method ?? "get").toLowerCase()) &&
+      problemType(error.response.data) === undefined &&
+      busyAttempt < MAX_BUSY_RETRIES
+    ) {
+      const wait = busyDelayMs(
+        error.response.headers?.["retry-after"],
+        busyAttempt,
+      );
+      await new Promise((resolve) => setTimeout(resolve, wait));
+      originalRequest._busyRetries = busyAttempt + 1;
+
+      return apiClient(originalRequest);
+    }
 
     // A 419 is a stale XSRF cookie: present, so the request interceptor did
     // not fetch one, but from a session that has since ended (signed out in
@@ -207,7 +288,7 @@ apiClient.interceptors.response.use(
         method: originalRequest?.method,
         url: originalRequest?.url,
         status: error.response?.status,
-        type: error.response?.data?.type,
+        type: problemType(error.response?.data),
       });
     }
 
@@ -258,7 +339,15 @@ apiClient.interceptors.response.use(
 
         return apiClient(originalRequest);
       } catch {
+        // Read before the identity goes: it names who is leaving.
+        let departing: string | null = null;
+        try {
+          departing = readOfflineIdentity()?.user?.employee_public_id ?? null;
+        } catch {
+          // Signing out goes ahead regardless.
+        }
         clearOfflineIdentity();
+        await clearOfflineOnSignOut(departing);
         await clearApiCache();
         window.location.href = "/login";
       }
@@ -272,6 +361,7 @@ declare module "axios" {
   interface InternalAxiosRequestConfig {
     _retry?: boolean;
     _xsrfRetry?: boolean;
+    _busyRetries?: number;
   }
   interface AxiosRequestConfig {
     /** Hand a 401 to the caller instead of refreshing the session. */

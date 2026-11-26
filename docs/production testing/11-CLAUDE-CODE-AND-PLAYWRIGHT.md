@@ -81,6 +81,23 @@ Sign in as TA in the window that opens (authenticator code included), wait for t
 close the window: the session is written when it closes. Repeat for `hr`, `fin`, `sup` and `emp`.
 For the platform operator, open `https://admin.ethr.et` and save `pa.json`.
 
+**The file is written when the command ends, not when you sign in.** The terminal returning to its
+prompt is the sign that it was. Closing the page can leave the command running, and nothing is saved
+until it ends. Stopping the command with Ctrl-C also writes the file, with whatever that window holds,
+signed in or not. So start each persona's save in a terminal of its own, and never stop one window to
+start another under the same file name. On 2026-11-13 that overwrote a TA session with a QA Audit window
+that was never signed in, and every page answered `/login`. The scripts now skip a persona whose file
+holds no sign-in, or signed in on a host other than the one under test, and say why
+(`sessionProblem` and `sessionHostProblem` in `src/e2e-production/env.ts`, #721). They read only where each
+sign-in cookie belongs and when it expires, never its value. Four things make a persona skip, each with its own reason
+in the log: no file (or one that is not a Playwright storage file); a file older than the 15-minute idle limit; a file
+holding no `access_token` cookie scoped to `/api` (a window closed or stopped before anyone signed in); and a file whose
+`access_token` has expired. After the organisation's address is known, `sessionHostProblem` also skips a persona whose
+cookie does not cover that host (saved on another organisation, or on the apex when the run goes to the console):
+"signed in on X, not Y. Save it again from Y". A skipped persona is Blocked in the log, not Failed, and the fix is to save
+the session again from the host under test (added 2026-11-14, sixth edition). This is the script reading the file's
+metadata; an agent still never opens or prints the file (rule 4 of `CLAUDE.md`).
+
 - `src/e2e-production/.auth/` is ignored by Git. **Never commit, attach, upload or paste a session
   file.** It is a signed-in session: anyone holding it is that persona until it expires.
 - A session lives **15 idle minutes** (`AuthService::SESSION_MINUTES`). The scripts refuse a file
@@ -92,6 +109,7 @@ For the platform operator, open `https://admin.ethr.et` and save `pa.json`.
 
 ```bash
 cd src && npm run test:e2e:production
+cd src && npm run test:e2e:production:offline   # the offline shell only, with the network cut
 ```
 
 What it covers, all Mode R:
@@ -131,8 +149,12 @@ Run one row with `--grep "S-02"`, a priority with `--grep @P1`. Settings, none o
 2. Service workers are blocked (`serviceWorkers: "block"` in `playwright.production.config.ts`).
    The guard sees requests a page makes; the app's service worker makes one of its own, replaying
    punches queued while offline with `POST /api/v1/attendance/sync` (`src/public/sw.js`,
-   `flushQueue`). With no worker there is no replay. The cost: the scripted run says nothing about
-   the PWA, which is tested by hand (09, section 8).
+   `flushQueue`). With no worker there is no replay. The cost: these specs say nothing about the
+   PWA. One project is the exception, `production-offline` (`e2e-production/offline.spec.ts`):
+   it runs the signed-out PWA cases (PWA-002, PWA-012, PWA-013) with the worker allowed, and is
+   safe because every test starts from an empty profile and never signs in, so nothing is queued
+   on the phone for the worker to replay. Do not add a signed-in test to that project. The
+   signed-in PWA cases are still tested by hand (09, section 8).
 
 - **A GET is let through.** Read-only here means no state-changing method, not no trace: the
   server may log or count a read.
@@ -157,7 +179,7 @@ A skipped check is **Not run** with its reason, never Pass. The tester is record
 
 | Suite | Config | Where it may run |
 |---|---|---|
-| `src/e2e-production/` | `playwright.production.config.ts` | Production. Read-only, never signs in |
+| `src/e2e-production/` | `playwright.production.config.ts` | Production. Read-only, never signs in. Two projects: `production-chromium` (service workers blocked) and `production-offline` (the offline shell, worker allowed, signed out only) |
 | `src/e2e/` | `playwright.config.ts` | Local and CI. Signs in with demo passwords and writes data; never production with its defaults ([01, section 3](01-TEST-PLAN.md#3-approach)) |
 | `src/e2e/attendance-payroll/` (#688) | `playwright.attendance.config.ts` | Local and CI only (`./scripts/gates.sh e2e-attendance`). It seeds its own organisations (`E2eAttendanceSeeder`), punches and processes payroll. **Never production, under any setting** |
 

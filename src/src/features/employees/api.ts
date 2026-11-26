@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
 import type { components, operations } from "@/api/generated";
 import type { PaginatedResponse } from "@/api/types";
+import { sendInSlices } from "@/features/employees/send-in-slices";
 import type { Employee } from "./types";
 
 /**
@@ -29,12 +30,15 @@ export interface EmployeeFilters {
    * `emergency_contact` or `phone`. The set a Next Steps row counted.
    */
   missing?: string;
+  /** Only the people who were archived. Needs `employee.delete`. */
+  archived?: boolean;
 }
 
 function filterParams(f: EmployeeFilters): Record<string, string | number> {
   const out: Record<string, string | number> = {};
   if (f.nationalityReview) out["filter[nationality_needs_review]"] = 1;
   if (f.missing) out["filter[missing]"] = f.missing;
+  if (f.archived) out["filter[archived]"] = 1;
   if (f.status) out["filter[status]"] = f.status;
   if (f.departmentId) out["filter[department_id]"] = f.departmentId;
   if (f.branchId) out["filter[branch_id]"] = f.branchId;
@@ -58,6 +62,7 @@ export function useEmployees(
         departmentId,
         branchId,
         missing,
+        archived,
         search,
         ...rest
       } = params ?? {};
@@ -71,6 +76,7 @@ export function useEmployees(
             departmentId,
             branchId,
             missing,
+            archived,
           }),
         },
       });
@@ -188,6 +194,10 @@ export interface BulkUpdateEmployeesInput {
   employee_ids: string[];
   department_id?: string;
   branch_id?: string;
+  position_id?: string;
+  team_id?: string;
+  cost_center_id?: string;
+  supervisor_id?: string;
   status?: string;
   effective_date?: string;
   reason?: string;
@@ -201,21 +211,157 @@ export interface BulkUpdateEmployeesInput {
 export type BulkUpdateEmployeesResult =
   operations["employeeBulk.bulkUpdate"]["responses"][200]["content"]["application/json"];
 
+/**
+ * People per bulk-update request. The server takes 200 (`BulkUpdateRequest`),
+ * but each person is their own transaction with an edit, an audit row and a
+ * webhook, so a long selection goes up in slices of half that, one after
+ * another, inside the 30-second limit.
+ */
+export const BULK_UPDATE_SLICE = 100;
+
+/** What a bulk update answered, with the people no request carried. */
+export type BulkUpdateRun = BulkUpdateEmployeesResult & {
+  /** The ids a failed slice and every slice after it left unsent. */
+  unsent: string[];
+};
+
+/** The answers of several update slices as one: counts added, results in order. */
+export function combineUpdate(
+  parts: BulkUpdateEmployeesResult[],
+): BulkUpdateEmployeesResult {
+  return {
+    updated: parts.reduce((n, p) => n + p.updated, 0),
+    failed: parts.reduce((n, p) => n + p.failed, 0),
+    results: parts.flatMap((p) => p.results),
+  };
+}
+
+export async function postBulkUpdate(
+  input: BulkUpdateEmployeesInput,
+): Promise<BulkUpdateEmployeesResult> {
+  const { data } = await apiClient.post<BulkUpdateEmployeesResult>(
+    "/employees/bulk-update",
+    input,
+  );
+  return data;
+}
+
+/**
+ * The same change for every id, in slices of `BULK_UPDATE_SLICE`, stopping at
+ * the first slice that fails. A failure of the first slice is thrown, so the
+ * caller shows the server's own message; a later one comes back as `unsent`,
+ * with what did go through, because a retry must send only the rest.
+ */
+export async function runBulkUpdate(
+  input: BulkUpdateEmployeesInput,
+): Promise<BulkUpdateRun> {
+  const run = await sendInSlices(
+    input.employee_ids,
+    (slice) => postBulkUpdate({ ...input, employee_ids: slice }),
+    BULK_UPDATE_SLICE,
+  );
+
+  if (run.results.length === 0 && run.error !== null) {
+    throw run.error;
+  }
+
+  return { ...combineUpdate(run.results), unsent: run.unsent };
+}
+
 export function useBulkUpdateEmployees() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (input: BulkUpdateEmployeesInput) => {
-      const { data } = await apiClient.post<BulkUpdateEmployeesResult>(
-        "/employees/bulk-update",
-        input,
-      );
-      return data;
-    },
+    mutationFn: runBulkUpdate,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["employees"] });
     },
   });
+}
+
+// ── Everyone a filter matches ──────────────────────────────────────
+
+export type EmployeeIdsResult =
+  operations["employeeBulk.ids"]["responses"][200]["content"]["application/json"];
+
+/**
+ * The public ids of everyone the list's search and filters match (at most
+ * `cap`; `capped` says there are more). A read only: the ids go to the bulk
+ * endpoints, which check each person against the signed-in person's reach.
+ */
+export async function fetchMatchingEmployeeIds(
+  params: { search?: string } & EmployeeFilters,
+): Promise<EmployeeIdsResult> {
+  const { search, ...filters } = params;
+  const { data } = await apiClient.get<EmployeeIdsResult>("/employees/ids", {
+    params: { search: search || undefined, ...filterParams(filters) },
+  });
+  return data;
+}
+
+// ── Archive and restore ────────────────────────────────────────────
+
+export type BulkArchiveResult =
+  operations["employeeBulk.bulkArchive"]["responses"][200]["content"]["application/json"];
+
+export type BulkRestoreResult =
+  operations["employeeBulk.bulkRestore"]["responses"][200]["content"]["application/json"];
+
+/** The most people one archive or restore request carries (`BulkArchiveRequest`). */
+export const ARCHIVE_SLICE = 200;
+
+/**
+ * People per request when archiving for real. Each one is re-checked for use
+ * under a row lock (about 35 queries), so 200 in one request would be several
+ * thousand queries against a 30-second limit; the import undo chunks at 50 too.
+ * A preview writes nothing and keeps ARCHIVE_SLICE.
+ */
+export const ARCHIVE_CONFIRM_SLICE = 50;
+
+/**
+ * One request: what archiving these people would do (`confirm` false, which
+ * writes nothing), or doing it.
+ */
+export async function postBulkArchive(
+  ids: string[],
+  confirm: boolean,
+): Promise<BulkArchiveResult> {
+  const { data } = await apiClient.post<BulkArchiveResult>(
+    "/employees/bulk-archive",
+    { employee_ids: ids, confirm },
+  );
+  return data;
+}
+
+export async function postBulkRestore(
+  ids: string[],
+): Promise<BulkRestoreResult> {
+  const { data } = await apiClient.post<BulkRestoreResult>(
+    "/employees/bulk-restore",
+    { employee_ids: ids },
+  );
+  return data;
+}
+
+/** The answers of several archive slices as one, in the order they came. */
+export function combineArchive(parts: BulkArchiveResult[]): BulkArchiveResult {
+  return {
+    confirmed: parts.every((p) => p.confirmed),
+    archive_count: parts.reduce((n, p) => n + p.archive_count, 0),
+    keep_count: parts.reduce((n, p) => n + p.keep_count, 0),
+    already_archived: parts.reduce((n, p) => n + p.already_archived, 0),
+    failed: parts.reduce((n, p) => n + p.failed, 0),
+    results: parts.flatMap((p) => p.results),
+  };
+}
+
+/** The answers of several restore slices as one, in the order they came. */
+export function combineRestore(parts: BulkRestoreResult[]): BulkRestoreResult {
+  return {
+    restored: parts.reduce((n, p) => n + p.restored, 0),
+    failed: parts.reduce((n, p) => n + p.failed, 0),
+    results: parts.flatMap((p) => p.results),
+  };
 }
 
 // ── Export ─────────────────────────────────────────────────────────
@@ -277,6 +423,20 @@ export async function fetchEmployeeImportTemplate(): Promise<EmployeeImportTempl
     "/employees/import/template",
   );
   return data;
+}
+
+/**
+ * The template's spec, for a screen that lists its columns. The columns do not
+ * change while a page is open, and a person's own departments only matter to
+ * the workbook, so it is read once and kept.
+ */
+export function useEmployeeImportTemplate() {
+  return useQuery<EmployeeImportTemplate>({
+    queryKey: ["employees", "import-template"],
+    queryFn: fetchEmployeeImportTemplate,
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
 }
 
 // ── Personnel actions (employment history) ─────────────────────────
@@ -1057,5 +1217,33 @@ export function useEmployeeAttendanceTimeline(
         )
       ).data,
     enabled: !!publicId,
+  });
+}
+
+/** A full `YYYY-MM-DD`, the only value worth asking the server about. */
+export function isFullDate(value: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+export type PaidMonths =
+  operations["employee.employeePaidMonths"]["responses"][200]["content"]["application/json"]["data"];
+
+/**
+ * The released payroll months a change dated `from` reaches for this person
+ * (the same set the server records a pay difference for). Asked once a full
+ * date is in the field.
+ */
+export function usePaidMonths(publicId: string, from: string, enabled = true) {
+  return useQuery<PaidMonths>({
+    queryKey: [...subResourceKey(publicId, "paid-months"), from],
+    queryFn: async () =>
+      (
+        await apiClient.get<{ data: PaidMonths }>(
+          `/employees/${publicId}/paid-months`,
+          { params: { from } },
+        )
+      ).data.data,
+    enabled: enabled && !!publicId && isFullDate(from),
+    staleTime: 30_000,
   });
 }

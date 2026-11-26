@@ -19,13 +19,17 @@ vi.mock("sonner", () => ({
 const BATCH = "01JBQ8Z6ZK3M9V2X7Y4W5T6R8S";
 const INVITATIONS = "01JBQ8Z6ZK3M9V2X7Y4W5T6R9A";
 
-function renderPanel(onContinue?: () => void) {
+function renderPanel(onContinue?: () => void, undone = false) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
   return render(
     <QueryClientProvider client={client}>
-      <MigrationLogins batchId={BATCH} onContinue={onContinue} />
+      <MigrationLogins
+        batchId={BATCH}
+        onContinue={onContinue}
+        undone={undone}
+      />
     </QueryClientProvider>,
   );
 }
@@ -49,6 +53,7 @@ const LOGINS = {
       phone: null,
       channel: "email",
       invited: false,
+      asked: null,
     },
     {
       employee_public_id: "01JBQ8Z6ZK3M9V2X7Y4W5T6R82",
@@ -57,6 +62,7 @@ const LOGINS = {
       phone: null,
       channel: "in_person",
       invited: false,
+      asked: null,
     },
   ],
   hire_dates_defaulted: 2,
@@ -164,5 +170,24 @@ describe("<MigrationLogins>", () => {
       await screen.findByText("Everyone brought in can already sign in."),
     ).toBeInTheDocument();
     expect(screen.queryByText("Check the hire dates")).not.toBeInTheDocument();
+  });
+
+  it("says the additions were undone, not that everyone can sign in, once the list was undone", async () => {
+    server.use(
+      me(["users.invite"]),
+      http.get(`*/api/v1/onboarding/migration/batches/${BATCH}/logins`, () =>
+        HttpResponse.json({ without_login: [], hire_dates_defaulted: 0 }),
+      ),
+    );
+    renderPanel(undefined, true);
+
+    expect(
+      await screen.findByText(
+        "This list's additions were undone. Nobody from it is waiting for a way to sign in.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("Everyone brought in can already sign in."),
+    ).not.toBeInTheDocument();
   });
 });

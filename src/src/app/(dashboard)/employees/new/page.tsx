@@ -4,18 +4,38 @@ import {
   NationalityStatusSelect,
   type NationalityStatus,
 } from "@/features/employees/components/nationality-status-select";
-import { useRef, useState, type ReactNode } from "react";
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   branchesApi,
   departmentsApi,
   positionsApi,
   teamsApi,
   costCentersApi,
+  gradesApi,
 } from "@/features/organization/api";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { AddEmployeeMenu } from "@/features/employees/components/add-employee-menu";
+import {
+  useAssignUnmatchedBadge,
+  useUnmatchedBadges,
+} from "@/features/devices/api";
+import { apiErrorDetail } from "@/lib/api/error-message";
+import { usePermissions } from "@/lib/hooks/usePermissions";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useConfirm } from "@/components/shared/use-confirm";
+import { useTenantTimezone } from "@/lib/hooks/useTenantTimezone";
+import { todayIn } from "@/lib/utils/date";
 import {
   AlertTriangle,
+  BadgeHelp,
   Briefcase,
   Loader2,
   Mail,
@@ -23,10 +43,23 @@ import {
   Wallet,
 } from "lucide-react";
 import { useT } from "@/lib/i18n/useT";
+import { GENDERS, useGenderLabel } from "@/lib/options/gender";
+import {
+  MARITAL_STATUSES,
+  useMaritalStatusLabel,
+} from "@/lib/options/marital-status";
+import { OptionSelect } from "@/components/shared/option-select";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Stepper, type Step } from "@/components/shared/stepper";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/shared/phone-input";
+import {
+  AddressForm,
+  EMPTY_ADDRESS,
+  addressToPayload,
+  type AddressFields,
+} from "@/components/shared/address-fields";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { CurrencyInput } from "@/components/shared/currency-input";
@@ -51,11 +84,32 @@ import { fieldErrors, toastError, type FieldErrors } from "@/lib/errors";
 import { toast } from "sonner";
 import { useEmployeeOptions } from "@/features/attendance/api";
 import { RelationPicker } from "@/features/employees/components/relation-picker";
+import { FrameworkExceptionField } from "@/features/employees/components/framework-exception-field";
 import { ExistingEmployeeDialog } from "@/features/employees/components/existing-employee-dialog";
 import {
   employeeLikeness,
   type EmployeeLikeness,
 } from "@/features/employees/likeness";
+import {
+  validateEmployeeField,
+  validateEmployeeForm,
+  type ValidatedEmployeeFields,
+} from "@/features/employees/new-employee-validation";
+
+/** The fields in the order they appear, so the first message gets the focus. */
+const FIELD_ORDER = [
+  "name",
+  "name_am",
+  "date_of_birth",
+  "nationality",
+  "email",
+  "hire_date",
+  "probation_end_date",
+  "employee_code",
+  "badge_number",
+  "tin",
+  "national_id",
+] as const satisfies readonly (keyof ValidatedEmployeeFields)[];
 
 const EMPTY_FORM = {
   name: "",
@@ -72,6 +126,7 @@ const EMPTY_FORM = {
   tin: "",
   marital_status: "single",
   hire_date: "",
+  probation_end_date: "",
   salary_cents: "",
   // The API's own field names, so a 422's `errors` keys land on these
   // controls. They were `*_public_id`, which StoreEmployeeRequest does not
@@ -79,6 +134,7 @@ const EMPTY_FORM = {
   department_id: "",
   branch_id: "",
   position_id: "",
+  grade_id: "",
   // No screen set these three, so the reporting chart was flat and teams
   // and cost centres were never assigned (audit N73).
   supervisor_id: "",
@@ -96,24 +152,110 @@ type EmployeeForm = typeof EMPTY_FORM;
  * person filling it in knows at once (who, how to reach them, the job, the
  * pay), with the actions in a bar that stays in reach on a long form.
  */
+/**
+ * A badge a terminal sent that nobody has, opened from Unrecognised badges
+ * on Devices: `?badge=&device=&hire_date=`. Read inside a Suspense boundary,
+ * which the static export needs for search params.
+ */
+interface BadgeOrigin {
+  badge: string;
+  device: string;
+  hireDate: string;
+}
+
+function FromBadgeParams() {
+  const params = useSearchParams();
+  const badge = params.get("badge");
+  const device = params.get("device");
+  const hireDate = params.get("hire_date") ?? "";
+  const origin =
+    badge && device
+      ? {
+          badge,
+          device,
+          hireDate: /^\d{4}-\d{2}-\d{2}$/.test(hireDate) ? hireDate : "",
+        }
+      : null;
+
+  return <NewEmployeeForm origin={origin} />;
+}
+
 export default function NewEmployeePage() {
+  return (
+    <Suspense fallback={<Skeleton className="h-96" />}>
+      <FromBadgeParams />
+    </Suspense>
+  );
+}
+
+function NewEmployeeForm({ origin }: { origin: BadgeOrigin | null }) {
   const { t } = useT();
+  const genderText = useGenderLabel();
+  const maritalText = useMaritalStatusLabel();
   const router = useRouter();
   const createEmployee = useCreateEmployee();
   const nextCode = useNextEmployeeCode();
+  const { hasPermission, can } = usePermissions();
+  // Salary and TIN are pay data: `EmployeeController::store` refuses them
+  // with a 403 unless the caller holds `employee.updateFinancial`, so a role
+  // without it is not offered them, and a blank one is never sent.
+  const canPay = can.updateEmployeeFinancial === true;
+  const timeZone = useTenantTimezone();
+  // The held punches are replayed by whoever may assign a badge, the same
+  // check the assign endpoint makes.
+  const canReplay = origin !== null && hasPermission("attendance.manage");
+  const assignBadge = useAssignUnmatchedBadge();
+  const { data: heldBadges } = useUnmatchedBadges(
+    origin !== null && hasPermission("device.viewAny"),
+  );
+  const held = origin
+    ? heldBadges?.find(
+        (b) => b.badge === origin.badge && b.device_public_id === origin.device,
+      )
+    : undefined;
+  // Spent once the badge has been given to someone, so "Save and add
+  // another" does not move it to the next person.
+  const [badgeUsed, setBadgeUsed] = useState(false);
+  const fromBadge = origin !== null && !badgeUsed ? origin : null;
 
   const { data: depts } = departmentsApi.useList();
   const { data: branches } = branchesApi.useList();
   const { data: positions } = positionsApi.useList();
   const { data: teams } = teamsApi.useList();
   const { data: costCenters } = costCentersApi.useList();
+  const { data: grades } = gradesApi.useList();
   const { data: employeeOptions } = useEmployeeOptions();
 
-  const [form, setForm] = useState<EmployeeForm>(EMPTY_FORM);
+  const [form, setForm] = useState<EmployeeForm>(() =>
+    origin
+      ? {
+          ...EMPTY_FORM,
+          badge_number: origin.badge,
+          hire_date: origin.hireDate,
+        }
+      : EMPTY_FORM,
+  );
   // Bumped by "Save and add another" so every control, including the ones
   // that keep their own text, starts empty.
   const [formKey, setFormKey] = useState(0);
+  const [address, setAddress] = useState<AddressFields>(EMPTY_ADDRESS);
   const afterSave = useRef<"open" | "another">("open");
+
+  // The name the terminal calls the badge starts an empty name field, once,
+  // when the held list arrives. It comes from that list and not from the
+  // address, which a web server writes to its access log. Anything the person
+  // has typed, or cleared, is never overwritten.
+  const nameFilled = useRef(false);
+  const nameTouched = useRef(false);
+  const nameOnDevice = held?.name_on_device ?? null;
+  useEffect(() => {
+    if (nameFilled.current || !nameOnDevice) return;
+    nameFilled.current = true;
+    if (nameTouched.current) return;
+    setForm((prev) =>
+      prev.name === "" ? { ...prev, name: nameOnDevice } : prev,
+    );
+  }, [nameOnDevice]);
 
   // Whether the person gets an ETHR login with this record. The API always
   // supported it (`create_login`) and no screen sent it, so in a new
@@ -121,9 +263,29 @@ export default function NewEmployeePage() {
   // a payslip (production QA 2026-10-11, P15). Off by default: on would email
   // every person entered, which an admin keying in records may not intend.
   const [sendLogin, setSendLogin] = useState(false);
+  const [outsideFramework, setOutsideFramework] = useState(false);
+  const [frameworkNote, setFrameworkNote] = useState("");
 
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  useUnsavedChangesWarning(hasUnsavedChanges);
+  // Also asks before a link inside the app (Cancel, the sidebar) drops a form
+  // that has input in it; Next's router gives no other hook for that.
+  const { requestConfirm, confirmDialog } = useConfirm();
+  const leaveTo = useCallback(
+    async (href: string) => {
+      const leave = await requestConfirm({
+        title: t("employee.leave_unsaved_title", "Leave without saving?"),
+        description: t(
+          "employee.leave_unsaved_desc",
+          "This employee has not been saved. What you entered will be lost.",
+        ),
+        confirmLabel: t("employee.leave_unsaved_leave", "Leave"),
+        cancelLabel: t("employee.leave_unsaved_stay", "Keep editing"),
+      });
+      if (leave) router.push(href);
+    },
+    [requestConfirm, router, t],
+  );
+  useUnsavedChangesWarning(hasUnsavedChanges, leaveTo);
 
   /** Per-field messages from the API's RFC-7807 `errors` map. */
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -142,15 +304,46 @@ export default function NewEmployeePage() {
   const branchId = form.branch_id || onlyBranch;
 
   function updateField(field: keyof EmployeeForm, value: string) {
+    if (field === "name") nameTouched.current = true;
     setForm((prev) => ({ ...prev, [field]: value }));
     setHasUnsavedChanges(true);
     // Clear this field's error as soon as the user edits it — leaving a stale
     // message under a field they have already corrected reads as broken.
+    // The hire date moves what two other dates are checked against, so a
+    // message under either is re-read against the new one.
+    const next = { ...form, [field]: value };
     setErrors((prev) => {
-      if (!prev[field]) return prev;
-      const { [field]: _removed, ...rest } = prev;
-      return rest;
+      const rest = { ...prev };
+      delete rest[field];
+      if (field === "hire_date") {
+        for (const dependent of [
+          "date_of_birth",
+          "probation_end_date",
+        ] as const) {
+          if (!prev[dependent]) continue;
+          const message = validateEmployeeField(dependent, next, t);
+          if (message) rest[dependent] = message;
+          else delete rest[dependent];
+        }
+      }
+      const same =
+        Object.keys(rest).length === Object.keys(prev).length &&
+        Object.keys(rest).every((k) => rest[k] === prev[k]);
+      return same ? prev : rest;
     });
+  }
+
+  /** The API's rule for a field, shown when the person leaves it. */
+  function checkOnBlur(e: React.FocusEvent<HTMLElement>) {
+    const id = e.target.id as keyof ValidatedEmployeeFields;
+    if (!(FIELD_ORDER as readonly string[]).includes(id)) return;
+    // Only ever adds a message: one already showing (a required field left
+    // empty, a server answer) goes when the person edits the field.
+    const message = validateEmployeeField(id, form, t);
+    if (!message) return;
+    setErrors((prev) =>
+      prev[id] === message ? prev : { ...prev, [id]: message },
+    );
   }
 
   function startNext(savedName: string) {
@@ -161,8 +354,13 @@ export default function NewEmployeePage() {
       branch_id: form.branch_id,
       department_id: form.department_id,
       position_id: form.position_id,
+      grade_id: form.grade_id,
     });
+    // An address is the person's own, not where the next hire starts.
+    setAddress(EMPTY_ADDRESS);
     setSendLogin(false);
+    setOutsideFramework(false);
+    setFrameworkNote("");
     setHasUnsavedChanges(false);
     setFormKey((k) => k + 1);
     toast.success(
@@ -178,12 +376,20 @@ export default function NewEmployeePage() {
 
     // The two fields the API requires are checked here first, so a missing
     // one is named under its field, in its section, without a round trip.
+    // The API's other rules a person can break while typing are read here
+    // too, with the same messages they get on leaving a field.
     const missing: FieldErrors = {};
+    for (const [field, message] of Object.entries(
+      validateEmployeeForm(form, t),
+    )) {
+      if (message) missing[field] = message;
+    }
     if (!form.name.trim()) missing.name = t("validation.required");
     if (!form.hire_date) missing.hire_date = t("validation.required");
     if (Object.keys(missing).length > 0) {
       setErrors(missing);
-      document.getElementById(Object.keys(missing)[0])?.focus();
+      const first = FIELD_ORDER.find((f) => missing[f]);
+      if (first) document.getElementById(first)?.focus();
       return;
     }
     setErrors({});
@@ -200,20 +406,40 @@ export default function NewEmployeePage() {
       nationality: form.nationality || null,
       nationality_status: form.nationality_status,
       national_id: form.national_id || null,
-      tin: form.tin || null,
+      ...(canPay && form.tin.trim() ? { tin: form.tin } : {}),
       marital_status: (form.marital_status ||
         null) as CreateEmployeePayload["marital_status"],
+      ...addressToPayload(address),
       hire_date: form.hire_date,
+      probation_end_date: form.probation_end_date || null,
+      // Reminders and the dashboard read status, not the date alone, so a
+      // probation that has not ended starts the person on probation. Any
+      // other case sends no status and the server records hired.
+      ...(form.probation_end_date &&
+      form.probation_end_date >= todayIn(timeZone)
+        ? { status: "probation" as const }
+        : {}),
       // Already integer cents — CurrencyInput does the ETB conversion, so
       // this page no longer hand-rolls it (`parseInt` once turned 5000.50
-      // into 500000).
-      salary_cents: Number(form.salary_cents) || 0,
+      // into 500000). Left out when blank, as an API call that omits it:
+      // the server stores 0 either way, and only a key that is present asks
+      // for the pay permission.
+      ...(canPay && Number(form.salary_cents) > 0
+        ? { salary_cents: Number(form.salary_cents) }
+        : {}),
       department_id: form.department_id || null,
       branch_id: branchId || null,
       position_id: form.position_id || null,
+      grade_id: form.grade_id || null,
       supervisor_id: form.supervisor_id || null,
       team_id: form.team_id || null,
       cost_center_id: form.cost_center_id || null,
+      ...(outsideFramework
+        ? {
+            outside_employment_framework: true,
+            employment_framework_note: frameworkNote.trim() || null,
+          }
+        : {}),
       ...(sendLogin && (form.email || !form.phone)
         ? { create_login: true, user_role: "employee" as const }
         : {}),
@@ -223,15 +449,78 @@ export default function NewEmployeePage() {
     save(payload);
   }
 
+  /**
+   * Give the badge to the person just added, which records its held punches
+   * through the same endpoint the Devices card uses. A failure leaves the
+   * employee in place and the badge on the card, where it now shows whose it
+   * is and offers the replay again.
+   */
+  async function replayHeldPunches(origin: BadgeOrigin, employeeId: string) {
+    setBadgeUsed(true);
+    try {
+      const result = await assignBadge.mutateAsync({
+        device_public_id: origin.device,
+        badge: origin.badge,
+        employee_public_id: employeeId,
+      });
+      if (result.remaining > 0) {
+        // One request replays for a few seconds. The badge is theirs now, and
+        // the Devices card carries on from where this stopped.
+        toast.warning(
+          t(
+            "employee.badge_replayed_part",
+            ":replayed held punches were recorded for them. :remaining more are waiting. Open Devices, under Unrecognised badges, to bring them in.",
+            { replayed: result.replayed, remaining: result.remaining },
+          ),
+        );
+      } else if (result.refused > 0) {
+        toast.warning(
+          t(
+            "employee.badge_replayed_some",
+            ":replayed held punches were recorded for them. :refused were refused, and are listed on their attendance.",
+            { replayed: result.replayed, refused: result.refused },
+          ),
+        );
+      } else {
+        toast.success(
+          t(
+            "employee.badge_replayed",
+            ":count held punches were recorded for them.",
+            { count: result.replayed },
+          ),
+        );
+      }
+    } catch (err) {
+      toast.error(
+        apiErrorDetail(err) ||
+          t(
+            "employee.badge_replay_failed",
+            "The employee was added, but the held punches were not recorded. The badge is still under Unrecognised badges on Devices, where they can be recorded.",
+          ),
+      );
+    }
+  }
+
   function save(payload: CreateEmployeePayload) {
     createEmployee.mutate(payload, {
-      onSuccess: (created: {
+      onSuccess: async (created: {
         public_id?: string;
         name?: string;
         meta?: { login_invited?: boolean };
       }) => {
         setHasUnsavedChanges(false);
         setLikeness(null);
+
+        // Only when the badge saved is the one that was held: a person who
+        // changed or cleared it has said this is not that badge.
+        if (
+          fromBadge &&
+          canReplay &&
+          created?.public_id &&
+          payload.badge_number === fromBadge.badge
+        ) {
+          await replayHeldPunches(fromBadge, created.public_id);
+        }
 
         if (afterSave.current === "another") {
           startNext(created?.name ?? form.name);
@@ -317,10 +606,12 @@ export default function NewEmployeePage() {
       label: t("employee.section_job", "Job"),
       fields: [
         "hire_date",
+        "probation_end_date",
         "employee_code",
         "branch_id",
         "department_id",
         "position_id",
+        "grade_id",
         "supervisor_id",
         "team_id",
         "cost_center_id",
@@ -331,7 +622,7 @@ export default function NewEmployeePage() {
     {
       id: "section-pay",
       label: t("employee.section_pay", "Pay and identity"),
-      fields: ["salary_cents", "tin", "national_id"],
+      fields: canPay ? ["salary_cents", "tin", "national_id"] : ["national_id"],
       required: [],
     },
   ];
@@ -368,20 +659,48 @@ export default function NewEmployeePage() {
 
   return (
     <>
-      <PageActions
-        actions={
-          <Button variant="outline" size="sm" asChild>
-            <Link href="/employees/import">
-              {t("employee.import_instead", "Import a file instead")}
-            </Link>
-          </Button>
-        }
-      />
+      <PageActions actions={<AddEmployeeMenu variant="others" />} />
 
       <form onSubmit={handleSubmit} noValidate className="space-y-6">
         <p className="text-sm text-muted-foreground">
           {t("employee.required_note", "Fields marked * are required.")}
         </p>
+
+        {fromBadge && (
+          <div
+            role="status"
+            className="flex items-start gap-2 rounded-md border border-border bg-muted/40 px-4 py-3 text-sm"
+          >
+            <BadgeHelp
+              className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground"
+              aria-hidden="true"
+            />
+            <p>
+              {held
+                ? t(
+                    "employee.from_badge_held",
+                    "Badge :badge from :device, with :count punches held.",
+                    {
+                      badge: fromBadge.badge,
+                      device: held.device_name,
+                      count: held.punches,
+                    },
+                  )
+                : t("employee.from_badge", "Badge :badge from a terminal.", {
+                    badge: fromBadge.badge,
+                  })}{" "}
+              {canReplay
+                ? t(
+                    "employee.from_badge_replay",
+                    "Its held punches are recorded for this person when you save.",
+                  )
+                : t(
+                    "employee.from_badge_no_replay",
+                    "Someone who manages attendance can record its held punches from Devices once the person is added.",
+                  )}
+            </p>
+          </div>
+        )}
 
         {errorCount > 0 && (
           <div
@@ -411,7 +730,7 @@ export default function NewEmployeePage() {
         {/* Every control's `id` is the API field name so a 422's `errors` key
             maps straight onto it — that is also what lets the submit handler
             focus the first invalid field. */}
-        <div key={formKey} className="space-y-6">
+        <div key={formKey} className="space-y-6" onBlur={checkOnBlur}>
           <Section
             id="section-person"
             icon={<UserRound className="h-4 w-4" />}
@@ -452,24 +771,14 @@ export default function NewEmployeePage() {
               label={t("employee.gender", "Gender")}
               error={errors.gender}
             >
-              <Select
+              <OptionSelect
+                id="gender"
                 value={form.gender}
-                onValueChange={(v) => updateField("gender", v)}
-              >
-                <SelectTrigger id="gender">
-                  <SelectValue
-                    placeholder={t("employee.select_gender", "Select gender")}
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="male">
-                    {t("common.male", "Male")}
-                  </SelectItem>
-                  <SelectItem value="female">
-                    {t("common.female", "Female")}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
+                onChange={(v) => updateField("gender", v)}
+                options={GENDERS}
+                getLabel={genderText}
+                placeholder={t("employee.select_gender", "Select gender")}
+              />
             </FormField>
 
             <FormField
@@ -488,28 +797,13 @@ export default function NewEmployeePage() {
               label={t("employee.marital_status", "Marital Status")}
               error={errors.marital_status}
             >
-              <Select
+              <OptionSelect
+                id="marital_status"
                 value={form.marital_status}
-                onValueChange={(v) => updateField("marital_status", v)}
-              >
-                <SelectTrigger id="marital_status">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="single">
-                    {t("common.single", "Single")}
-                  </SelectItem>
-                  <SelectItem value="married">
-                    {t("common.married", "Married")}
-                  </SelectItem>
-                  <SelectItem value="divorced">
-                    {t("common.divorced", "Divorced")}
-                  </SelectItem>
-                  <SelectItem value="widowed">
-                    {t("common.widowed", "Widowed")}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
+                onChange={(v) => updateField("marital_status", v)}
+                options={MARITAL_STATUSES}
+                getLabel={maritalText}
+              />
             </FormField>
 
             <FormField
@@ -565,20 +859,44 @@ export default function NewEmployeePage() {
               label={t("common.phone", "Phone")}
               error={errors.phone}
             >
-              <Input
-                type="tel"
+              <PhoneInput
+                international
                 value={form.phone}
-                onChange={(e) => updateField("phone", e.target.value)}
-                placeholder="+251 9..."
-                autoComplete="off"
+                onChange={(v) => updateField("phone", v)}
               />
             </FormField>
+
+            <fieldset className="space-y-3 sm:col-span-2">
+              <legend className="text-sm font-medium">
+                {t("address.title", "Address")}
+              </legend>
+              <AddressForm
+                value={address}
+                onChange={(next) => {
+                  setAddress(next);
+                  setHasUnsavedChanges(true);
+                  setErrors((prev) =>
+                    Object.keys(prev).some((k) => k.startsWith("address_"))
+                      ? Object.fromEntries(
+                          Object.entries(prev).filter(
+                            ([k]) => !k.startsWith("address_"),
+                          ),
+                        )
+                      : prev,
+                  );
+                }}
+                errors={errors}
+              />
+            </fieldset>
 
             <div className="flex items-start gap-3 rounded-md border border-border-default p-4 sm:col-span-2">
               <Checkbox
                 id="send_login"
                 checked={sendLogin && (!!form.email || !form.phone)}
-                onCheckedChange={(v) => setSendLogin(v === true)}
+                onCheckedChange={(v) => {
+                  setSendLogin(v === true);
+                  setHasUnsavedChanges(true);
+                }}
                 disabled={!form.email && !!form.phone}
                 aria-describedby="send_login-hint"
               />
@@ -631,11 +949,34 @@ export default function NewEmployeePage() {
               label={t("employee.hire_date", "Hire Date")}
               required
               error={errors.hire_date}
+              hint={
+                fromBadge?.hireDate && form.hire_date > fromBadge.hireDate
+                  ? t(
+                      "employee.hire_after_badge",
+                      "The badge was first seen before this date. Punches before the hire date fall outside this person's expected days.",
+                    )
+                  : undefined
+              }
             >
               <DualCalendarDateInput
                 value={form.hire_date}
                 onChange={(v) => updateField("hire_date", v)}
                 required
+              />
+            </FormField>
+
+            <FormField
+              id="probation_end_date"
+              label={t("employee.probation_end_date", "Probation end date")}
+              hint={t(
+                "employee.probation_end_hint",
+                "With a date that has not passed, the person starts on probation and HR is reminded before it ends.",
+              )}
+              error={errors.probation_end_date}
+            >
+              <DualCalendarDateInput
+                value={form.probation_end_date}
+                onChange={(v) => updateField("probation_end_date", v)}
               />
             </FormField>
 
@@ -737,6 +1078,24 @@ export default function NewEmployeePage() {
               </Select>
             </FormField>
 
+            {(grades?.data?.length ?? 0) > 0 && (
+              <FormField
+                id="grade_id"
+                label={t("employee.grade", "Grade")}
+                error={errors.grade_id}
+              >
+                <RelationPicker
+                  id="grade_id"
+                  value={form.grade_id}
+                  options={(grades?.data ?? []).map((g) => ({
+                    value: g.public_id,
+                    label: g.name,
+                  }))}
+                  onChange={(v) => updateField("grade_id", v)}
+                />
+              </FormField>
+            )}
+
             <FormField
               id="supervisor_id"
               label={t("employee.supervisor", "Supervisor")}
@@ -785,6 +1144,21 @@ export default function NewEmployeePage() {
               />
             </FormField>
 
+            <FrameworkExceptionField
+              idPrefix="create"
+              outside={outsideFramework}
+              note={frameworkNote}
+              onOutsideChange={(v) => {
+                setOutsideFramework(v);
+                setHasUnsavedChanges(true);
+              }}
+              onNoteChange={(v) => {
+                setFrameworkNote(v);
+                setHasUnsavedChanges(true);
+              }}
+              className="sm:col-span-2"
+            />
+
             <FormField
               id="badge_number"
               label={t("employee.badge_number")}
@@ -811,42 +1185,53 @@ export default function NewEmployeePage() {
               "Used by payroll and the statutory schedules. You can add these later.",
             )}
           >
-            <FormField
-              id="salary_cents"
-              label={t("employee.monthly_salary", "Monthly Salary (ETB)")}
-              hint={t(
-                "employee.salary_optional_hint",
-                "Monthly gross pay. Leave it empty if you set pay later.",
-              )}
-              error={errors.salary_cents}
-            >
-              <CurrencyInput
-                value={Number(form.salary_cents) || 0}
-                onChange={(cents) =>
-                  updateField("salary_cents", cents ? String(cents) : "")
-                }
-                placeholder="5000.00"
-              />
-            </FormField>
+            {canPay ? (
+              <>
+                <FormField
+                  id="salary_cents"
+                  label={t("employee.monthly_salary", "Monthly Salary (ETB)")}
+                  hint={t(
+                    "employee.salary_optional_hint",
+                    "Monthly gross pay. Leave it empty if you set pay later.",
+                  )}
+                  error={errors.salary_cents}
+                >
+                  <CurrencyInput
+                    value={Number(form.salary_cents) || 0}
+                    onChange={(cents) =>
+                      updateField("salary_cents", cents ? String(cents) : "")
+                    }
+                    placeholder="5000.00"
+                  />
+                </FormField>
 
-            <FormField
-              id="tin"
-              label={t("employee.tin", "TIN")}
-              hint={t(
-                "employee.tin_hint",
-                "Taxpayer identification number. The tax schedule needs it.",
-              )}
-              error={errors.tin}
-            >
-              <Input
-                value={form.tin}
-                onChange={(e) => updateField("tin", e.target.value)}
-                inputMode="numeric"
-                maxLength={20}
-                className="font-mono"
-                autoComplete="off"
-              />
-            </FormField>
+                <FormField
+                  id="tin"
+                  label={t("employee.tin", "TIN")}
+                  hint={t(
+                    "employee.tin_hint",
+                    "Taxpayer identification number. The tax schedule needs it.",
+                  )}
+                  error={errors.tin}
+                >
+                  <Input
+                    value={form.tin}
+                    onChange={(e) => updateField("tin", e.target.value)}
+                    inputMode="numeric"
+                    maxLength={20}
+                    className="font-mono"
+                    autoComplete="off"
+                  />
+                </FormField>
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground sm:col-span-2">
+                {t(
+                  "employee.pay_added_by_pay_manager",
+                  "Salary and TIN are added by someone who manages pay.",
+                )}
+              </p>
+            )}
 
             <FormField
               id="national_id"
@@ -907,6 +1292,8 @@ export default function NewEmployeePage() {
           </Button>
         </div>
       </form>
+
+      {confirmDialog}
 
       <ExistingEmployeeDialog
         likeness={likeness}

@@ -39,6 +39,7 @@ const generic: HostCtx = {
   carryOrganisation: null,
   tenantRequest: null,
   tenantContextLoading: false,
+  hostLookupPending: false,
   tenantLookupError: null,
   tenantFieldVisible: true,
 };
@@ -81,9 +82,10 @@ describe.each([
   it("keeps ETHR's mark where no organisation is named", () => {
     hostContextValue.mockReturnValue(generic);
 
-    renderWithQuery(page());
+    const { container } = renderWithQuery(page());
 
-    expect(screen.getByText("E")).toBeInTheDocument();
+    expect(container.querySelector("svg circle")).not.toBeNull();
+    expect(screen.queryByText("E")).not.toBeInTheDocument();
   });
 });
 

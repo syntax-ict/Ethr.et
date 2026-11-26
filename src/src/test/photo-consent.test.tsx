@@ -15,6 +15,7 @@ vi.mock("@/lib/hooks/useOfflineSync", () => ({
   }),
 }));
 vi.mock("@/lib/attendance/offline-grant", () => ({
+  currentOfflineDevice: () => null,
   currentOfflineGrant: () => null,
   refreshOfflineGrant: vi.fn(),
 }));
@@ -72,6 +73,7 @@ const myShift = (consent: boolean) => ({
     auto_checkout: false,
     auto_checkout_after_minutes: 0,
   },
+  presence: { enabled: false, pending: null },
 });
 
 let getUserMedia: ReturnType<typeof vi.fn>;

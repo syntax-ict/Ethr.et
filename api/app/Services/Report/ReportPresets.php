@@ -32,6 +32,10 @@ final class ReportPresets
     private const PRESETS = [
         ['key' => 'monthly_timesheet', 'config' => ['source' => 'timesheet', 'sort_by' => 'employee_name'], 'kinds' => [], 'profiles' => []],
         ['key' => 'absences', 'config' => ['source' => 'absences'], 'kinds' => [], 'profiles' => []],
+        ['key' => 'late_and_early', 'config' => ['source' => 'timesheet', 'columns' => ['employee_name', 'employee_code', 'department', 'late_days', 'late_minutes', 'early_days', 'early_minutes', 'lateness_deduct_minutes'], 'sort_by' => 'late_minutes', 'sort_dir' => 'desc'], 'kinds' => [], 'profiles' => []],
+        ['key' => 'overtime_by_rate', 'config' => ['source' => 'timesheet', 'columns' => ['employee_name', 'employee_code', 'department', 'overtime_normal_hours', 'overtime_night_hours', 'overtime_rest_day_hours', 'overtime_holiday_hours', 'overtime_holiday_night_hours', 'overtime_unapproved_hours', 'overtime_limit_days'], 'sort_by' => 'overtime_hours', 'sort_dir' => 'desc'], 'kinds' => [], 'profiles' => []],
+        ['key' => 'missing_punches', 'config' => ['source' => 'timesheet', 'columns' => ['employee_name', 'employee_code', 'department', 'missing_days', 'absent_days', 'present_days'], 'sort_by' => 'missing_days', 'sort_dir' => 'desc'], 'kinds' => [], 'profiles' => []],
+        ['key' => 'attendance_by_department', 'config' => ['source' => 'timesheet', 'columns' => ['employee_name', 'department', 'work_days', 'present_days', 'late_days', 'absent_days', 'leave_days', 'short_hours'], 'group_by' => 'department'], 'kinds' => [], 'profiles' => []],
         ['key' => 'lateness_by_department', 'config' => ['source' => 'attendance', 'filters' => ['status' => 'late'], 'group_by' => 'department'], 'kinds' => [], 'profiles' => []],
         ['key' => 'headcount_by_department', 'config' => ['source' => 'employees', 'group_by' => 'department'], 'kinds' => [], 'profiles' => []],
         ['key' => 'leave_balances', 'config' => ['source' => 'leave', 'sort_by' => 'employee_name'], 'kinds' => [], 'profiles' => []],

@@ -180,6 +180,59 @@ export interface PayrollRegister {
   reconciliation?: RegisterReconciliation;
   /** Payslips whose lateness, loan and cost-sharing deductions pass a third of basic. */
   deduction_ceiling?: DeductionCeiling;
+  /** Net pay that moved past the organisation's thresholds since the last released run. */
+  pay_changes?: PayChanges;
+  /** Two or more people of the run paid into one account. */
+  shared_bank_accounts?: SharedBankAccounts;
+  /** People paid with no TIN on record. */
+  missing_tin?: MissingTin;
+  /** People paid who were expected at work and have no attendance at all. */
+  no_attendance?: NoAttendance;
+}
+
+export interface PayChanges {
+  count: number;
+  /** The period of the last released run compared with; null for a first run. */
+  previous_period: string | null;
+  /** People with no entry in that run, so nothing to compare. */
+  first_payslip: number;
+  percent: number;
+  min_cents: number;
+  employees: {
+    employee_public_id: string | null;
+    employee_name: string;
+    previous_net_cents: number;
+    net_cents: number;
+    change_cents: number;
+    change_percent: number | null;
+    reasons: { part: string; change_cents: number }[];
+  }[];
+}
+
+export interface SharedBankAccounts {
+  count: number;
+  /** Accounts of the run's people saved before the check existed, not yet comparable. */
+  pending_hashes: number;
+  /** True in a support session: an operator is shown no one's account. */
+  support_session?: boolean;
+  groups: {
+    banks: string[];
+    employees: { employee_public_id: string | null; employee_name: string }[];
+  }[];
+}
+
+export interface MissingTin {
+  count: number;
+  employees: { employee_public_id: string | null; employee_name: string }[];
+}
+
+export interface NoAttendance {
+  count: number;
+  employees: {
+    employee_public_id: string | null;
+    employee_name: string;
+    days: number;
+  }[];
 }
 
 export type DeductionCeiling =
@@ -324,18 +377,28 @@ export function useApprovePayroll() {
   return useMutation({
     // A run that exempts anyone from pension is approved only with that
     // count acknowledged; the server refuses any other number.
+    // Open pay differences are acknowledged the same way, once the server
+    // has said how many there are.
     mutationFn: async (vars: {
       publicId: string;
       acknowledgedPensionExemptions?: number;
+      acknowledgedPayDifferences?: number;
     }) => {
       const { data } = await apiClient.put(
         `/payroll/runs/${vars.publicId}/approve`,
-        vars.acknowledgedPensionExemptions
-          ? {
-              acknowledged_pension_exemptions:
-                vars.acknowledgedPensionExemptions,
-            }
-          : {},
+        {
+          ...(vars.acknowledgedPensionExemptions
+            ? {
+                acknowledged_pension_exemptions:
+                  vars.acknowledgedPensionExemptions,
+              }
+            : {}),
+          ...(vars.acknowledgedPayDifferences
+            ? {
+                acknowledged_pay_differences: vars.acknowledgedPayDifferences,
+              }
+            : {}),
+        },
       );
       return data;
     },
@@ -352,12 +415,20 @@ export function useVoidPayroll() {
     mutationFn: async ({
       publicId,
       reason,
+      acknowledgedSettledPayDifferences,
     }: {
       publicId: string;
       reason: string;
+      acknowledgedSettledPayDifferences?: number;
     }) => {
       const { data } = await apiClient.post(`/payroll/runs/${publicId}/void`, {
         reason,
+        ...(acknowledgedSettledPayDifferences
+          ? {
+              acknowledged_settled_pay_differences:
+                acknowledgedSettledPayDifferences,
+            }
+          : {}),
       });
       return data;
     },
@@ -800,4 +871,71 @@ export function useResetStatutoryRule() {
       queryClient.invalidateQueries({ queryKey: ["settings"] });
     },
   });
+}
+
+// ── Pay differences ──────────────────────────────────────────────────────────
+
+export type PayDifference = Schemas["PayrollPayDifferenceResource"];
+export type PayDifferenceStatus =
+  "pending" | "open" | "failed" | "settled" | "dismissed" | "superseded";
+export type PayDifferences =
+  operations["payDifference.index"]["responses"][200]["content"]["application/json"];
+
+/**
+ * The pay differences a change back-dated into a paid month left. With no
+ * status the server returns the live ones: pending, open and failed.
+ */
+export function usePayDifferences(
+  filters: { status?: PayDifferenceStatus; page?: number } = {},
+  enabled = true,
+) {
+  return useQuery<PayDifferences>({
+    queryKey: ["payroll", "pay-differences", filters],
+    enabled,
+    queryFn: async () =>
+      (
+        await apiClient.get("/payroll/pay-differences", {
+          params: {
+            ...(filters.status ? { status: filters.status } : {}),
+            ...(filters.page ? { page: filters.page } : {}),
+            per_page: 100,
+          },
+        })
+      ).data,
+  });
+}
+
+/** Settle or dismiss an open difference. Both need a note. */
+export function useClosePayDifference() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (vars: {
+      publicId: string;
+      action: "settle" | "dismiss";
+      note: string;
+    }) => {
+      const { data } = await apiClient.post(
+        `/payroll/pay-differences/${vars.publicId}/${vars.action}`,
+        { note: vars.note },
+      );
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["payroll"] });
+    },
+  });
+}
+
+/**
+ * The problem type of a refused request, and one of its counts. The approval
+ * and void refusals are 422 problems whose `type` says which acknowledgement
+ * is missing and whose body carries the count to send back.
+ */
+export function problemOf(
+  err: unknown,
+): { type?: string; [key: string]: unknown } | undefined {
+  return (
+    err as { response?: { data?: { type?: string; [key: string]: unknown } } }
+  )?.response?.data;
 }

@@ -4,29 +4,51 @@ declare(strict_types=1);
 
 namespace App\Services\Migration;
 
+use App\Enums\EmployeeStatus;
 use App\Enums\NationalityStatus;
+use App\Exceptions\DeviceRosterUnavailable;
+use App\Exceptions\ImpersonationRestricted;
+use App\Models\AuditLog;
 use App\Models\Device;
 use App\Models\Employee;
 use App\Models\MigrationBatch;
 use App\Models\MigrationStagingRow;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\Auth\ImpersonationToken;
+use App\Services\Device\DeviceIdRules;
 use App\Services\Device\DeviceManager;
+use App\Services\EmployeeContractService;
 use App\Services\EmployeeNumbering;
+use App\Services\EmployeeRelatedRecords;
+use App\Services\Employees\EmployeeArchiver;
+use App\Services\Employees\EmployeeRestorer;
+use App\Services\EmployeeTransitionService;
 use App\Services\EmployeeUpdater;
 use App\Services\Identity\EmployeeIntake;
 use App\Services\Identity\IdentityMatch;
 use App\Services\Identity\IdentityResolver;
 use App\Services\Identity\IdentitySignals;
 use App\Services\Identity\IntakeResult;
+use App\Services\Identity\SameNameRoster;
 use App\Services\PlanLimitService;
 use App\Support\DepartmentMatch;
+use App\Support\EmployeeAuditMask;
 use App\Support\EmployeeImportRow;
 use App\Support\EthiopianPhone;
+use App\Support\PersonName;
 use App\Support\RelationMatch;
+use Illuminate\Database\ConcurrencyErrorDetector;
+use Illuminate\Database\DeadlockException;
+use Illuminate\Database\LostConnectionDetector;
+use Illuminate\Database\LostConnectionException;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
+use Symfony\Component\HttpKernel\Exception\HttpException;
+use Throwable;
 
 /**
  * The workforce-migration workspace: discover people from a source, stage them
@@ -45,6 +67,10 @@ use Illuminate\Support\Facades\Gate;
  * A list is committed a slice at a time. One request has thirty seconds on
  * the host; `commitSlice()` works for `SLICE_SECONDS`, records how far it got
  * and says whether anything is left, and the caller asks again.
+ *
+ * A list is staged the same way: every row is stored first, unmatched, and
+ * matching the people (the resolver costs about 65 ms a row on the host) is
+ * done a slice at a time by `beginStaging()` and `stageSlice()`.
  */
 final class WorkforceMigrationService
 {
@@ -54,12 +80,29 @@ final class WorkforceMigrationService
     /** Rows written per transaction, and per hold of the organisation's lock. */
     public const CHUNK = 50;
 
-    private const NO_TOTALS = ['created' => 0, 'merged' => 0, 'updated' => 0, 'skipped' => 0, 'deferred' => 0];
+    /** Rows written per insert statement when a list is stored. */
+    private const INSERT_CHUNK = 250;
+
+    /** employees.employee_code is a 30 character column. */
+    private const EMPLOYEE_CODE_MAX = 30;
+
+    /** The codes of the warnings a held number puts on a row. */
+    public const NUMBER_HELD = 'number_held';
+
+    public const BADGE_HELD = 'badge_held';
+
+    /** The warning on a row set to merge into someone whose name shares no word with it. */
+    public const MAYBE_OTHER_PERSON = 'maybe_other_person';
+
+    /** The warning a row keeps when its person could not be brought back, with why (`restore_refused`). */
+    public const RESTORE_REFUSED = 'restore_refused';
+
+    private const NO_TOTALS = ['created' => 0, 'merged' => 0, 'updated' => 0, 'restored' => 0, 'skipped' => 0, 'deferred' => 0];
 
     /** A new person's own details, staged under the employee column they fill. */
     private const DETAILS = ['name_am', 'national_id', 'tin', 'gender', 'date_of_birth', 'marital_status', 'nationality'];
 
-    /** @var array<string, RelationMatch> branches and positions, read once per organisation */
+    /** @var array<string, RelationMatch> branches, positions, grades and cost centres, read once per organisation */
     private array $relations = [];
 
     public function __construct(
@@ -70,6 +113,12 @@ final class WorkforceMigrationService
         private readonly EmployeeIntake $intake,
         private readonly StagedChanges $changes,
         private readonly EmployeeUpdater $updater,
+        private readonly EmployeeRelatedRecords $related,
+        private readonly EmployeeContractService $contracts,
+        private readonly EmployeeTransitionService $transitions,
+        private readonly HeldNumbers $heldNumbers,
+        private readonly EmployeeArchiver $archiver,
+        private readonly EmployeeRestorer $restorer,
         private readonly float $sliceSeconds = self::SLICE_SECONDS,
         private readonly int $chunk = self::CHUNK,
     ) {}
@@ -84,9 +133,16 @@ final class WorkforceMigrationService
         // DeviceRequestFailed, and a batch created first would be left behind
         // empty — which is what a down device used to produce, as a batch
         // indistinguishable from a device with nobody enrolled.
+        if (DeviceManager::hasNoRoster($device)) {
+            throw DeviceRosterUnavailable::receivesOnly($device);
+        }
+
         $enrollments = $this->devices->adapter($device)->pullEnrollments($device);
         $batch = $this->createBatch($device->tenant_id, 'device', 'device:'.$device->id, $creator);
         $departments = DepartmentMatch::forTenant($device->tenant_id);
+        $names = $this->resolver->sameNameRoster($device->tenant_id);
+        $held = $this->heldNumbers->among($device->tenant_id, array_column($enrollments, 'device_user_id'), array_column($enrollments, 'device_user_id'));
+        $this->noteUse($device->tenant_id, $held);
 
         foreach ($enrollments as $enrollment) {
             $userId = $enrollment['device_user_id'];
@@ -98,7 +154,8 @@ final class WorkforceMigrationService
                 'card_number' => $card,
                 'department' => $enrollment['department'] ?? null,
                 'employee_code' => $userId,
-                'badge_number' => $card ?? $userId,
+                // The terminal's own number: a punch carries it, never the card.
+                'badge_number' => $userId,
                 'source_type' => $device->adapter_type,
                 'source_ref' => 'device:'.$device->id,
                 'identifier_type' => 'device_user_id',
@@ -108,10 +165,37 @@ final class WorkforceMigrationService
                 'code_is_guess' => true,
             ];
 
-            $this->stageRow($batch, $raw, $enrollment['name'] ?? null, $userId, $departments);
+            $this->stageRow($batch, $this->flagUnfitDeviceId($raw, $userId), $enrollment['name'] ?? null, $userId, $departments, $names, $held);
         }
 
         return $batch->refresh();
+    }
+
+    /**
+     * A terminal's number that cannot be an employee number or a badge number
+     * (the columns are 30 and 50 wide, and the badge rule allows 32 letters,
+     * digits and hyphens) is left out of those two and flagged on the row, so
+     * it is seen at review and not as a failure at commit. It stays the
+     * terminal's own number: the identity is linked all the same.
+     *
+     * @param  array<string, mixed>  $raw
+     * @return array<string, mixed>
+     */
+    private function flagUnfitDeviceId(array $raw, string $userId): array
+    {
+        $warnings = [];
+
+        if (mb_strlen($userId) > self::EMPLOYEE_CODE_MAX) {
+            unset($raw['employee_code']);
+            $warnings[] = ['code' => 'device_id_too_long', 'message' => __('onboarding.migration.device_id_too_long', ['value' => $userId, 'max' => self::EMPLOYEE_CODE_MAX])];
+        }
+
+        if (! DeviceIdRules::fitsBadge($userId)) {
+            unset($raw['badge_number']);
+            $warnings[] = ['code' => 'device_id_not_badge', 'message' => __('onboarding.migration.device_id_not_badge', ['value' => $userId])];
+        }
+
+        return $warnings === [] ? $raw : [...$raw, 'warnings' => $warnings];
     }
 
     /**
@@ -124,21 +208,150 @@ final class WorkforceMigrationService
      *
      * @param  array<int, array<string, mixed>>  $rows
      */
-    public function stageFromRows(array $rows, int $tenantId, string $sourceType = 'csv', ?string $sourceRef = null, ?User $creator = null): MigrationBatch
+    public function stageFromRows(array $rows, int $tenantId, string $sourceType = 'csv', ?string $sourceRef = null, ?User $creator = null, ?string $mode = null): MigrationBatch
     {
-        $batch = $this->createBatch($tenantId, $sourceType, $sourceRef, $creator);
-        $departments = DepartmentMatch::forTenant($tenantId);
+        $batch = $this->storeRows($rows, $tenantId, $sourceType, $sourceRef, $creator, $mode);
 
-        foreach ($rows as $row) {
-            $row = [
-                ...EmployeeImportRow::externalIdentity(isset($row['external_id']) ? (string) $row['external_id'] : null),
-                ...$row,
-            ];
-            $name = isset($row['name']) ? (string) $row['name'] : null;
-            $this->stageRow($batch, $row, $name, isset($row['employee_code']) ? (string) $row['employee_code'] : null, $departments);
-        }
+        // No time limit: for a caller that is not a request.
+        $this->resolveChunks($batch, null);
 
         return $batch->refresh();
+    }
+
+    /**
+     * Stage a list as a request does: store every row, then match as many as
+     * fit in the time the request has left. The rest is matched by
+     * `stageSlice()`, asked again until the list is `reviewing`.
+     *
+     * `$startedAt` is when the request began, not when this method did: the
+     * list was read and validated first, and that time is spent.
+     *
+     * @param  array<int, array<string, mixed>>  $rows
+     * @return array{0: MigrationBatch, 1: StageProgress}
+     */
+    public function beginStaging(array $rows, int $tenantId, float $startedAt, string $sourceType = 'csv', ?string $sourceRef = null, ?User $creator = null, ?string $mode = null): array
+    {
+        $batch = $this->storeRows($rows, $tenantId, $sourceType, $sourceRef, $creator, $mode);
+        $progress = $this->resolveChunks($batch, $startedAt);
+
+        return [$batch->refresh(), $progress];
+    }
+
+    /**
+     * Match as many of a staging list's people as fit in one request. A list
+     * that is no longer `staging` has nothing left to match and answers done.
+     */
+    public function stageSlice(MigrationBatch $batch, float $startedAt): StageProgress
+    {
+        $batch->refresh();
+
+        if (! $batch->isStaging()) {
+            return new StageProgress(true, $batch->rows()->count(), 0);
+        }
+
+        $progress = $this->resolveChunks($batch, $startedAt);
+        $batch->refresh();
+
+        return $progress;
+    }
+
+    /**
+     * Store every row of a list, unmatched, in bulk. Matching a person costs a
+     * query or two each, and a request that did it for a long list ran out of
+     * time with nothing to show for it; storing a row costs a share of one
+     * insert. A bulk insert skips the model, so the id, the timestamps and
+     * the encryption the model gives a row are done here, through its own cast.
+     *
+     * @param  array<int, array<string, mixed>>  $rows
+     */
+    private function storeRows(array $rows, int $tenantId, string $sourceType, ?string $sourceRef, ?User $creator, ?string $mode = null): MigrationBatch
+    {
+        $batch = $this->createBatch($tenantId, $sourceType, $sourceRef, $creator, MigrationBatch::STAGING, $mode === MigrationBatch::MODE_COMPLETE ? ['mode' => $mode] : null);
+        $stamp = now()->toDateTimeString();
+        $completing = $mode === MigrationBatch::MODE_COMPLETE;
+
+        foreach (array_chunk(array_values($rows), self::INSERT_CHUNK) as $chunk) {
+            $records = [];
+
+            foreach ($chunk as $row) {
+                // A list that completes people already here invites nobody,
+                // so a sign-in column in it is not kept.
+                if ($completing) {
+                    unset($row[EmployeeImportRow::SIGN_IN]);
+                }
+
+                $row = [
+                    ...EmployeeImportRow::externalIdentity(isset($row['external_id']) ? (string) $row['external_id'] : null),
+                    ...$row,
+                ];
+
+                $stored = (new MigrationStagingRow)->forceFill(['raw' => $row])->getAttributes();
+
+                $records[] = [
+                    'public_id' => (string) Str::ulid(),
+                    'tenant_id' => $tenantId,
+                    'batch_id' => $batch->id,
+                    'raw' => $stored['raw'],
+                    'display_name' => isset($row['name']) ? (string) $row['name'] : null,
+                    'external_identifier' => isset($row['employee_code']) ? (string) $row['employee_code'] : null,
+                    'action' => MigrationStagingRow::ACTION_PENDING,
+                    'created_at' => $stamp,
+                    'updated_at' => $stamp,
+                ];
+            }
+
+            MigrationStagingRow::query()->insert($records);
+        }
+
+        return $batch;
+    }
+
+    /**
+     * Match the rows not yet matched, a chunk at a time, until none are left
+     * or `$startedAt` is `sliceSeconds` ago. Every call matches at least one
+     * chunk, so a request that is already late still moves the list on. Null
+     * for `$startedAt` goes to the end.
+     *
+     * Matching a row twice (two tabs carrying on at once) writes the same
+     * values twice. When none are left the list becomes `reviewing`, once.
+     */
+    private function resolveChunks(MigrationBatch $batch, ?float $startedAt): StageProgress
+    {
+        $departments = DepartmentMatch::forTenant($batch->tenant_id);
+        $completing = $batch->isCompleting();
+        $names = $this->resolver->sameNameRoster($batch->tenant_id);
+
+        do {
+            $rows = $batch->rows()->whereNull('match_outcome')->orderBy('id')->limit($this->chunk)->get();
+
+            // The numbers of the chunk, asked once: which another record holds.
+            $raws = $rows->map(fn (MigrationStagingRow $row): array => $this->rawOf($row));
+            $held = $this->heldNumbers->among($batch->tenant_id, $raws->pluck('employee_code'), $raws->pluck('badge_number'));
+            $this->noteUse($batch->tenant_id, $held);
+
+            foreach ($rows as $row) {
+                // Written only while the row is still unmatched: a request
+                // that was slow behind another must not overwrite a decision
+                // made on a row the other had already finished.
+                $row->forceFill($this->resolvedAttributes($batch->tenant_id, $this->rawOf($row), $row->display_name, $departments, $names, $held, $completing));
+                MigrationStagingRow::query()
+                    ->whereKey($row->getKey())
+                    ->whereNull('match_outcome')
+                    ->update([...$row->getDirty(), 'updated_at' => now()]);
+            }
+
+            $remaining = $batch->rows()->whereNull('match_outcome')->count();
+        } while ($remaining > 0 && $rows->isNotEmpty() && ($startedAt === null || microtime(true) - $startedAt < $this->sliceSeconds));
+
+        if ($remaining === 0) {
+            MigrationBatch::query()
+                ->whereKey($batch->getKey())
+                ->where('tenant_id', $batch->tenant_id)
+                ->where('status', MigrationBatch::STAGING)
+                ->update(['status' => 'reviewing']);
+        }
+
+        return new StageProgress($remaining === 0, $batch->rows()->whereNotNull('match_outcome')->count(), $remaining);
     }
 
     /**
@@ -165,28 +378,70 @@ final class WorkforceMigrationService
         }
 
         if ($changed) {
-            $attributes['changes'] = $this->changes->between(
+            // An archived person is not compared: nothing is written to them
+            // but by bringing them back.
+            $attributes['changes'] = $resolvedEmployee->trashed() ? null : $this->changes->between(
                 $resolvedEmployee,
                 $this->rawOf($row),
                 DepartmentMatch::forTenant($row->tenant_id),
+                [],
+                $row->batch()->first()?->isCompleting() === true,
             );
         }
 
         if ($accept !== null) {
-            $attributes['changes'] = array_map(
-                fn (array $change): array => [
-                    ...$change,
-                    'accepted' => ($change['kind'] ?? null) === StagedChanges::CONFLICT
-                        && ($change['taken'] ?? false) !== true
-                        && in_array($change['field'] ?? null, $accept, true),
-                ],
-                $attributes['changes'] ?? $row->changes ?? [],
-            );
+            $attributes['changes'] = $this->changes->withAccepted($attributes['changes'] ?? $row->changes ?? [], $accept);
+        }
+
+        // Who the row merges into, and whether it still looks like them, is
+        // asked again whenever the action or the person moves.
+        $raw = $this->rawOf($row);
+        $target = $resolvedEmployee ?? $this->resolvedPerson($row);
+        $other = in_array($action, [MigrationStagingRow::ACTION_MERGE, MigrationStagingRow::ACTION_DEFER, MigrationStagingRow::ACTION_RESTORE], true) && $this->flagsOtherPerson($raw, $target, $action !== MigrationStagingRow::ACTION_MERGE);
+        // Someone archived who has been used cannot be brought back by a list,
+        // so the warning must not suggest choosing restore.
+        $used = $other && $target?->trashed() === true && $this->useAmong($row->tenant_id, [$target->id]) !== [];
+        $flagged = $this->withOtherPersonWarning($raw, $other, $target?->trashed() === true, $used);
+
+        // A number held by the very person a row restores is theirs, and one
+        // that stopped being a restore is a held number again.
+        if ($action === MigrationStagingRow::ACTION_RESTORE || $row->action === MigrationStagingRow::ACTION_RESTORE) {
+            $flagged = $this->flagHeldNumbers(
+                ['action' => $action, 'resolved_employee_id' => $target?->id],
+                $flagged,
+                $this->heldNumbers->among($row->tenant_id, [$flagged['employee_code'] ?? null], [$flagged['badge_number'] ?? null]),
+            )['raw'] ?? $flagged;
+        }
+
+        if ($flagged !== $raw) {
+            $attributes['raw'] = $flagged;
         }
 
         $row->update($attributes);
 
         return $row;
+    }
+
+    /**
+     * "These are all them": every row still waiting because someone is
+     * already here under the same name, and naming exactly one person, is
+     * set to merge into that person. A row naming several people waits for
+     * the reviewer to say which, and a row the reviewer has already decided
+     * (merge, create, skip) is left as they decided it. Returns how many rows
+     * changed.
+     *
+     * The rows were drawn up against that person when they were staged
+     * (sameName()), so nothing is drawn up again: the commit fills their
+     * blanks as a merge chosen one row at a time would.
+     */
+    public function confirmSameName(MigrationBatch $batch): int
+    {
+        return $batch->rows()
+            ->where('match_outcome', MigrationStagingRow::OUTCOME_SAME_NAME)
+            ->where('action', MigrationStagingRow::ACTION_DEFER)
+            ->whereNull('processed_at')
+            ->whereNotNull('resolved_employee_id')
+            ->update(['action' => MigrationStagingRow::ACTION_MERGE, 'updated_at' => now()]);
     }
 
     /**
@@ -200,15 +455,54 @@ final class WorkforceMigrationService
      * `$actor` is who the changes to existing employees are made by. With
      * none, people are created and linked and nobody's record is edited.
      *
+     * @param  array{status?: string}|null  $options  what the whole list is brought in with (commitSlice)
      * @return array<string, int>
      */
-    public function commit(MigrationBatch $batch, ?User $actor = null): array
+    public function commit(MigrationBatch $batch, ?User $actor = null, ?array $options = null): array
     {
         do {
-            $progress = $this->commitSlice($batch, $actor);
+            $progress = $this->commitSlice($batch, $actor, $options);
         } while (! $progress->done);
 
         return $progress->totals;
+    }
+
+    /**
+     * A list is written in chunks, each its own transaction, so one found to
+     * hold bank details half way through would half apply. An operator in a
+     * support session does not write where people are paid: the whole list is
+     * refused before a row is written, whichever way its bank columns arrived
+     * (a grid is mapped only when it is read, so the request cannot say).
+     */
+    private function refuseBankDataInSupportSession(MigrationBatch $batch): void
+    {
+        if (! ImpersonationToken::sessionActive()) {
+            return;
+        }
+
+        $carried = false;
+        MigrationStagingRow::query()
+            ->where('tenant_id', $batch->tenant_id)
+            ->where('batch_id', $batch->id)
+            ->whereNotIn('action', [MigrationStagingRow::ACTION_SKIP, MigrationStagingRow::ACTION_DEFER])
+            ->chunkById(500, function ($rows) use (&$carried): bool {
+                foreach ($rows as $row) {
+                    foreach (['bank_name', 'bank_branch', 'bank_account'] as $column) {
+                        $value = $row->raw[$column] ?? null;
+                        if (is_scalar($value) && trim((string) $value) !== '') {
+                            $carried = true;
+
+                            return false;
+                        }
+                    }
+                }
+
+                return true;
+            });
+
+        if ($carried) {
+            throw new ImpersonationRestricted('WorkforceMigrationService::commitSlice', ['bank_name', 'bank_branch', 'bank_account']);
+        }
     }
 
     /**
@@ -216,11 +510,34 @@ final class WorkforceMigrationService
      * each their own transaction under the organisation's lock. What a chunk
      * wrote stays written: a request that dies loses the chunk it was in and
      * the next one starts from the row after the last that was finished.
+     *
+     * `$options` is what the reviewer chose for the whole list: the status
+     * its new people arrive with. It is kept with the list when the first
+     * slice begins and read from there afterwards, so a list carried on from
+     * another tab, or by a request that says something else, goes on as it
+     * began.
+     *
+     * @param  array{status?: string}|null  $options
      */
-    public function commitSlice(MigrationBatch $batch, ?User $actor = null): CommitProgress
+    public function commitSlice(MigrationBatch $batch, ?User $actor = null, ?array $options = null): CommitProgress
     {
         if ($batch->isCommitted()) {
             return new CommitProgress(true, $this->totalsOf($batch), 0);
+        }
+
+        $this->refuseBankDataInSupportSession($batch);
+
+        if ($options !== null) {
+            // What the list was staged with (its mode) is kept beside what the
+            // reviewer chose now.
+            $stored = $batch->getAttribute('options');
+
+            MigrationBatch::query()
+                ->whereKey($batch->getKey())
+                ->where('tenant_id', $batch->tenant_id)
+                ->where('status', 'reviewing')
+                ->update(['options' => json_encode([...(is_array($stored) ? $stored : []), ...$options])]);
+            $batch->refresh();
         }
 
         $tenant = Tenant::query()->findOrFail($batch->tenant_id);
@@ -252,13 +569,15 @@ final class WorkforceMigrationService
             }
 
             $cursor = (int) ($locked->commit_cursor ?? 0);
+            $completing = $locked->isCompleting();
 
-            // The plan's limit, on everyone this list still has to add, before
-            // any of them is written: as the file import applies it.
+            // The plan's limit, on everyone this list still has to add or bring
+            // back, before any of them is written: as the file import applies
+            // it. A restored person takes a seat as a new one does.
             $this->planLimits->assertCanAdd(
                 $tenant,
                 'employees',
-                $batch->rows()->where('id', '>', $cursor)->where('action', MigrationStagingRow::ACTION_CREATE)->count(),
+                $completing ? 0 : $batch->rows()->where('id', '>', $cursor)->whereIn('action', [MigrationStagingRow::ACTION_CREATE, MigrationStagingRow::ACTION_RESTORE])->count(),
             );
 
             $rows = $batch->rows()->where('id', '>', $cursor)->orderBy('id')->limit($this->chunk)->get();
@@ -267,11 +586,29 @@ final class WorkforceMigrationService
             // Numbers for the people who bring none, read once for the chunk
             // as the file import does. Each used to read every employee code
             // to find the next one.
-            $unnumbered = $rows->filter(
+            $unnumbered = $completing ? 0 : $rows->filter(
                 fn (MigrationStagingRow $row): bool => $row->action === MigrationStagingRow::ACTION_CREATE
                     && trim((string) ($this->rawOf($row)['employee_code'] ?? '')) === ''
             )->count();
             $pool = $unnumbered > 0 ? $this->numbering->sequence($tenant, $unnumbered) : [];
+
+            // Which numbers another record holds, asked once for the chunk and
+            // under the lock, for the rows about to be made. The answer at
+            // review was a request or a day ago.
+            $making = $completing ? collect() : $rows
+                ->filter(fn (MigrationStagingRow $row): bool => in_array($row->action, [MigrationStagingRow::ACTION_CREATE, MigrationStagingRow::ACTION_RESTORE], true))
+                ->map(fn (MigrationStagingRow $row): array => $this->rawOf($row));
+            $held = $this->heldNumbers->among($batch->tenant_id, $making->pluck('employee_code'), $making->pluck('badge_number'));
+
+            // Who has been used since the review, asked once for the chunk and
+            // under the lock, for the people about to be brought back.
+            $bringing = $completing ? [] : $rows
+                ->filter(fn (MigrationStagingRow $row): bool => $row->action === MigrationStagingRow::ACTION_RESTORE && $row->resolved_employee_id !== null)
+                ->map(fn (MigrationStagingRow $row): int => (int) $row->resolved_employee_id)
+                ->unique()
+                ->values()
+                ->all();
+            $inUse = $bringing === [] ? [] : $this->archiver->reasons($batch->tenant_id, $bringing);
 
             foreach ($rows as $row) {
                 $raw = $this->rawOf($row);
@@ -279,14 +616,31 @@ final class WorkforceMigrationService
 
                 switch ($row->action) {
                     case MigrationStagingRow::ACTION_CREATE:
-                        $admitted = $this->admit($row, $raw, $signals, $batch, $tenant, $departments, $pool);
+                        // A list that completes people adds nobody, whatever a row says.
+                        if ($completing) {
+                            $totals['skipped']++;
+                            break;
+                        }
+
+                        $made = false;
+                        $admitted = $this->admit($row, $raw, $signals, $batch, $tenant, $departments, $pool, $held);
+
+                        // The number is another record's. Nobody is made, and
+                        // the row is left for review as it was staged.
+                        if ($admitted === null) {
+                            $totals['deferred']++;
+                            break;
+                        }
+
                         $employee = $admitted->record();
 
                         if ($admitted->created()) {
                             // A reviewer chose this row's action, so the number
                             // goes where they said, even from a confirmed holder.
                             $this->resolver->link($employee, $signals, 1.0, verified: true, reassign: true);
+                            $this->writeProfile($employee, $raw, $actor);
                             $totals['created']++;
+                            $made = true;
                         } else {
                             // The person is here now and was not when the
                             // list was reviewed: an earlier row of this
@@ -298,18 +652,32 @@ final class WorkforceMigrationService
                             $this->resolver->link($employee, $signals, $admitted->match->confidence);
                             $totals['merged']++;
                         }
-                        $row->update(['resolved_employee_id' => $employee->id, 'processed_at' => now()]);
+                        $row->update(['resolved_employee_id' => $employee->id, 'processed_at' => now(), 'created_employee' => $made]);
                         break;
 
                     case MigrationStagingRow::ACTION_MERGE:
                         $employee = $this->mergeTarget($row, $batch->tenant_id, $signals);
                         if ($employee !== null) {
                             $this->resolver->link($employee, $signals, $row->match_confidence ?? 1.0, verified: true, reassign: true);
-                            if ($this->applyChanges($row, $employee, $raw, $departments, $actor)) {
+                            if ($this->applyChanges($row, $employee, $raw, $departments, $actor, $completing)) {
                                 $totals['updated']++;
                             }
                             $row->update(['resolved_employee_id' => $employee->id, 'processed_at' => now()]);
                             $totals['merged']++;
+                        } else {
+                            $totals['deferred']++;
+                        }
+                        break;
+
+                    case MigrationStagingRow::ACTION_RESTORE:
+                        // A list that completes people brings nobody back either.
+                        if ($completing) {
+                            $totals['skipped']++;
+                            break;
+                        }
+
+                        if ($this->restoreRow($row, $raw, $signals, $batch, $tenant, $departments, $actor, $inUse, $held) === null) {
+                            $totals['restored']++;
                         } else {
                             $totals['deferred']++;
                         }
@@ -375,7 +743,7 @@ final class WorkforceMigrationService
      *
      * @param  array<string, mixed>  $raw
      */
-    private function applyChanges(MigrationStagingRow $row, Employee $employee, array $raw, DepartmentMatch $departments, ?User $actor): bool
+    private function applyChanges(MigrationStagingRow $row, Employee $employee, array $raw, DepartmentMatch $departments, ?User $actor, bool $completing = false): bool
     {
         if ($actor === null || $employee->trashed()) {
             return false;
@@ -386,21 +754,81 @@ final class WorkforceMigrationService
             return false;
         }
 
-        $changes = $this->changes->between($employee, $raw, $departments, $row->changes ?? []);
+        $changes = $this->changes->between($employee, $raw, $departments, $row->changes ?? [], $completing);
         $fields = $this->changes->applicable($changes);
 
         if (array_intersect($fields, StagedChanges::PAY) !== [] && ! $gate->inspect('updateFinancial', $employee)->allowed()) {
             $fields = array_values(array_diff($fields, StagedChanges::PAY));
         }
 
-        $attributes = $this->changes->attributes($employee, $changes, $fields, $departments);
-        if ($attributes === []) {
-            return false;
+        // Moving someone through the statuses is its own permission, which
+        // editing them does not imply.
+        if (in_array(StagedChanges::STATUS, $fields, true) && ! $gate->allows('transition', $employee)) {
+            $fields = array_values(array_diff($fields, [StagedChanges::STATUS]));
         }
 
-        $this->updater->update($employee, $attributes, $actor);
+        $wrote = false;
 
-        return true;
+        $attributes = $this->changes->attributes($employee, $changes, $fields, $departments);
+        if ($attributes !== []) {
+            $this->updater->update($employee, $attributes, $actor);
+            $wrote = true;
+        }
+
+        if (array_intersect(StagedChanges::RECORDS, $fields) !== []) {
+            $this->writeRecords($employee, $raw, $fields, $actor);
+            $wrote = true;
+        }
+
+        // A person still hired is moved by the service every other status
+        // change goes through, so the move has its record and its audit entry.
+        if (in_array(StagedChanges::STATUS, $fields, true)) {
+            $to = EmployeeStatus::tryFrom(mb_strtolower(trim(is_scalar($raw['status'] ?? null) ? (string) $raw['status'] : '')));
+            if ($to !== null && $employee->status === EmployeeStatus::HIRED && $employee->status->canTransitionTo($to)) {
+                $this->transitions->transition($employee, $to, EmployeeTransitionService::today(), null, $actor->id);
+                $wrote = true;
+            }
+        }
+
+        return $wrote;
+    }
+
+    /**
+     * The records a list adds for a person who has none: the bank account
+     * (primary), the emergency contact and the contract. Written in the
+     * chunk's transaction, through the services their own screens use.
+     *
+     * @param  array<string, mixed>  $raw
+     * @param  list<string>  $fields  the changes being applied
+     */
+    private function writeRecords(Employee $employee, array $raw, array $fields, User $actor): void
+    {
+        $text = static fn (string $key): ?string => isset($raw[$key]) && trim((string) $raw[$key]) !== '' ? trim((string) $raw[$key]) : null;
+
+        if (in_array('contract', $fields, true)) {
+            $this->contracts->create($employee, [
+                'contract_type' => $text('contract_type'),
+                'start_date' => $employee->hire_date->toDateString(),
+                'end_date' => $text('contract_end_date'),
+            ], $actor->id);
+        }
+
+        if (in_array('bank', $fields, true)) {
+            $this->related->addBankDetail($employee, [
+                'bank_name' => (string) $text('bank_name'),
+                'branch_name' => $text('bank_branch'),
+                'account_number' => (string) $text('bank_account'),
+                'is_primary' => true,
+            ]);
+        }
+
+        if (in_array('emergency_contact', $fields, true)) {
+            $this->related->addEmergencyContact($employee, [
+                'name' => (string) $text('emergency_name'),
+                'relationship' => (string) $text('emergency_relationship'),
+                'phone' => (string) $text('emergency_phone'),
+            ]);
+        }
     }
 
     /**
@@ -429,16 +857,31 @@ final class WorkforceMigrationService
 
     /**
      * How many people this batch created with today as their hire date,
-     * because the source gave none. A device never does. Owner decision
-     * (2026-10-28): warn, and leave the date for HR to correct.
+     * because the source gave none, and who are still employees: someone
+     * archived since, by an undo for one, is not counted. A device never gives
+     * a date. Owner decision (2026-10-28): warn, and leave the date for HR to
+     * correct.
      */
     public function hireDatesDefaulted(MigrationBatch $batch): int
     {
-        return $batch->rows()
+        $ids = $batch->rows()
             ->where('action', MigrationStagingRow::ACTION_CREATE)
             ->whereNotNull('processed_at')
+            ->whereNotNull('resolved_employee_id')
             ->get()
             ->filter(fn (MigrationStagingRow $row): bool => empty($this->rawOf($row)['hire_date']))
+            ->pluck('resolved_employee_id')
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($ids === []) {
+            return 0;
+        }
+
+        return Employee::query()
+            ->where('tenant_id', $batch->tenant_id)
+            ->whereIn('id', $ids)
             ->count();
     }
 
@@ -455,40 +898,414 @@ final class WorkforceMigrationService
         return is_array($raw) ? $raw : [];
     }
 
-    private function createBatch(int $tenantId, string $sourceType, ?string $sourceRef, ?User $creator): MigrationBatch
+    /** @param  array<string, string>|null  $options */
+    private function createBatch(int $tenantId, string $sourceType, ?string $sourceRef, ?User $creator, string $status = 'reviewing', ?array $options = null): MigrationBatch
     {
         return MigrationBatch::create([
             'tenant_id' => $tenantId,
             'created_by' => $creator?->id,
             'source_type' => $sourceType,
             'source_ref' => $sourceRef,
-            'status' => 'reviewing',
+            'status' => $status,
+            'options' => $options,
         ]);
     }
 
     /**
      * @param  array<string, mixed>  $raw
      */
-    private function stageRow(MigrationBatch $batch, array $raw, ?string $displayName, ?string $externalIdentifier, DepartmentMatch $departments): void
+    private function stageRow(MigrationBatch $batch, array $raw, ?string $displayName, ?string $externalIdentifier, DepartmentMatch $departments, SameNameRoster $names, HeldSet $held): void
     {
-        $match = $this->resolver->resolve($batch->tenant_id, $this->signalsFromRaw($raw));
-        $employee = $match->employee;
-
         MigrationStagingRow::create([
             'tenant_id' => $batch->tenant_id,
             'batch_id' => $batch->id,
             'raw' => $raw,
             'display_name' => $displayName,
             'external_identifier' => $externalIdentifier,
+            ...$this->resolvedAttributes($batch->tenant_id, $raw, $displayName, $departments, $names, $held),
+        ]);
+    }
+
+    /**
+     * What the resolver and the staged-changes comparison say about a row:
+     * the one place a row is matched, whether as it is stored (a device) or
+     * afterwards (a list).
+     *
+     * A row the resolver calls new is then looked for by its full name
+     * (sameName()). One that is found is held, not added.
+     *
+     * Whatever the verdict, a row whose employee number another record holds
+     * cannot be added as a new person (flagHeldNumbers()).
+     *
+     * @param  array<string, mixed>  $raw
+     * @return array<string, mixed>
+     */
+    private function resolvedAttributes(int $tenantId, array $raw, ?string $displayName, DepartmentMatch $departments, SameNameRoster $names, HeldSet $held, bool $completing = false): array
+    {
+        $attributes = $this->verdictAttributes($tenantId, $raw, $displayName, $departments, $names, $held, $completing);
+
+        return $completing ? $attributes : $this->flagHeldNumbers($attributes, is_array($attributes['raw'] ?? null) ? $attributes['raw'] : $raw, $held);
+    }
+
+    /**
+     * An employee number is unique over every record the organisation keeps,
+     * archived ones included, so a person cannot be made with a number
+     * another record holds: the insert would fail, in the middle of a commit.
+     * The row says so, and a row that would have been added is left for review
+     * instead. A row that merges into someone is not touched: the number is
+     * theirs. A badge number is not unique, but the form refuses one another
+     * record holds, so a list that brings one adds the person without it.
+     *
+     * The warning is stored with what it needs and no more: who holds the
+     * number, and whether they are archived. What the viewer is told, and
+     * whether the holder is named to them, is decided when the row is read
+     * (MigrationController::warningsPayload).
+     *
+     * @param  array<string, mixed>  $attributes  the row's verdict
+     * @param  array<string, mixed>  $raw
+     * @return array<string, mixed>
+     */
+    private function flagHeldNumbers(array $attributes, array $raw, HeldSet $held): array
+    {
+        $kept = array_values(array_filter(
+            is_array($raw['warnings'] ?? null) ? $raw['warnings'] : [],
+            static fn (mixed $warning): bool => is_array($warning) && ! in_array($warning['code'] ?? null, [self::NUMBER_HELD, self::BADGE_HELD], true),
+        ));
+        $warnings = $kept;
+
+        if (($attributes['action'] ?? null) !== MigrationStagingRow::ACTION_MERGE) {
+            // A row waiting because it may be someone else (MAYBE_OTHER_PERSON)
+            // was matched to the holder by this very number: the number is
+            // theirs, as on a merge, and the row says so with its own warning.
+            // An archived holder is not exempt on that account: the row waits
+            // for a person to decide whether it is them, and says so as well.
+            // A row that restores an archived holder is the one way their
+            // number is the row's to use.
+            $mine = static fn (?array $holder): bool => $holder !== null
+                && ($attributes['resolved_employee_id'] ?? null) === $holder['id']
+                && ($holder['archived']
+                    ? ($attributes['action'] ?? null) === MigrationStagingRow::ACTION_RESTORE
+                    : in_array(self::MAYBE_OTHER_PERSON, array_column(is_array($raw['warnings'] ?? null) ? $raw['warnings'] : [], 'code'), true));
+
+            $holder = $held->code($raw['employee_code'] ?? null);
+            if ($holder !== null && ! $mine($holder)) {
+                $warnings[] = self::heldWarning(self::NUMBER_HELD, $raw['employee_code'], $holder);
+
+                if (($attributes['action'] ?? null) === MigrationStagingRow::ACTION_CREATE) {
+                    $attributes['action'] = MigrationStagingRow::ACTION_DEFER;
+                }
+            }
+
+            $holder = $held->badge($raw['badge_number'] ?? null);
+            if ($holder !== null && ! $mine($holder)) {
+                $warnings[] = self::heldWarning(self::BADGE_HELD, $raw['badge_number'], $holder);
+            }
+        }
+
+        if ($warnings === ($raw['warnings'] ?? [])) {
+            return $attributes;
+        }
+
+        return [...$attributes, 'raw' => [...$raw, 'warnings' => $warnings]];
+    }
+
+    /**
+     * @param  array{id: int, archived: bool}  $holder
+     * @return array<string, mixed>
+     */
+    private static function heldWarning(string $code, mixed $value, array $holder): array
+    {
+        $value = is_scalar($value) ? trim((string) $value) : '';
+
+        return [
+            'code' => $code,
+            'value' => $value,
+            'holder' => $holder['archived'] ? 'archived' : 'current',
+            'holder_id' => $holder['id'],
+            'message' => __($holder['archived'] ? "onboarding.migration.{$code}_archived" : "onboarding.migration.{$code}_current", ['value' => $value]),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $raw
+     * @return array<string, mixed>
+     */
+    private function verdictAttributes(int $tenantId, array $raw, ?string $displayName, DepartmentMatch $departments, SameNameRoster $names, HeldSet $held, bool $completing): array
+    {
+        $match = $this->resolver->resolve($tenantId, $this->signalsFromRaw($raw));
+
+        if ($match->outcome === IdentityMatch::NEW) {
+            $held = $this->sameName($tenantId, $raw, $departments, $names, $match->confidence, $completing);
+            if ($held !== null) {
+                return $held;
+            }
+        }
+
+        $employee = $match->employee;
+        $action = $completing && $match->outcome === IdentityMatch::NEW
+            ? MigrationStagingRow::ACTION_SKIP
+            : $this->suggestedAction($match, $displayName);
+
+        $attributes = [
             'match_outcome' => $match->outcome,
             'match_confidence' => $match->confidence,
             'candidates' => $match->candidates,
             'resolved_employee_id' => $employee?->id,
-            'action' => $this->suggestedAction($match, $displayName),
+            // Nobody is added by a list that completes people: a row that
+            // matches no one is left out, and the reviewer is told so.
+            'action' => $action,
             'changes' => $employee !== null && ! $employee->trashed()
-                ? $this->changes->between($employee, $raw, $departments)
+                ? $this->changes->between($employee, $raw, $departments, [], $completing)
                 : null,
-        ]);
+        ];
+
+        // Someone archived is brought back by the corrected list, not merged into.
+        if (! $completing && $match->outcome === IdentityMatch::ARCHIVED && $employee !== null && $employee->trashed()) {
+            return $this->archivedVerdict($attributes, $raw, $employee, $held);
+        }
+
+        $other = $action === MigrationStagingRow::ACTION_MERGE && $this->flagsOtherPerson($raw, $employee);
+        if ($other) {
+            $attributes['action'] = MigrationStagingRow::ACTION_DEFER;
+        }
+
+        $flagged = $this->withOtherPersonWarning($raw, $other);
+
+        return $flagged === $raw ? $attributes : [...$attributes, 'raw' => $flagged];
+    }
+
+    /**
+     * A row matched to someone whose name shares no word with it may be someone
+     * else: a list whose numbers are shifted by a line matches every row to the
+     * wrong person by number. Such a row waits for a reviewer (its action is
+     * defer, never merge) and keeps the reason on it; choosing merge is theirs.
+     * Name is compared with name and the Amharic name with the Amharic name
+     * (the same script, PersonName), and only when a pair can be compared at
+     * all; one pair that shares a word is enough to clear the row.
+     *
+     * Accepting differences for many rows at once still leaves the row alone
+     * if the reviewer sets it to merge. The warning is recomputed whenever the
+     * action or the person it names changes, and removed when it no longer
+     * applies.
+     *
+     * @param  array<string, mixed>  $raw
+     */
+    private function flagsOtherPerson(array $raw, ?Employee $target, bool $archivedToo = false): bool
+    {
+        // An archived person is compared only for a row that may bring them
+        // back (`$archivedToo`): a merge into one writes nothing, so it is not
+        // a reason to wait.
+        return $target !== null && ($archivedToo || ! $target->trashed()) && $this->maybeOtherPerson($raw, $target);
+    }
+
+    /**
+     * The person the row names, archived or not: the relation on the row leaves
+     * archived people out. The organisation is stated on the query.
+     */
+    private function resolvedPerson(MigrationStagingRow $row): ?Employee
+    {
+        return $row->resolved_employee_id === null
+            ? null
+            : Employee::withTrashed()->where('tenant_id', $row->tenant_id)->whereKey($row->resolved_employee_id)->first();
+    }
+
+    /**
+     * What a row matched to an archived person says. Someone unused who holds
+     * the row's number and whose name the row does not contradict is the
+     * person a corrected list means: the row restores them. A name that shares
+     * nothing waits with the warning a merge would have; someone who has been
+     * used, or matched by anything but the number, waits as before.
+     *
+     * @param  array<string, mixed>  $attributes  the row's verdict, which names `$person`
+     * @param  array<string, mixed>  $raw
+     * @return array<string, mixed>
+     */
+    private function archivedVerdict(array $attributes, array $raw, Employee $person, HeldSet $held): array
+    {
+        $holder = $held->code($raw['employee_code'] ?? null);
+        $unused = $held->useOf($person->id) === [];
+        $other = $this->maybeOtherPerson($raw, $person);
+        $guessed = ($raw['code_is_guess'] ?? false) === true;
+
+        $attributes['action'] = $holder !== null && $holder['id'] === $person->id && $unused && ! $guessed && ! $other
+            ? MigrationStagingRow::ACTION_RESTORE
+            : MigrationStagingRow::ACTION_DEFER;
+
+        $flagged = $this->withOtherPersonWarning($raw, $other, archived: true, used: ($held->useOf($person->id) ?? []) !== []);
+
+        return $flagged === $raw ? $attributes : [...$attributes, 'raw' => $flagged];
+    }
+
+    /**
+     * @param  array<string, mixed>  $raw
+     * @param  bool  $used  the archived person has been used since, so restore is not on offer and the warning says why
+     * @return array<string, mixed> the row's raw details, with the warning as it now stands
+     */
+    private function withOtherPersonWarning(array $raw, bool $flagged, bool $archived = false, bool $used = false): array
+    {
+        $warnings = array_values(array_filter(
+            is_array($raw['warnings'] ?? null) ? $raw['warnings'] : [],
+            static fn (mixed $warning): bool => is_array($warning) && ($warning['code'] ?? null) !== self::MAYBE_OTHER_PERSON,
+        ));
+
+        if ($flagged) {
+            // Whether the person is archived is kept, for a row that waits to
+            // bring someone back is told to choose restore, not merge.
+            $warnings[] = [
+                'code' => self::MAYBE_OTHER_PERSON,
+                ...($archived ? ['archived' => true] : []),
+                ...($archived && $used ? ['used' => true] : []),
+                'message' => __($archived ? ($used ? 'onboarding.migration.restore_refused_in_use' : 'onboarding.migration.maybe_other_person_archived') : 'onboarding.migration.maybe_other_person'),
+            ];
+        }
+
+        if ($warnings === ($raw['warnings'] ?? [])) {
+            return $raw;
+        }
+
+        return $warnings === [] ? array_diff_key($raw, ['warnings' => true]) : [...$raw, 'warnings' => $warnings];
+    }
+
+    /**
+     * @param  array<string, mixed>  $raw
+     */
+    private function maybeOtherPerson(array $raw, Employee $target): bool
+    {
+        // A name ETHR made up is not a name to compare: a person made from a
+        // terminal's number is exactly who a list completes.
+        $known = array_values(array_filter([
+            $this->changes->isMadeUpName($target, 'name') ? null : $target->name,
+            $this->changes->isMadeUpName($target, 'name_am') ? null : $target->name_am,
+        ]));
+        $text = static fn (string $key): ?string => isset($raw[$key]) && is_scalar($raw[$key]) ? (string) $raw[$key] : null;
+
+        $compared = [PersonName::overlap($text('name'), $known), PersonName::overlap($text('name_am'), $known)];
+
+        return in_array(false, $compared, true) && ! in_array(true, $compared, true);
+    }
+
+    /**
+     * Accept the differences of the named fields on every merge row that may
+     * take them, a slice at a time, for a reviewer who would otherwise open
+     * each row. Nothing is written to any employee: the acceptance is stored
+     * on the row as a per-row one is (StagedChanges::withAccepted), and the
+     * commit still writes a field only while both values are those shown.
+     *
+     * Stateless between requests: it walks rows in id order after `$cursor`,
+     * for `sliceSeconds` and a chunk at a time (at least one chunk), and says
+     * where it stopped. The caller sends the cursor back until `done`.
+     *
+     * Rows it passes over, and why they are counted:
+     *  - `held`: a row that may be someone else (MAYBE_OTHER_PERSON) is left
+     *    for the reviewer to decide on its own row;
+     *  - `outOfReach`: the actor may not edit the person, nothing is changed;
+     *  - `payRefused`: the row lost its TIN or salary, for want of the pay
+     *    permission, and kept the rest.
+     * Each is counted only for a row that had a difference to accept among
+     * the fields named.
+     *
+     * @param  list<string>  $fields  the fields to accept, by staged name
+     */
+    public function acceptDifferences(MigrationBatch $batch, User $actor, array $fields, int $cursor = 0): AcceptProgress
+    {
+        $fields = array_values(array_intersect($fields, StagedChanges::acceptable($batch->isCompleting())));
+        $gate = Gate::forUser($actor);
+        $started = microtime(true);
+        $rows = $outOfReach = $payRefused = $held = 0;
+        $byField = [];
+
+        do {
+            $chunk = $batch->rows()
+                ->where('id', '>', $cursor)
+                ->whereNull('processed_at')
+                ->where('action', MigrationStagingRow::ACTION_MERGE)
+                ->whereNotNull('resolved_employee_id')
+                ->orderBy('id')
+                ->limit($this->chunk)
+                ->get();
+
+            $targets = Employee::query()
+                ->where('tenant_id', $batch->tenant_id)
+                ->whereIn('id', $chunk->pluck('resolved_employee_id')->all())
+                ->get()
+                ->keyBy('id');
+
+            foreach ($chunk as $row) {
+                $cursor = (int) $row->getKey();
+                $stored = is_array($row->changes) ? $row->changes : [];
+
+                $open = [];
+                foreach ($stored as $change) {
+                    if (($change['kind'] ?? null) === StagedChanges::CONFLICT
+                        && ($change['taken'] ?? false) !== true
+                        && ($change['accepted'] ?? false) !== true
+                        && in_array($change['field'] ?? null, $fields, true)) {
+                        $open[] = (string) $change['field'];
+                    }
+                }
+
+                if ($open === []) {
+                    continue;
+                }
+
+                if ($this->hasWarning($row, self::MAYBE_OTHER_PERSON)) {
+                    $held++;
+
+                    continue;
+                }
+
+                $target = $targets->get($row->resolved_employee_id);
+                if (! $target instanceof Employee) {
+                    continue;
+                }
+
+                if (! $gate->allows('update', $target)) {
+                    $outOfReach++;
+
+                    continue;
+                }
+
+                if (array_intersect($open, StagedChanges::PAY) !== [] && ! $gate->inspect('updateFinancial', $target)->allowed()) {
+                    $open = array_values(array_diff($open, StagedChanges::PAY));
+                    $payRefused++;
+
+                    if ($open === []) {
+                        continue;
+                    }
+                }
+
+                $accepted = [];
+                foreach ($stored as $change) {
+                    if (($change['accepted'] ?? false) === true) {
+                        $accepted[] = (string) $change['field'];
+                    }
+                }
+
+                $row->update(['changes' => $this->changes->withAccepted($stored, [...$accepted, ...$open])]);
+
+                $rows++;
+                foreach ($open as $field) {
+                    $byField[$field] = ($byField[$field] ?? 0) + 1;
+                }
+            }
+
+            $more = $chunk->count() === $this->chunk;
+        } while ($more && microtime(true) - $started < $this->sliceSeconds);
+
+        return new AcceptProgress(! $more, $cursor, $rows, $byField, $outOfReach, $payRefused, $held);
+    }
+
+    private function hasWarning(MigrationStagingRow $row, string $code): bool
+    {
+        $raw = $this->rawOf($row);
+
+        foreach (is_array($raw['warnings'] ?? null) ? $raw['warnings'] : [] as $warning) {
+            if (is_array($warning) && ($warning['code'] ?? null) === $code) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -512,6 +1329,55 @@ final class WorkforceMigrationService
                 : MigrationStagingRow::ACTION_CREATE,
             default => MigrationStagingRow::ACTION_DEFER, // probable, ambiguous, archived
         };
+    }
+
+    /**
+     * A row nobody matched on anything a person has only one of, looked for by
+     * its full name. On 2026-11-18 a list of 167 people was brought in a
+     * second time and every one of them was added again: it carried no
+     * national ID, phone or email, and a name alone is worth too little to the
+     * resolver to say "may be this person".
+     *
+     * Someone already here under exactly this name, in the department the row
+     * would put them in, holds the row as `same_name`, for review:
+     *
+     *  - one such person: the row is drawn up against them as a likely match
+     *    is, with what it would fill in. "This is them" merges into them;
+     *  - several: each is listed and the reviewer says which, if any.
+     *
+     * Either way it waits (`defer`), so committing the list as it stands adds
+     * nobody twice. "A different person" is `create`, which commit honours:
+     * the resolver still calls them new. Null when nobody has the name.
+     *
+     * @param  array<string, mixed>  $raw
+     * @return array<string, mixed>|null
+     */
+    private function sameName(int $tenantId, array $raw, DepartmentMatch $departments, SameNameRoster $names, float $confidence, bool $completing): ?array
+    {
+        $department = isset($raw['department']) && is_scalar($raw['department']) ? trim((string) $raw['department']) : '';
+        $ids = $names->holders(
+            isset($raw['name']) && is_scalar($raw['name']) ? (string) $raw['name'] : null,
+            $department !== '',
+            $departments->id($department),
+        );
+
+        $found = $this->resolver->sameNameCandidates($tenantId, $ids);
+        if ($found === []) {
+            return null;
+        }
+
+        $employee = count($found) === 1 ? $found[0]['employee'] : null;
+
+        return [
+            'match_outcome' => MigrationStagingRow::OUTCOME_SAME_NAME,
+            'match_confidence' => $confidence,
+            'candidates' => array_map(fn (array $one): array => $one['candidate'], $found),
+            'resolved_employee_id' => $employee?->id,
+            'action' => MigrationStagingRow::ACTION_DEFER,
+            'changes' => $employee !== null
+                ? $this->changes->between($employee, $raw, $departments, [], $completing)
+                : null,
+        ];
     }
 
     /**
@@ -594,15 +1460,88 @@ final class WorkforceMigrationService
      * branch, position) went through the file import instead, which has no
      * review. A device's roster brings a name and a number, as before.
      *
+     * An employee number another record holds, archived or current, cannot be
+     * given to a new person, whatever the reviewer chose: null, and nobody is
+     * made. The one exception is a row that would not be made at all but
+     * linked to the person who turned up since the review, as before. A badge
+     * number another record holds is left off the new person, as the form
+     * would refuse it. If the insert still meets the unique index (a record
+     * made a moment ago, by a request this one could not see), it fails inside
+     * a savepoint of its own, so the chunk's transaction goes on, and the row is
+     * left the same way.
+     *
      * @param  array<string, mixed>  $raw
      * @param  list<string>  $pool  the batch's numbers for people who bring none
      */
-    private function admit(MigrationStagingRow $row, array $raw, IdentitySignals $signals, MigrationBatch $batch, Tenant $tenant, DepartmentMatch $departments, array &$pool): IntakeResult
+    private function admit(MigrationStagingRow $row, array $raw, IdentitySignals $signals, MigrationBatch $batch, Tenant $tenant, DepartmentMatch $departments, array &$pool, HeldSet $held): ?IntakeResult
     {
         $accept = $row->match_outcome === IdentityMatch::MATCHED
             ? [...IntakeResult::CONFIRMABLE, IntakeResult::MATCHED]
             : IntakeResult::CONFIRMABLE;
 
+        $text = static fn (string $key): ?string => isset($raw[$key]) && trim((string) $raw[$key]) !== '' ? (string) $raw[$key] : null;
+
+        if ($held->code($text('employee_code')) !== null) {
+            $asked = $this->intake->ask($tenant, $signals);
+
+            return $asked->outcome === IntakeResult::MATCHED && ! in_array(IntakeResult::MATCHED, $accept, true) ? $asked : null;
+        }
+
+        $badge = $text('badge_number');
+        $badgeHeld = $held->badge($badge);
+
+        $details = $this->details($raw, $batch->tenant_id);
+
+        // EmployeeNumbering gives the next number when the row brings none,
+        // as adding one person or importing a file does. The plan's limit was
+        // checked for the whole batch before the first row.
+        $attributes = [
+            'name' => $this->nameOf($raw),
+            'email' => $text('email'),
+            'phone' => EthiopianPhone::canonicalOrRaw($text('phone')),
+            'employee_code' => $text('employee_code'),
+            'badge_number' => $badgeHeld === null ? $badge : null,
+            'hire_date' => $text('hire_date') ?? now()->toDateString(),
+            'department_id' => $departments->id($text('department')),
+            // The line's own status, or the one chosen for the whole list.
+            ...EmployeeImportRow::employment($text('status') ?? $batch->arrivalStatus()),
+            ...$details,
+        ];
+        $via = $batch->source_type === 'device' ? EmployeeIntake::VIA_DEVICE : EmployeeIntake::VIA_MIGRATION;
+
+        try {
+            $admitted = DB::transaction(function () use ($tenant, $attributes, $signals, $via, $accept, &$pool): IntakeResult {
+                return $this->intake->admit($tenant, $attributes, $signals, $via, $accept, seatChecked: true, pool: $pool);
+            });
+        } catch (UniqueConstraintViolationException $e) {
+            if (! str_contains($e->getMessage(), 'employee_code')) {
+                throw $e;
+            }
+
+            return null;
+        }
+
+        if ($admitted->created() && $badge !== null) {
+            if ($badgeHeld === null) {
+                $held->addBadge($badge, $admitted->record()->id);
+            } else {
+                $this->noteHeldBadge($row, $raw, $badge, $badgeHeld);
+            }
+        }
+
+        return $admitted;
+    }
+
+    /**
+     * What a row brings of a person beyond the number, the name and the
+     * contact details: the columns a list fills, with a branch, position,
+     * grade or cost centre given by code or name. Only what the row says.
+     *
+     * @param  array<string, mixed>  $raw
+     * @return array<string, mixed>
+     */
+    private function details(array $raw, int $tenantId): array
+    {
         $text = static fn (string $key): ?string => isset($raw[$key]) && trim((string) $raw[$key]) !== '' ? (string) $raw[$key] : null;
 
         $details = [];
@@ -612,10 +1551,19 @@ final class WorkforceMigrationService
             }
         }
         if ($text('branch') !== null) {
-            $details['branch_id'] = $this->relation('branch', $batch->tenant_id)->id($text('branch'));
+            $details['branch_id'] = $this->relation('branch', $tenantId)->id($text('branch'));
         }
         if ($text('position') !== null) {
-            $details['position_id'] = $this->relation('position', $batch->tenant_id)->id($text('position'));
+            $details['position_id'] = $this->relation('position', $tenantId)->id($text('position'));
+        }
+        if ($text('grade') !== null) {
+            $details['grade_id'] = $this->relation('grade', $tenantId)->id($text('grade'));
+        }
+        if ($text('cost_center') !== null) {
+            $details['cost_center_id'] = $this->relation('cost_center', $tenantId)->id($text('cost_center'));
+        }
+        if ($text('probation_end_date') !== null) {
+            $details['probation_end_date'] = $text('probation_end_date');
         }
         if (isset($raw['salary_cents']) && (int) $raw['salary_cents'] > 0) {
             $details['salary_cents'] = (int) $raw['salary_cents'];
@@ -624,26 +1572,297 @@ final class WorkforceMigrationService
             $details['nationality_status'] = NationalityStatus::fromInput((string) $text('nationality_status'))?->value;
         }
 
-        // EmployeeNumbering gives the next number when the row brings none,
-        // as adding one person or importing a file does. The plan's limit was
-        // checked for the whole batch before the first row.
-        return $this->intake->admit($tenant, [
-            'name' => $this->nameOf($raw),
-            'email' => $text('email'),
-            'phone' => EthiopianPhone::canonicalOrRaw($text('phone')),
-            'employee_code' => $text('employee_code'),
-            'badge_number' => $text('badge_number'),
-            'hire_date' => $text('hire_date') ?? now()->toDateString(),
-            'department_id' => $departments->id($text('department')),
-            ...EmployeeImportRow::employment($text('status')),
-            ...array_filter($details, fn (mixed $value): bool => $value !== null),
-        ], $signals, $batch->source_type === 'device' ? EmployeeIntake::VIA_DEVICE : EmployeeIntake::VIA_MIGRATION, $accept, seatChecked: true, pool: $pool);
+        return array_filter($details, fn (mixed $value): bool => $value !== null);
+    }
+
+    /**
+     * Why this person cannot be brought back by a list, or null when they can.
+     * `not_archived` for anyone who is here, `in_use` with the reasons for
+     * someone who has been used since the list that made them
+     * (EmployeeArchiver::reasons(), the rule an undo and archiving a selection
+     * use), and `gone` when nobody is named.
+     *
+     * @return array{code: string, reasons: list<string>}|null
+     */
+    public function restoreRefusal(int $tenantId, ?Employee $person): ?array
+    {
+        if ($person === null) {
+            return ['code' => 'gone', 'reasons' => []];
+        }
+
+        if (! $person->trashed()) {
+            return ['code' => 'not_archived', 'reasons' => []];
+        }
+
+        $reasons = $this->archiver->reasons($tenantId, [$person->id])[$person->id] ?? [];
+
+        return $reasons === [] ? null : ['code' => 'in_use', 'reasons' => $reasons];
+    }
+
+    /**
+     * Why each of these people has been used since a list made them, by id;
+     * someone not in use is not in the answer (EmployeeArchiver::reasons()).
+     *
+     * @param  list<int>  $employeeIds
+     * @return array<int, list<string>>
+     */
+    public function useAmong(int $tenantId, array $employeeIds): array
+    {
+        return $employeeIds === [] ? [] : $this->archiver->reasons($tenantId, $employeeIds);
+    }
+
+    /**
+     * Bring one row's archived person back and write the row's details over
+     * them. Returns null when it was done, else why it was not (`gone`,
+     * `not_archived`, `in_use`, `no_permission`, `no_seat`, `number_taken`,
+     * `failed`); the row is then put back to `defer` with the reason on it, and
+     * nothing of it is kept.
+     *
+     * The work is a savepoint of its own inside the chunk's transaction: the
+     * plan's limit (403), a number another record has taken since, or
+     * anything else that fails rolls back this person alone. The seat lock is
+     * the chunk's, held already, and `$inUse` is the chunk's one question about
+     * who has been used since the review (EmployeeArchiver::reasons()).
+     *
+     * @param  array<string, mixed>  $raw
+     * @param  array<int, list<string>>  $inUse
+     */
+    private function restoreRow(MigrationStagingRow $row, array $raw, IdentitySignals $signals, MigrationBatch $batch, Tenant $tenant, DepartmentMatch $departments, ?User $actor, array $inUse, HeldSet $held): ?string
+    {
+        $person = $row->resolved_employee_id === null
+            ? null
+            : Employee::withTrashed()->where('tenant_id', $batch->tenant_id)->whereKey($row->resolved_employee_id)->first();
+
+        $text = static fn (string $key): ?string => isset($raw[$key]) && trim((string) $raw[$key]) !== '' ? trim((string) $raw[$key]) : null;
+
+        $holder = $text('employee_code') === null ? null : $held->code($text('employee_code'));
+
+        $reason = match (true) {
+            $person === null => 'gone',
+            ! $person->trashed() => 'not_archived',
+            isset($inUse[$person->id]) => 'in_use',
+            $actor === null || ! Gate::forUser($actor)->allows('delete', $person) => 'no_permission',
+            $holder !== null && $holder['id'] !== $person->id => 'number_taken',
+            default => null,
+        };
+
+        if ($reason === null) {
+            try {
+                DB::transaction(function () use ($row, $raw, $signals, $batch, $tenant, $departments, $actor, $held, $person, $text): void {
+                    $audit = ['via' => 'migration.restore', 'batch' => $batch->public_id];
+
+                    $this->restorer->restore($person, seatHeld: true, audit: $audit, tenant: $tenant);
+                    $this->writeOver($row, $person, $raw, $batch, $departments, $held, $audit);
+                    $this->resolver->link($person, $signals, 1.0, verified: true, reassign: true);
+                    $this->writeProfile($person, $raw, $actor, over: true);
+
+                    AuditLog::record('migration.restored', $person, [...$audit, 'row' => $row->public_id, 'employee_code' => $text('employee_code')]);
+                });
+            } catch (HttpException $e) {
+                $reason = $e->getStatusCode() === 403 ? 'no_seat' : 'failed';
+            } catch (UniqueConstraintViolationException $e) {
+                // Only the employee number is "taken"; any other unique index
+                // is a failure the reviewer is told about, and it is reported.
+                if (str_contains($e->getMessage(), 'employee_code')) {
+                    $reason = 'number_taken';
+                } else {
+                    report($e);
+                    $reason = 'failed';
+                }
+            } catch (Throwable $e) {
+                // A deadlock or a lock wait timeout has already ended the
+                // chunk's transaction on the server (Laravel counts the level
+                // down without rolling back to our savepoint), so carrying on
+                // would write the rest of the chunk in autocommit and keep a
+                // person half restored. Let it out, as admit() does: the chunk
+                // rolls back whole and the commit can be asked again.
+                if ($e instanceof DeadlockException || $e instanceof LostConnectionException || (new ConcurrencyErrorDetector)->causedByConcurrencyError($e) || (new LostConnectionDetector)->causedByLostConnection($e)) {
+                    throw $e;
+                }
+
+                report($e);
+                $reason = 'failed';
+            }
+        }
+
+        if ($reason !== null) {
+            $this->refuseRestore($row, $raw, $reason);
+
+            return $reason;
+        }
+
+        $row->update(['resolved_employee_id' => $person->id, 'processed_at' => now()]);
+
+        return null;
+    }
+
+    /**
+     * Write what the row supplies over the restored person, as a create sets
+     * it: identity included, since this record exists only because of the list
+     * that was undone. A field the row leaves blank is left as it is. A
+     * badge number another record holds is left off, as for a new person; the
+     * employee number is the person's own (the row matched them by it) or the
+     * row was refused before this.
+     *
+     * @param  array<string, mixed>  $raw
+     * @param  array<string, mixed>  $audit
+     */
+    private function writeOver(MigrationStagingRow $row, Employee $person, array $raw, MigrationBatch $batch, DepartmentMatch $departments, HeldSet $held, array $audit): void
+    {
+        $text = static fn (string $key): ?string => isset($raw[$key]) && trim((string) $raw[$key]) !== '' ? trim((string) $raw[$key]) : null;
+
+        $attributes = $this->details($raw, $batch->tenant_id);
+
+        foreach (['name', 'email', 'employee_code', 'hire_date'] as $column) {
+            if ($text($column) !== null) {
+                $attributes[$column] = $text($column);
+            }
+        }
+        if ($text('phone') !== null) {
+            $attributes['phone'] = EthiopianPhone::canonicalOrRaw($text('phone'));
+        }
+        if ($text('department') !== null) {
+            $attributes['department_id'] = $departments->id($text('department'));
+        }
+
+        $badge = $text('badge_number');
+        $badgeHolder = $badge === null ? null : $held->badge($badge);
+        if ($badge !== null && ($badgeHolder === null || $badgeHolder['id'] === $person->id)) {
+            $attributes['badge_number'] = $badge;
+        } elseif ($badge !== null) {
+            // Left off, and the reviewer is told, as admit() does for a new person.
+            $this->noteHeldBadge($row, $raw, $badge, $badgeHolder);
+        }
+
+        $attributes = [
+            ...$attributes,
+            'confirmation_date' => null,
+            ...EmployeeImportRow::employment($text('status') ?? $batch->arrivalStatus()),
+        ];
+
+        $before = $person->only(array_keys($attributes));
+        $person->update($attributes);
+
+        AuditLog::record('employee.updated', $person, [...EmployeeAuditMask::apply($before, $person->only(array_keys($attributes))), ...$audit]);
+    }
+
+    /**
+     * The row goes back to review: `defer`, with the reason on it as a
+     * warning, so the list can finish and the reviewer can read why.
+     *
+     * @param  array<string, mixed>  $raw
+     */
+    private function refuseRestore(MigrationStagingRow $row, array $raw, string $reason): void
+    {
+        $warnings = array_values(array_filter(
+            is_array($raw['warnings'] ?? null) ? $raw['warnings'] : [],
+            static fn (mixed $warning): bool => is_array($warning) && ($warning['code'] ?? null) !== self::RESTORE_REFUSED,
+        ));
+        $warnings[] = [
+            'code' => self::RESTORE_REFUSED,
+            'reason' => $reason,
+            'message' => __("onboarding.migration.restore_refused_{$reason}"),
+        ];
+
+        $row->update(['action' => MigrationStagingRow::ACTION_DEFER, 'raw' => [...$raw, 'warnings' => $warnings]]);
+    }
+
+    /**
+     * Ask who among the archived holders of this chunk's employee numbers has
+     * been used since, once for the chunk, so that a row whose person is
+     * unused can default to being brought back.
+     */
+    private function noteUse(int $tenantId, HeldSet $held): void
+    {
+        $ids = $held->archivedCodeHolders();
+
+        if ($ids !== []) {
+            $held->recordUse($ids, $this->archiver->reasons($tenantId, $ids));
+        }
+    }
+
+    /**
+     * The row keeps a warning that its badge number is another record's, for a
+     * list staged before the number was taken or one that never said so.
+     *
+     * @param  array<string, mixed>  $raw
+     * @param  array{id: int, archived: bool}  $holder
+     */
+    private function noteHeldBadge(MigrationStagingRow $row, array $raw, ?string $badge, array $holder): void
+    {
+        $warnings = is_array($raw['warnings'] ?? null) ? $raw['warnings'] : [];
+
+        foreach ($warnings as $warning) {
+            if (is_array($warning) && ($warning['code'] ?? null) === self::BADGE_HELD) {
+                return;
+            }
+        }
+
+        $row->update(['raw' => [...$raw, 'warnings' => [...$warnings, self::heldWarning(self::BADGE_HELD, $badge, $holder)]]]);
+    }
+
+    /**
+     * The rest of a new person's profile, written in the transaction of the
+     * chunk that made them: a contract, a bank account, an emergency contact.
+     * Each is written through the service its own screen uses, so what the
+     * list brings is what the profile would hold had it been typed.
+     *
+     * The list was read against every rule of these records before it was
+     * staged. One that still fails here throws, and the chunk is rolled back
+     * with the person: nobody is left without the records their row brought,
+     * and nothing the row says is dropped.
+     *
+     * The contract starts on the hire date and states no salary: a contract
+     * that carries one overwrites the employee's (EmployeeContractService),
+     * and the salary column stays the one source of pay.
+     *
+     * @param  array<string, mixed>  $raw
+     */
+    private function writeProfile(Employee $employee, array $raw, ?User $actor, bool $over = false): void
+    {
+        $text = static fn (string $key): ?string => isset($raw[$key]) && trim((string) $raw[$key]) !== '' ? trim((string) $raw[$key]) : null;
+
+        // Someone brought back already has what the list that made them wrote.
+        // A contract and an emergency contact are not written a second time;
+        // a bank account the file gives becomes the primary one, unless the
+        // person already has exactly that.
+        $type = $text('contract_type');
+        if ($type !== null && ! ($over && $employee->contracts()->exists())) {
+            $this->contracts->create($employee, [
+                'contract_type' => $type,
+                'start_date' => $employee->hire_date->toDateString(),
+                'end_date' => $text('contract_end_date'),
+            ], $actor?->id);
+        }
+
+        $held = $over && $text('bank_account') !== null && $employee->bankDetails()->get()->contains(
+            fn ($bank): bool => (string) $bank->account_number === $text('bank_account') && (string) $bank->bank_name === $text('bank_name'),
+        );
+        if ($text('bank_name') !== null && $text('bank_account') !== null && ! $held) {
+            $this->related->addBankDetail($employee, [
+                'bank_name' => $text('bank_name'),
+                'branch_name' => $text('bank_branch'),
+                'account_number' => $text('bank_account'),
+                'is_primary' => true,
+            ]);
+        }
+
+        if ($text('emergency_name') !== null && $text('emergency_relationship') !== null && $text('emergency_phone') !== null && ! ($over && $employee->emergencyContacts()->exists())) {
+            $this->related->addEmergencyContact($employee, [
+                'name' => $text('emergency_name'),
+                'relationship' => $text('emergency_relationship'),
+                'phone' => $text('emergency_phone'),
+            ]);
+        }
     }
 
     private function relation(string $kind, int $tenantId): RelationMatch
     {
-        return $this->relations["{$kind}:{$tenantId}"] ??= $kind === 'branch'
-            ? RelationMatch::branches($tenantId)
-            : RelationMatch::positions($tenantId);
+        return $this->relations["{$kind}:{$tenantId}"] ??= match ($kind) {
+            'branch' => RelationMatch::branches($tenantId),
+            'grade' => RelationMatch::grades($tenantId),
+            'cost_center' => RelationMatch::costCenters($tenantId),
+            default => RelationMatch::positions($tenantId),
+        };
     }
 }

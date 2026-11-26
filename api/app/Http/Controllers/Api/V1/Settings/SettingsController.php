@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1\Settings;
 
+use App\Enums\EmploymentFramework;
 use App\Enums\TenantAddressMode;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\GenerateScimTokenRequest;
@@ -18,19 +19,26 @@ use App\Models\ApiKey;
 use App\Models\AuditLog;
 use App\Models\SsoSetting;
 use App\Models\Tenant;
+use App\Rules\PasswordPolicy;
+use App\Services\Auth\ActivationCodeService;
 use App\Services\CurrentTenant;
 use App\Services\EmployeeNumbering;
+use App\Services\Employment\EmploymentFrameworks;
 use App\Services\Leave\LeaveYear;
 use App\Services\Payroll\StatutoryRules;
 use App\Services\Payroll\StatutorySchedules;
+use App\Services\Sso\SsoProviderInterface;
 use App\Services\Tenancy\OrganisationProfile;
 use App\Services\Tenancy\ProfileContext;
 use App\Services\TenantAddressService;
 use App\Support\CalendarPreference;
 use App\Support\ClockPreference;
+use App\Support\DeviceSilenceRules;
+use App\Support\PayChangeThresholds;
 use App\Support\TenantBrand;
 use App\Support\TenantLanding;
 use App\Support\TenantSecurityPolicy;
+use App\Support\TenantTime;
 use App\Support\WorkingWeek;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -41,11 +49,12 @@ use Illuminate\Support\Str;
 
 class SettingsController extends Controller
 {
-    public function index(TenantAddressService $addresses, EmployeeNumbering $numbering): JsonResponse
+    public function index(TenantAddressService $addresses, EmployeeNumbering $numbering, EmploymentFrameworks $frameworks): JsonResponse
     {
         Gate::authorize('settings.manage');
 
         $tenant = app(CurrentTenant::class)->get();
+        app(OrganisationProfile::class)->inForce($tenant);
 
         // The values as enforced, not as stored: a value saved before
         // PUT /settings validated these is normalised the same way the
@@ -58,6 +67,8 @@ class SettingsController extends Controller
         // its organisation type (StatutoryRules).
         $rules = app(StatutoryRules::class)->for($tenant, Carbon::today());
         $leaveYear = LeaveYear::forTenant($tenant);
+        $payChange = PayChangeThresholds::forTenant($tenant);
+        $silence = DeviceSilenceRules::forTenant($tenant);
 
         return response()->json([
             'organization' => [
@@ -78,6 +89,7 @@ class SettingsController extends Controller
                 'organization_type_needs_review' => (bool) $tenant->organization_type_needs_review,
                 'organization_type_pending' => $this->pendingType($tenant),
                 'organization_type_earliest_change' => $this->earliestTypeChange($tenant),
+                'employment_framework' => $frameworks->describe($tenant, TenantTime::today($tenant)),
             ],
             'address' => $addresses->describe($tenant),
             'branding' => [
@@ -117,10 +129,21 @@ class SettingsController extends Controller
                 'pension_registration_number' => StatutorySchedules::setting($tenant, 'pension_registration_number'),
                 'payout_method' => StatutorySchedules::setting($tenant, 'payout_method'),
                 'employer_bank_name' => StatutorySchedules::setting($tenant, 'employer_bank_name'),
+                'employer_bank_code' => StatutorySchedules::setting($tenant, 'employer_bank_code'),
+                'pay_change_alert_percent' => $payChange->percent,
+                'pay_change_alert_min_cents' => $payChange->minCents,
+            ],
+            'documents' => [
+                'letterhead_address' => StatutorySchedules::setting($tenant, 'letterhead_address'),
+                'letterhead_phone' => StatutorySchedules::setting($tenant, 'letterhead_phone'),
+                'letterhead_email' => StatutorySchedules::setting($tenant, 'letterhead_email'),
+                'letterhead_po_box' => StatutorySchedules::setting($tenant, 'letterhead_po_box'),
             ],
             'security' => [
                 'mfa_policy' => $security->mfaPolicy(),
                 'session_timeout_minutes' => $security->idleTimeoutMinutes(),
+                'password_policy' => $this->passwordPolicy($tenant),
+                'activation_code_hours' => ActivationCodeService::ttlHoursFor($tenant),
             ],
             'display' => [
                 'calendar' => $this->organisationCalendar($tenant),
@@ -130,6 +153,11 @@ class SettingsController extends Controller
                 'number_format' => $numbering->format($tenant),
                 'next_code' => $numbering->next($tenant),
                 'invitation_reminders' => data_get($tenant->settings, 'invitation_reminders', true) !== false,
+            ],
+            'devices' => [
+                'silence_alerts' => $silence->enabled,
+                'silence_adms_minutes' => $silence->admsMinutes,
+                'silence_push_grace_minutes' => $silence->pushGraceMinutes,
             ],
             'sso' => $this->ssoConfig($tenant),
         ]);
@@ -177,15 +205,58 @@ class SettingsController extends Controller
         $currentSettings = $tenant->settings ?? [];
         // validated(), not input(): only keys UpdateSettingsRequest names reach
         // the JSON (an unknown key is a 422 there).
-        $newSettings = array_merge($currentSettings, $request->validated('settings'));
+        $incoming = $request->validated('settings');
+        // A bank name saved without a code is typed text; the code beside it
+        // belonged to the name it replaces.
+        if (array_key_exists('employer_bank_name', $incoming) && ! array_key_exists('employer_bank_code', $incoming)) {
+            $incoming['employer_bank_code'] = null;
+        }
+        $before = $this->securityAudit($tenant);
+        if (array_key_exists('password_policy', $incoming)) {
+            $stored = data_get($currentSettings, 'password_policy', []);
+            $incoming['password_policy'] = array_merge(is_array($stored) ? $stored : [], $incoming['password_policy']);
+        }
+        $newSettings = array_merge($currentSettings, $incoming);
         $tenant->update(['settings' => $newSettings]);
 
         AuditLog::record('settings.updated', $tenant);
 
+        $after = $this->securityAudit($tenant);
+        if ($before !== $after && (array_key_exists('password_policy', $incoming) || array_key_exists('activation_code_hours', $incoming))) {
+            AuditLog::record('settings.sign_in_rules_updated', $tenant, ['before' => $before, 'after' => $after]);
+        }
+
         return response()->json(['message' => 'Settings updated', 'settings' => $newSettings]);
     }
 
-    public function updateOrganization(UpdateOrganizationRequest $request): JsonResponse
+    /**
+     * The password policy and the single-code lifetime as enforced, for the
+     * audit trail: what the rules were, and what they now are.
+     *
+     * @return array{password_policy: array{min_length: int, require_uppercase: bool, require_lowercase: bool, require_number: bool, require_symbol: bool}, activation_code_hours: int}
+     */
+    private function securityAudit(Tenant $tenant): array
+    {
+        return [
+            'password_policy' => $this->passwordPolicy($tenant),
+            'activation_code_hours' => ActivationCodeService::ttlHoursFor($tenant),
+        ];
+    }
+
+    private function passwordPolicy(Tenant $tenant): array
+    {
+        $policy = PasswordPolicy::forTenant($tenant);
+
+        return [
+            'min_length' => (int) $policy['min_length'],
+            'require_uppercase' => (bool) $policy['require_uppercase'],
+            'require_lowercase' => (bool) $policy['require_lowercase'],
+            'require_number' => (bool) $policy['require_number'],
+            'require_symbol' => (bool) $policy['require_symbol'],
+        ];
+    }
+
+    public function updateOrganization(UpdateOrganizationRequest $request, EmploymentFrameworks $frameworks): JsonResponse
     {
         Gate::authorize('settings.manage');
 
@@ -194,7 +265,7 @@ class SettingsController extends Controller
         $tenant = app(CurrentTenant::class)->get();
 
         $tenantFields = array_intersect_key($validated, ['name' => 1, 'type' => 1, 'timezone' => 1]);
-        $typeBefore = $tenant->organization_type;
+        $typeBefore = app(OrganisationProfile::class)->inForce($tenant);
 
         // Choosing the organisation type, even the one it already had, is the
         // confirmation the migration asked existing organisations for.
@@ -224,6 +295,16 @@ class SettingsController extends Controller
             app(OrganisationProfile::class)->cancelPending($tenant, $request->user()?->id);
         }
 
+        if (array_key_exists('employment_framework', $validated)) {
+            $chosen = $validated['employment_framework'];
+
+            if ($chosen === null) {
+                $frameworks->resetOwn($tenant);
+            } elseif (is_string($chosen)) {
+                $frameworks->setOwn($tenant, EmploymentFramework::from($chosen));
+            }
+        }
+
         // Mirror into the settings JSON as well: it was the only store before
         // this endpoint wrote the real columns, so keeping both in step means a
         // tenant is never left with two disagreeing values.
@@ -250,6 +331,7 @@ class SettingsController extends Controller
                 'organization_type_needs_review' => (bool) $tenant->organization_type_needs_review,
                 'organization_type_pending' => $this->pendingType($tenant),
                 'organization_type_earliest_change' => $this->earliestTypeChange($tenant),
+                'employment_framework' => $frameworks->describe($tenant, TenantTime::today($tenant)),
             ],
         ]);
     }
@@ -394,6 +476,8 @@ class SettingsController extends Controller
                 'default_role' => 'employee',
                 'auto_provision' => false,
                 'metadata_url' => null,
+                'configured' => false,
+                'has_certificate' => false,
             ];
         }
 
@@ -405,6 +489,8 @@ class SettingsController extends Controller
             'default_role' => $sso->default_role ?? 'employee',
             'auto_provision' => $sso->auto_provision,
             'metadata_url' => config('app.url').'/api/v1/sso/saml/'.$tenant->subdomain.'/metadata',
+            'configured' => app(SsoProviderInterface::class)->isConfigured($tenant) === true,
+            'has_certificate' => $sso->getRawOriginal('idp_certificate') !== null,
         ];
     }
 

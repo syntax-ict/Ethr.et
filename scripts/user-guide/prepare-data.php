@@ -23,8 +23,14 @@
 
 declare(strict_types=1);
 
+use App\Enums\DeviceCommandStatus;
+use App\Enums\DeviceCommandType;
+use App\Models\Device;
+use App\Models\DeviceCommand;
+use App\Models\DeviceInboundPunch;
 use App\Models\Employee;
 use App\Models\Tenant;
+use App\Models\UnmatchedDevicePunch;
 use App\Services\CurrentTenant;
 use App\Services\Offboarding\ExitClearanceService;
 use Illuminate\Contracts\Console\Kernel;
@@ -187,7 +193,6 @@ foreach ($accounts as [$seededEmail, $role, $employee]) {
     $values = [
         'display_name' => DB::table('employees')->where('id', $employee)->value('name_am'),
         'email' => $email,
-        'email_normalized' => strtolower($email),
         'role' => $role,
         'employee_id' => $employee,
         'locale' => 'am',
@@ -327,6 +332,113 @@ $clearance = app(ExitClearanceService::class)
     ->start(Employee::query()->findOrFail($leaver), null, $hrUser);
 DB::table('exit_clearance_items')->where('exit_clearance_id', $clearance->id)->orderBy('position')->limit(1)
     ->update(['done_at' => now(), 'done_by' => $hrUser]);
+
+// The devices guide: terminals in the states its pictures show. The seeder's
+// three get Amharic names; four more are added, and the wizard's own
+// pictures register the last one, so they are taken last.
+$guideDevices = [
+    'Main Entrance Terminal' => 'የዋና መግቢያ ተርሚናል',
+    'Back Door Terminal' => 'የጓሮ በር ተርሚናል',
+    'Floor 2 Terminal' => 'የ2ኛ ፎቅ ተርሚናል',
+];
+foreach ($guideDevices as $english => $amharic) {
+    DB::table('devices')->where('tenant_id', $tenantId)->where('name', $english)->update(['name' => $amharic]);
+}
+
+// Four people hold a badge number the terminals know.
+$badgeHolders = array_slice($others, 7, 4);
+foreach ($badgeHolders as $n => $holder) {
+    DB::table('employees')->where('id', $holder)->update(['badge_number' => (string) (1001 + $n)]);
+}
+
+$newDevice = fn (array $values) => Device::query()->create($values + [
+    'public_id' => (string) Str::ulid(),
+    'tenant_id' => $tenantId,
+    'branch_id' => $hq,
+    'connection_config' => [],
+    'auto_sync' => false,
+    'commands_enabled' => false,
+]);
+
+// A ZKTeco ADMS terminal registered a moment ago: never heard, and its
+// allowed list is still empty, which the connect box says.
+$newDevice([
+    'name' => 'የመግቢያ በር (ZKTeco ADMS)',
+    'serial_number' => 'GUIDE-ADMS-01',
+    'adapter_type' => 'zkteco_adms',
+    'status' => 'pending',
+    'webhook_ip_allowlist' => [],
+]);
+
+// A second ADMS terminal that is working, with commands on and a few sent.
+$ledgerDevice = $newDevice([
+    'name' => 'የሒሳብ ክፍል (ZKTeco ADMS)',
+    'serial_number' => 'GUIDE-ADMS-02',
+    'adapter_type' => 'zkteco_adms',
+    'status' => 'online',
+    'last_sync_at' => now()->subMinutes(2),
+    'webhook_ip_allowlist' => ['196.188.10.25'],
+    'commands_enabled' => true,
+]);
+$commandRows = [
+    [DeviceCommandType::SET_TIME, null, [], DeviceCommandStatus::DONE, null],
+    [DeviceCommandType::UPSERT_USER, $badgeHolders[0], ['badge' => '1001'], DeviceCommandStatus::DONE, null],
+    [DeviceCommandType::UPSERT_USER, $badgeHolders[1], ['badge' => '1002'], DeviceCommandStatus::SENT, null],
+    [DeviceCommandType::DELETE_USER, $badgeHolders[2], ['badge' => '1003'], DeviceCommandStatus::PENDING, null],
+];
+foreach ($commandRows as $n => [$type, $holder, $payload, $status, $error]) {
+    DeviceCommand::query()->create([
+        'public_id' => (string) Str::ulid(),
+        'tenant_id' => $tenantId,
+        'device_id' => $ledgerDevice->id,
+        'employee_id' => $holder,
+        'type' => $type,
+        'payload' => $payload,
+        'status' => $status,
+        'attempts' => $status === DeviceCommandStatus::PENDING ? 0 : 1,
+        'last_error' => $error,
+        'requested_by' => $adminUser,
+        'sent_at' => $status === DeviceCommandStatus::PENDING ? null : now()->subMinutes(30 - $n),
+        'completed_at' => $status === DeviceCommandStatus::DONE ? now()->subMinutes(29 - $n) : null,
+    ]);
+}
+
+// A Hikvision terminal that sends from the office, with the day's punches:
+// some recorded, two kept back with a reason, three from badges nobody holds.
+$push = $newDevice([
+    'name' => 'የጓሮ ደጃፍ (Hikvision፣ ከቢሮ የሚልክ)',
+    'serial_number' => 'GUIDE-HIK-01',
+    'adapter_type' => 'hikvision',
+    'status' => 'online',
+    'last_sync_at' => now()->subMinutes(3),
+    'webhook_token' => Str::random(48),
+]);
+$inbox = fn (string $badge, string $key, array $state) => DeviceInboundPunch::query()->create($state + [
+    'public_id' => (string) Str::ulid(),
+    'tenant_id' => $tenantId,
+    'device_id' => $push->id,
+    'badge' => $badge,
+    'punch_type' => 'auto',
+    'occurred_raw' => now()->subMinutes(90)->format('Y-m-d H:i:s'),
+    'idempotency_key' => 'guide-'.$key,
+]);
+foreach (['1001', '1002', '1003', '1004', '1001'] as $n => $badge) {
+    $inbox($badge, 'ok-'.$n, ['processed_at' => now()->subMinutes(80 - $n)]);
+}
+$inbox('1004', 'held-reason-1', ['failed_at' => now()->subMinutes(20), 'failure' => 'employee_has_left', 'attempts' => 1]);
+$inbox('1003', 'held-reason-2', ['failed_at' => now()->subMinutes(15), 'failure' => 'method_disabled', 'attempts' => 1]);
+foreach ([['4471', 'in', 3], ['4471', 'out', 2], ['4472', 'in', 1]] as $n => [$badge, $type, $count]) {
+    UnmatchedDevicePunch::query()->create([
+        'public_id' => (string) Str::ulid(),
+        'tenant_id' => $tenantId,
+        'device_id' => $push->id,
+        'badge' => $badge,
+        'punch_type' => $type,
+        'occurred_raw' => now()->subHours($count)->format('Y-m-d H:i:s'),
+        'idempotency_key' => 'guide-unmatched-'.$n,
+        'status' => UnmatchedDevicePunch::PENDING,
+    ]);
+}
 
 echo "Dressed '{$database}': ".count($names)." people, accounts:\n";
 foreach ($accounts as [, $role, $employee]) {

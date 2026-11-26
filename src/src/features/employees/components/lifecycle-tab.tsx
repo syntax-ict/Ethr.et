@@ -34,6 +34,7 @@ import {
   useTransitionEmployee,
   type TransitionPayload,
 } from "../api";
+import { PaidMonthNotice } from "./paid-month-notice";
 
 // ── LIFECYCLE TAB ──────────────────────────────────────────────
 
@@ -113,6 +114,11 @@ export function LifecycleTab({
   });
 
   const selectedStatus = watch("to_status");
+  // Resigned, terminated and retired set the leaving date, which moves what
+  // every month from it was owed.
+  const setsLeavingDate = ["resigned", "terminated", "retired"].includes(
+    selectedStatus,
+  );
 
   // Through QueryBoundary, so a failed load is not reported as "No
   // transitions yet. Employee is in initial state."
@@ -378,6 +384,12 @@ export function LifecycleTab({
                 />
               )}
             </FormField>
+
+            <PaidMonthNotice
+              employeeId={employeeId}
+              from={watch("effective_date")}
+              enabled={setsLeavingDate}
+            />
 
             <FormField
               id="transition_reason"

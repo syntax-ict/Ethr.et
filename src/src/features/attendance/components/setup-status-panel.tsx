@@ -94,6 +94,17 @@ export function SetupStatusPanel({ compact = false }: { compact?: boolean }) {
         "Punches made on them have not arrived. Check the device and its connection.",
       ),
     },
+    devices_never_heard: {
+      title: counted(
+        "devices_never_heard",
+        "1 device not heard from yet",
+        ":count devices not heard from yet",
+      ),
+      detail: t(
+        "setup_status.devices_never_heard_desc",
+        "Nothing has arrived from them. Finish setting them up: the device page shows what to enter on the terminal.",
+      ),
+    },
     kiosk_pins_missing: {
       title: t(
         "setup_status.kiosk_pins_missing",
@@ -129,6 +140,17 @@ export function SetupStatusPanel({ compact = false }: { compact?: boolean }) {
       detail: t(
         "setup_status.working_week_mismatch_desc",
         "Leave is counted on the working week, attendance on the shift's days.",
+      ),
+    },
+    presence_unreachable: {
+      title: counted(
+        "presence_unreachable",
+        "1 person cannot receive presence checks",
+        ":count people cannot receive presence checks",
+      ),
+      detail: t(
+        "setup_status.presence_unreachable_desc",
+        "No notifications on their phone, or no place set for their branch. Ask them to allow notifications, or put the branch on the map.",
       ),
     },
     kiosk_none: {

@@ -102,7 +102,7 @@ it('pays the same employee under each organisation type\'s rules, and logs where
         ->and($companyEntry->income_tax_cents)->toBe($armyEntry->income_tax_cents);
 
     $log = $armyEntry->calculation_log;
-    expect($log['version'])->toBe('1.8')
+    expect($log['version'])->toBe('1.10')
         ->and($log['statutory_rules']['organization_type'])->toBe('defence_police')
         ->and($log['statutory_rules']['rules']['pension.default_scheme'])->toMatchArray(['value' => 'public_military', 'source' => 'platform_type'])
         ->and($log['statutory_rules']['rules']['payroll.hours_per_day'])->toMatchArray(['value' => 8, 'source' => 'platform', 'confirmed' => true]);
@@ -146,6 +146,8 @@ it('carries no statutory number in the payroll services', function () {
     // Numbers that are not law, each with the reason it may stay in code.
     $notStatutory = [
         'AttendanceReconciliation::CACHE_SECONDS', // how long a computed report is cached
+        'PayDifferenceRecorder::CHAIN_LIMIT', // how many replaced runs a reprocess chain is followed through
+        'PreApprovalChecks::REASONS', // how many parts of pay a listed change in net pay names
     ];
     $offenders = [];
 

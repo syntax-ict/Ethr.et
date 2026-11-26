@@ -19,9 +19,21 @@ use Illuminate\Console\Command;
  *
  * Why a separate command rather than a row in the health endpoint: the endpoint
  * is served by the application, so it can only answer while the application is
- * up. This runs from cron, which is the thing being watched — and if cron is
- * dead, the absence of its output is itself the signal. Master plan §40 asks for
- * both; docs/operations/QUEUE-MONITORING.md explains the split.
+ * up, whereas a runner outside the application can report its silence.
+ *
+ * NOTHING IN THIS REPOSITORY RUNS THIS COMMAND, and that is deliberate rather
+ * than an oversight — stated here because the docblock used to say "this runs
+ * from cron, which is the thing being watched" (corrected 2026-11-13). The
+ * production host has no cron entry and no shell (G0-D), so there is nothing to
+ * run it from; and scheduling it would be circular, because a watchdog the
+ * scheduler starts cannot report that the scheduler stopped. What actually
+ * watches production is an off-host monitor polling GET /api/v1/health for
+ * `queue_detail`, and GET /api/v1/cron/backup for a 503.
+ *
+ * So this is a command for a human at a terminal, and for any deployment that
+ * DOES have a runner — a VPS, a developer machine, a CI job. The exit code is
+ * its contract: 0 healthy, 1 a problem, no output parsing required.
+ * docs/operations/QUEUE-MONITORING.md explains the split.
  */
 class QueueCheckCommand extends Command
 {

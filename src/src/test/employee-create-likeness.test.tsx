@@ -24,12 +24,15 @@ import { employeeLikeness } from "@/features/employees/likeness";
 const router = vi.hoisted(() => ({ push: vi.fn(), back: vi.fn() }));
 const permissions = vi.hoisted(() => ({ deleteEmployees: false }));
 
-vi.mock("next/navigation", () => ({ useRouter: () => router }));
+vi.mock("next/navigation", () => ({
+  useRouter: () => router,
+  useSearchParams: () => new URLSearchParams(),
+}));
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
 vi.mock("@/lib/hooks/usePermissions", () => ({
-  usePermissions: () => ({ can: permissions }),
+  usePermissions: () => ({ can: permissions, hasPermission: () => false }),
 }));
 
 function empty() {

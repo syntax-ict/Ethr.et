@@ -1,9 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Loader2, X, Check, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -13,6 +12,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ReferenceSelect } from "@/components/shared/reference-select";
+import { EMPTY_REFERENCE, type ReferenceValue } from "@/features/reference/api";
 import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/useT";
@@ -28,9 +29,21 @@ import {
 } from "../api";
 import type { ConfigurationPlan, ConfigurationProfile } from "../types";
 import { SourceLabel } from "./source-label";
+import { localizedField } from "../localized";
 import { useCurrentTenant } from "@/features/auth/api";
 import { useOrganizationTypes, useSettings } from "@/features/settings/api";
 import { OrgKindSelect } from "@/features/settings/components/org-kind-select";
+import {
+  industriesOfType,
+  preselectedIndustry,
+  signupTypeOf,
+  typicalPolicies,
+  typicalWorkforce,
+} from "../../sector";
+
+type PreviewRequest = Parameters<
+  ReturnType<typeof usePreviewConfiguration>["mutateAsync"]
+>[0];
 
 const SECTION_TITLES: Record<string, [string, string]> = {
   branches: ["setup2.section_branches", "Branches"],
@@ -60,12 +73,13 @@ export function IndustryConfigStep({ onApplied }: { onApplied?: () => void }) {
   const industriesQuery = useIndustries();
   const profilesQuery = useConfigurationProfiles();
   const preview = usePreviewConfiguration();
+  const { mutateAsync: fetchNotes } = usePreviewConfiguration();
   const apply = useApplyConfiguration();
 
   const { data: tenant } = useCurrentTenant();
   const [chosen, setChosen] = useState<string | null>(null);
   const [staffBand, setStaffBand] = useState<StaffBand | null>(null);
-  const [region, setRegion] = useState("");
+  const [region, setRegion] = useState<ReferenceValue>(EMPTY_REFERENCE);
   // The kind of organisation in law (asked at sign-up; confirmed here), and
   // how and in which calendar it pays: with the industry, the five answers
   // its statutory rules resolve from.
@@ -82,6 +96,8 @@ export function IndustryConfigStep({ onApplied }: { onApplied?: () => void }) {
   const [plan, setPlan] = useState<ConfigurationPlan | null>(null);
   const [reviewed, setReviewed] = useState(false);
   const [showAllTypes, setShowAllTypes] = useState(false);
+  const [showAllWorkforce, setShowAllWorkforce] = useState(false);
+  const [showAllPolicy, setShowAllPolicy] = useState(false);
 
   // Sign-up already asked what kind of organisation this is, so only the
   // industries of that kind are offered: Government shows the ministries,
@@ -89,15 +105,9 @@ export function IndustryConfigStep({ onApplied }: { onApplied?: () => void }) {
   // A sign-up type is an industry key (bank, hospital) or the base several
   // industries share (government). "General" names no kind and keeps them all,
   // although ten catalogue industries carry the base `general` (K-49).
-  const rawSignupType = tenant?.type ?? null;
-  const signupType = rawSignupType === "general" ? null : rawSignupType;
+  const signupType = signupTypeOf(tenant?.type);
   const allIndustries = industriesQuery.data ?? [];
-  const ofSignupType =
-    signupType === null
-      ? []
-      : allIndustries.filter(
-          (ind) => ind.key === signupType || ind.base === signupType,
-        );
+  const ofSignupType = industriesOfType(allIndustries, signupType);
   const narrowed = !showAllTypes && ofSignupType.length > 0;
   const shown = narrowed ? ofSignupType : allIndustries;
 
@@ -109,9 +119,7 @@ export function IndustryConfigStep({ onApplied }: { onApplied?: () => void }) {
   // The sign-up answer starts selected where it names one industry: the
   // industry with that key, or the only one of that kind (onboarding review
   // 2026-10-30), so the question is not asked twice.
-  const suggested =
-    ofSignupType.find((ind) => ind.key === signupType)?.key ??
-    (ofSignupType.length === 1 ? ofSignupType[0].key : null);
+  const suggested = preselectedIndustry(ofSignupType, signupType);
   const selected = chosen ?? suggested;
 
   const selectedIndustry = (industriesQuery.data ?? []).find(
@@ -119,12 +127,19 @@ export function IndustryConfigStep({ onApplied }: { onApplied?: () => void }) {
   );
   const currentKind =
     kind ?? settingsQuery.data?.organization.organization_type ?? undefined;
+  const currentKindRow = (kindsQuery.data ?? []).find(
+    (k) => k.code === currentKind,
+  );
+  // The server applies the legal kind's rules before the industry's, so the
+  // default shown is the kind's, then the industry's.
+  const defaultPolicy =
+    currentKindRow?.policy_profile ?? selectedIndustry?.policy;
   const currentCalendar =
     calendar ?? settingsQuery.data?.display.calendar ?? "ethiopian";
   const workforceOptions = profilesQuery.data?.workforce ?? [];
   const policyOptions = profilesQuery.data?.policy ?? [];
-  const label = (p: { label: string; label_am: string }) =>
-    locale === "am" ? p.label_am : p.label;
+  const label = (p: { label: string; label_am: string; label_om?: string }) =>
+    localizedField(p, "label", locale);
 
   function chooseIndustry(key: string) {
     setChosen(key);
@@ -137,8 +152,8 @@ export function IndustryConfigStep({ onApplied }: { onApplied?: () => void }) {
     if (item && typeof item === "object") {
       const o = item as Record<string, unknown>;
       const localName =
-        locale === "am" ? (o.name_am ?? o.title_am ?? null) : null;
-      const name = String(localName ?? o.name ?? o.title ?? o.code ?? "");
+        localizedField(o, "name", locale) || localizedField(o, "title", locale);
+      const name = String(localName || o.code || "");
       if (section === "shifts" && o.start_time && o.end_time) {
         return `${name} ${formatTimeOfDay(String(o.start_time))}–${formatTimeOfDay(String(o.end_time))}`;
       }
@@ -181,19 +196,49 @@ export function IndustryConfigStep({ onApplied }: { onApplied?: () => void }) {
     return `${name}: ${String(value)}`;
   }
 
+  // The review notes are sentences the server writes in the language the
+  // proposal was asked for in; every other name on the proposal carries its
+  // own translations. So when the language changes with a proposal open, the
+  // proposal is asked for again and only its notes are taken: what the person
+  // removed from the proposal stays removed, and a tick they gave stays given.
+  const proposalRequest = useRef<PreviewRequest | null>(null);
+  const notesLocale = useRef(locale);
+  useEffect(() => {
+    const request = proposalRequest.current;
+    if (request === null || notesLocale.current === locale) return;
+    let superseded = false;
+    fetchNotes(request).then(
+      (result) => {
+        if (superseded || proposalRequest.current !== request) return;
+        notesLocale.current = locale;
+        setPlan((prev) => (prev ? { ...prev, review: result.review } : prev));
+      },
+      // The notes stay readable in the language they came in.
+      () => undefined,
+    );
+    return () => {
+      superseded = true;
+    };
+  }, [locale, fetchNotes]);
+
   async function runPreview() {
     if (!selected) return;
+    const request: PreviewRequest = {
+      industry: selected,
+      staff_band: staffBand ?? undefined,
+      // The English name, as typed text always was: the resolver reads it as a
+      // place name, and a code means nothing to it.
+      region: region.text.trim() || undefined,
+      workforce_profile: workforceProfile ?? undefined,
+      policy_profile: policyProfile ?? undefined,
+      // The kind in law decides which body of employment law the policies
+      // start from (civil service or the Labour Proclamation).
+      organization_type: currentKind,
+    };
     try {
-      const result = await preview.mutateAsync({
-        industry: selected,
-        staff_band: staffBand ?? undefined,
-        region: region || undefined,
-        workforce_profile: workforceProfile ?? undefined,
-        policy_profile: policyProfile ?? undefined,
-        // The kind in law decides which body of employment law the policies
-        // start from (civil service or the Labour Proclamation).
-        organization_type: currentKind,
-      });
+      const result = await preview.mutateAsync(request);
+      proposalRequest.current = request;
+      notesLocale.current = locale;
       setReviewed(false);
       setPlan(result);
     } catch {
@@ -267,8 +312,20 @@ export function IndustryConfigStep({ onApplied }: { onApplied?: () => void }) {
     options: ConfigurationProfile[],
     value: string | undefined,
     onChange: (key: string) => void,
+    narrowing: {
+      typical: Set<string>;
+      showAll: boolean;
+      onToggle: () => void;
+    },
   ) {
     const current = options.find((o) => o.key === value);
+    // Narrowing is presentational: the usual options plus the current value.
+    const usual = options.filter(
+      (o) => narrowing.typical.has(o.key) || o.key === value,
+    );
+    const canNarrow =
+      narrowing.typical.size > 0 && usual.length < options.length;
+    const visible = canNarrow && !narrowing.showAll ? usual : options;
     return (
       <div>
         <Label htmlFor={id}>{title}</Label>
@@ -277,18 +334,31 @@ export function IndustryConfigStep({ onApplied }: { onApplied?: () => void }) {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {options.map((o) => (
+            {visible.map((o) => (
               <SelectItem key={o.key} value={o.key}>
                 {label(o)}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
+        {canNarrow && (
+          <Button
+            type="button"
+            variant="link"
+            className="h-auto px-0 text-sm"
+            onClick={narrowing.onToggle}
+          >
+            {narrowing.showAll
+              ? t(
+                  "setup2.show_typical_profiles",
+                  "Show only the usual options for your type of organisation",
+                )
+              : t("setup2.show_all_profiles", "Show every option")}
+          </Button>
+        )}
         {current && (
           <p className="mt-1 text-xs text-muted-foreground">
-            {locale === "am" && current.description_am
-              ? current.description_am
-              : current.description}
+            {localizedField(current, "description", locale)}
           </p>
         )}
       </div>
@@ -313,9 +383,7 @@ export function IndustryConfigStep({ onApplied }: { onApplied?: () => void }) {
   };
 
   const industryName = plan
-    ? locale === "am"
-      ? plan.industry.label_am
-      : plan.industry.label
+    ? localizedField(plan.industry, "label", locale)
     : "";
 
   return (
@@ -373,7 +441,7 @@ export function IndustryConfigStep({ onApplied }: { onApplied?: () => void }) {
                             )}
                           >
                             <span className={cn(isSel && "font-medium")}>
-                              {locale === "am" ? ind.label_am : ind.label}
+                              {localizedField(ind, "label", locale)}
                             </span>
                             {isSel && (
                               <Check
@@ -426,14 +494,32 @@ export function IndustryConfigStep({ onApplied }: { onApplied?: () => void }) {
                         workforceOptions,
                         workforceProfile ?? selectedIndustry.profile,
                         setWorkforceProfile,
+                        {
+                          typical: typicalWorkforce(
+                            allIndustries,
+                            selectedIndustry.base,
+                          ),
+                          showAll: showAllWorkforce,
+                          onToggle: () => setShowAllWorkforce((all) => !all),
+                        },
                       )}
                     {policyOptions.length > 0 &&
                       profileSelect(
                         "policy-profile",
                         t("setup2.policy_profile", "Which rules apply"),
                         policyOptions,
-                        policyProfile ?? selectedIndustry.policy,
+                        policyProfile ??
+                          defaultPolicy ??
+                          selectedIndustry.policy,
                         setPolicyProfile,
+                        {
+                          typical: typicalPolicies(
+                            selectedIndustry,
+                            currentKindRow,
+                          ),
+                          showAll: showAllPolicy,
+                          onToggle: () => setShowAllPolicy((all) => !all),
+                        },
                       )}
                     <div>
                       <Label htmlFor="staff-band">
@@ -466,12 +552,12 @@ export function IndustryConfigStep({ onApplied }: { onApplied?: () => void }) {
                       <Label htmlFor="region">
                         {t("setup2.region", "Region")}
                       </Label>
-                      <Input
+                      <ReferenceSelect
                         id="region"
+                        kind="region"
                         value={region}
-                        onChange={(e) => setRegion(e.target.value)}
+                        onChange={setRegion}
                         className="mt-1"
-                        placeholder={t("setup.default_city", "Addis Ababa")}
                       />
                     </div>
                   </div>
@@ -503,6 +589,12 @@ export function IndustryConfigStep({ onApplied }: { onApplied?: () => void }) {
                           value={currentKind}
                           onChange={setKind}
                           disabled={kindsQuery.isPending}
+                          sector={
+                            selectedIndustry?.base ?? signupTypeOf(tenant?.type)
+                          }
+                          keep={
+                            settingsQuery.data?.organization.organization_type
+                          }
                         />
                       </div>
                     </div>
@@ -641,7 +733,10 @@ export function IndustryConfigStep({ onApplied }: { onApplied?: () => void }) {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setPlan(null)}
+              onClick={() => {
+                proposalRequest.current = null;
+                setPlan(null);
+              }}
               disabled={apply.isPending}
             >
               {t("common.change", "Change")}

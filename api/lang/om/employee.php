@@ -27,6 +27,10 @@ return [
     'import_field_email' => 'imeelii',
     'import_field_badge_number' => 'lakkoofsa baajii',
     'import_field_external_id' => 'eenyummeessaa sirna biraa keessaa',
+    'import_field_grade' => 'sadarkaa',
+    'import_field_cost_center' => 'giddugala baasii',
+    'import_row' => 'Toora :row: :message',
+    'import_not_stored' => 'Tooratoonni kunneen karaa kanaan hin kuufamani: :columns. Fuula galchuu fayyadamaa.',
     'import_excel_rounded' => 'Ispireedshiitiin :attribute lakkoofsa isaa naannesseera. Tarjaa akka barreeffamaatti (Text) qopheessaatii lakkoofsa guutuu barreessaa.',
     'number_format_invalid' => 'Mallattoo {SEQ:n} tokko fayyadamaa, n 1 hanga 8, naannoo isaatti qubee, dijiitii, - _ . ykn / waliin. Fakkeenyaaf EMP-{SEQ:4}.',
     'cannot_change_own_pay' => 'Mindaa ykn odeeffannoo baankii keessanii nama biraa dhaabbata keessan keessaatu jijjiiruu qaba.',
@@ -36,4 +40,6 @@ return [
     'cannot_review_filed_profile' => 'Jijjiirama kana isin galchitaniittu, kanaaf nama biraatu ilaaluu qaba.',
     'invalid_transition' => 'Haala :from irraa gara :to jijjiiruun hin danda\'amu.',
     'bulk_update_failed' => 'Hojjetaan kun haaromfamuu hin dandeenye. Irra deebi\'aa yaalaa, ykn piroofaayilii isaa irraa jijjiiraa.',
+    'bulk_archive_failed' => 'Nama kana kuusuu hin dandeenye. Irra deebi\'aa yaalaa.',
+    'bulk_restore_failed' => 'Nama kana deebisuu hin dandeenye. Irra deebi\'aa yaalaa.',
 ];

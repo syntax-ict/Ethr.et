@@ -42,6 +42,13 @@ class AttendanceIntegrityFlag extends Model
 
     public const STATUSES = ['open', 'accepted', 'rejected'];
 
+    /**
+     * The punches a flag can be about whose rejection voids the day's record.
+     * A flag filed against a `presence` check or a `pattern` is a finding about
+     * conduct: the reviewer decides it, but no punch is thrown away for it.
+     */
+    public const VOIDING_PUNCHES = ['check_in', 'check_out', 'day'];
+
     protected $fillable = [
         'tenant_id',
         'attendance_record_id',
@@ -78,6 +85,18 @@ class AttendanceIntegrityFlag extends Model
         }
 
         return $query;
+    }
+
+    /**
+     * The flags still waiting for a decision that this user's org scope
+     * reaches. The queue's summary, the sidebar badge and the Next Steps count
+     * all start here, so the three cannot disagree.
+     *
+     * @return Builder<self>
+     */
+    public static function openFor(User $user): Builder
+    {
+        return self::query()->visibleTo($user)->where('status', 'open');
     }
 
     /** @return BelongsTo<AttendanceRecord, $this> */

@@ -40,7 +40,7 @@ final class ZktecoAdapter implements DeviceAdapter
                 return ['online' => true];
             }
 
-            return ['online' => false, 'error' => 'Non-200 response'];
+            return ['online' => false, 'error' => 'HTTP '.$response->status()];
         } catch (\Throwable $e) {
             return ['online' => false, 'error' => $e->getMessage()];
         }

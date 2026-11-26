@@ -1,4 +1,12 @@
-import { expect, type APIRequestContext, type Browser, type BrowserContext, type Page } from "@playwright/test";
+import {
+  expect,
+  test,
+  type APIRequestContext,
+  type Browser,
+  type BrowserContext,
+  type Page,
+} from "@playwright/test";
+import { execFileSync } from "child_process";
 import path from "path";
 import { fileURLToPath } from "url";
 import { api } from "../helpers";
@@ -15,14 +23,17 @@ import { api } from "../helpers";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
-export type Organisation = "e2e-att" | "e2e-pay" | "e2e-other";
+export type Organisation = "e2e-att" | "e2e-pay" | "e2e-other" | "e2e-dev";
 
 export const PASSWORD = "password";
 export const ZONE = "Africa/Addis_Ababa";
 
 /** `http://{tenant}.localhost:3000` unless E2E_ORIGIN says otherwise. */
 export function origin(organisation: Organisation): string {
-  return (process.env.E2E_ORIGIN ?? "http://{tenant}.localhost:3000").replace("{tenant}", organisation);
+  return (process.env.E2E_ORIGIN ?? "http://{tenant}.localhost:3000").replace(
+    "{tenant}",
+    organisation,
+  );
 }
 
 export function email(organisation: Organisation, login: string): string {
@@ -38,9 +49,13 @@ export const SESSIONS: Array<{ organisation: Organisation; login: string }> = [
   { organisation: "e2e-att", login: "admin" },
   { organisation: "e2e-att", login: "emp1" },
   { organisation: "e2e-att", login: "emp3" },
+  { organisation: "e2e-att", login: "emp4" },
+  { organisation: "e2e-att", login: "emp5" },
+  { organisation: "e2e-att", login: "emp6" },
   { organisation: "e2e-pay", login: "admin" },
   { organisation: "e2e-pay", login: "finance" },
   { organisation: "e2e-other", login: "admin" },
+  { organisation: "e2e-dev", login: "admin" },
 ];
 
 /**
@@ -63,11 +78,53 @@ export async function as(
   return { context, page };
 }
 
+/**
+ * Puts a presence check on a checked-in employee's phone, now: the row the
+ * scheduler's push would have created. A check lives 15 minutes and is sent
+ * at a moment derived from the record, so a journey cannot wait for one.
+ *
+ * Runs `php artisan e2e:plant-presence-check` in api/ (local and testing
+ * only, like E2eAttendanceSeeder), so php must be on the path (PHP_BIN
+ * overrides it) and api/.env must name the database the running API reads. A
+ * second slot is a second check on the same record.
+ */
+export function plantPresenceCheck(
+  organisation: Organisation,
+  employeeCode: string,
+  slot = 0,
+): void {
+  const apiDir =
+    process.env.E2E_API_DIR ?? path.join(here, "..", "..", "..", "api");
+  try {
+    execFileSync(
+      process.env.PHP_BIN ?? "php",
+      [
+        "artisan",
+        "e2e:plant-presence-check",
+        organisation,
+        employeeCode,
+        `--slot=${slot}`,
+      ],
+      { cwd: apiDir, stdio: "pipe" },
+    );
+  } catch (error) {
+    const output =
+      String((error as { stdout?: Buffer }).stdout ?? "") +
+      String((error as { stderr?: Buffer }).stderr ?? "");
+    throw new Error(
+      `Could not plant a presence check for ${employeeCode} at ${organisation}: ${output || error}`,
+    );
+  }
+}
+
 /** The date in Addis Ababa, `YYYY-MM-DD`: the day a record is filed under. */
 export function addisDate(moment: Date): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: ZONE, year: "numeric", month: "2-digit", day: "2-digit" }).format(
-    moment,
-  );
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(moment);
 }
 
 /** The wall clock in Addis Ababa, `YYYY-MM-DD HH:mm:ss`, as a terminal reports it. */
@@ -104,7 +161,10 @@ export function minutesAgo(minutes: number): Date {
  * if the server stopped working that out (it did not, until 2026-11-10, and
  * every such punch was answered `processed` and lost).
  *
- * Returns how many punches the server took from the batch.
+ * Returns how many punches the server took into its inbox. They are recorded
+ * by the queue afterwards (device_inbound_punches, as for a Hikvision push), so
+ * a journey reads what was recorded with `recordsWhen` and needs `queue:work`
+ * running.
  */
 export async function devicePunch(
   request: APIRequestContext,
@@ -120,13 +180,135 @@ export async function devicePunch(
   const target = new URL(origin(organisation));
   if (target.hostname.endsWith(".localhost")) target.hostname = "localhost";
 
-  const response = await request.post(`${target.origin}/api/v1/devices/webhook/zkteco`, {
-    headers: { "X-Webhook-Token": token, Accept: "application/json" },
-    data: { records: [{ pin: badge, timestamp: addisClock(at), punch: type === "check_in" ? 0 : 1 }] },
-  });
+  const response = await request.post(
+    `${target.origin}/api/v1/devices/webhook/zkteco`,
+    {
+      headers: { "X-Webhook-Token": token, Accept: "application/json" },
+      data: {
+        records: [
+          {
+            pin: badge,
+            timestamp: addisClock(at),
+            punch: type === "check_in" ? 0 : 1,
+          },
+        ],
+      },
+    },
+  );
   expect(response.status(), `device webhook for badge ${badge}`).toBe(200);
 
   return (await response.json()).count as number;
+}
+
+/**
+ * One punch from the organisation's Hikvision terminal in push mode, as its
+ * firmware posts it: multipart, the event as JSON in `event_log`, the person's
+ * id on the terminal in `employeeNoString`, the terminal's own wall clock with
+ * its offset in `dateTime`, and the token in the query string. As with
+ * `devicePunch`, nothing in the request names the organisation.
+ *
+ * Every punch is answered 200 `accepted` and worked by the queue afterwards
+ * (device_inbound_punches), so what it records or holds is read back with a
+ * poll and needs `queue:work` running. Returns the answer's `status`.
+ */
+export async function hikvisionPunch(
+  request: APIRequestContext,
+  organisation: Organisation,
+  badge: string,
+  at: Date,
+  status: "checkIn" | "checkOut",
+  token = "e2e-dev-hik-token",
+  name?: string,
+): Promise<string> {
+  const target = new URL(origin(organisation));
+  if (target.hostname.endsWith(".localhost")) target.hostname = "localhost";
+
+  const response = await request.post(
+    `${target.origin}/api/v1/devices/webhook/hikvision?token=${token}`,
+    {
+      headers: { Accept: "application/json" },
+      multipart: {
+        event_log: JSON.stringify({
+          dateTime: `${addisClock(at).replace(" ", "T")}+03:00`,
+          eventType: "AccessControllerEvent",
+          AccessControllerEvent: {
+            employeeNoString: badge,
+            attendanceStatus: status,
+            ...(name === undefined ? {} : { name }),
+            majorEventType: 5,
+            subEventType: 75,
+          },
+        }),
+      },
+    },
+  );
+  expect(response.status(), `hikvision webhook for badge ${badge}`).toBe(200);
+
+  return (await response.json()).status as string;
+}
+
+export type UnmatchedBadge = {
+  device_public_id: string;
+  device_name: string;
+  badge: string;
+  punches: number;
+  first_seen: string;
+  last_seen: string;
+  match: {
+    outcome: string;
+    employee_public_id: string | null;
+    candidates: Array<{ employee_public_id: string; employee_name: string }>;
+  } | null;
+  name_on_device?: string | null;
+  name_matches?: Array<{
+    employee_public_id: string;
+    employee_name: string;
+    department: string | null;
+  }>;
+};
+
+/** The badges held for nobody, as the Devices card is given them. */
+export async function unmatchedBadges(page: Page): Promise<UnmatchedBadge[]> {
+  const found = await api(page, "GET", "/devices/unmatched-punches");
+  expect(found.status, "unmatched punches").toBe(200);
+
+  return found.data.data as UnmatchedBadge[];
+}
+
+/**
+ * The two punches a badge arrives with: in 50 minutes ago and out 20 minutes
+ * ago. They must fall on the Addis date the server first sees them, which is
+ * the hire date the card offers, so a run in the 50 minutes after midnight
+ * skips with the reason. It does not fail: the gate blocks a merge, and a push
+ * between 21:00 and 21:50 UTC would otherwise go red for the time of day.
+ */
+export function heldPunchTimes(): { arrived: Date; left: Date } {
+  const arrived = minutesAgo(50);
+  const left = minutesAgo(20);
+  test.skip(
+    addisDate(arrived) !== addisDate(new Date()),
+    "It is less than 50 minutes after midnight in Addis Ababa: the punches would be dated the day before the " +
+      "server first saw them, and the hire date the card offers would fall after them.",
+  );
+
+  return { arrived, left };
+}
+
+/**
+ * A punch `minutes` ago that must fall on today's Addis date, because the
+ * journey then reads today's shift (my-shift, a kiosk punch today). In the
+ * hours after midnight it would be dated yesterday and the journey would fail
+ * for the time of day: a push at 21:02 UTC did (#721, 2026-11-13). Skipped
+ * with the reason instead, as `heldPunchTimes` does.
+ */
+export function earlierToday(minutes: number): Date {
+  const moment = minutesAgo(minutes);
+  test.skip(
+    addisDate(moment) !== addisDate(new Date()),
+    `It is less than ${minutes} minutes after midnight in Addis Ababa: the punch would be dated yesterday, ` +
+      "and the journey reads today's shift.",
+  );
+  return moment;
 }
 
 export type AttendanceRow = {
@@ -143,11 +325,15 @@ export type AttendanceRow = {
 
 /** The employee's public id, looked up by their code as an administrator. */
 export async function employeeId(page: Page, code: string): Promise<string> {
-  const found = await api(page, "GET", `/employees?search=${encodeURIComponent(code)}`);
-  expect(found.status, `employee search for ${code}`).toBe(200);
-  const match = (found.data.data as Array<{ public_id: string; employee_code: string }>).find(
-    (row) => row.employee_code === code,
+  const found = await api(
+    page,
+    "GET",
+    `/employees?search=${encodeURIComponent(code)}`,
   );
+  expect(found.status, `employee search for ${code}`).toBe(200);
+  const match = (
+    found.data.data as Array<{ public_id: string; employee_code: string }>
+  ).find((row) => row.employee_code === code);
   expect(match, `employee ${code}`).toBeTruthy();
 
   return match!.public_id;
@@ -157,7 +343,12 @@ export async function employeeId(page: Page, code: string): Promise<string> {
  * What the database holds for one employee between two dates, voided rows
  * included, read as an administrator of their organisation.
  */
-export async function recordsOf(page: Page, employee: string, from: string, to: string): Promise<AttendanceRow[]> {
+export async function recordsOf(
+  page: Page,
+  employee: string,
+  from: string,
+  to: string,
+): Promise<AttendanceRow[]> {
   const found = await api(
     page,
     "GET",
@@ -166,6 +357,34 @@ export async function recordsOf(page: Page, employee: string, from: string, to: 
   expect(found.status, "attendance list").toBe(200);
 
   return found.data.data as AttendanceRow[];
+}
+
+/**
+ * The person's records once `ready` says the queue has worked what a terminal
+ * sent. A device punch is answered as soon as it is in the inbox and recorded
+ * afterwards, so reading the records straight after the answer races the
+ * worker.
+ */
+export async function recordsWhen(
+  page: Page,
+  employee: string,
+  from: string,
+  to: string,
+  ready: (rows: AttendanceRow[]) => boolean,
+): Promise<AttendanceRow[]> {
+  let rows: AttendanceRow[] = [];
+  await expect
+    .poll(
+      async () => {
+        rows = await recordsOf(page, employee, from, to);
+
+        return ready(rows);
+      },
+      { timeout: 60_000 },
+    )
+    .toBe(true);
+
+  return rows;
 }
 
 export function live(rows: AttendanceRow[]): AttendanceRow[] {
@@ -187,7 +406,11 @@ export function lastMonth(now = new Date()): Period {
   const iso = (day: Date) => day.toISOString().slice(0, 10);
 
   const workdays: string[] = [];
-  for (let day = new Date(Date.UTC(year, month - 2, 8)); day <= last; day.setUTCDate(day.getUTCDate() + 1)) {
+  for (
+    let day = new Date(Date.UTC(year, month - 2, 8));
+    day <= last;
+    day.setUTCDate(day.getUTCDate() + 1)
+  ) {
     if (day.getUTCDay() >= 1 && day.getUTCDay() <= 5) workdays.push(iso(day));
   }
 
@@ -201,7 +424,10 @@ export type PayrollEntry = {
   gross_cents: number;
   net_cents: number;
   income_tax_cents: number;
-  calculation_log?: { version: string; steps: Array<Record<string, unknown> & { step: string }> };
+  calculation_log?: {
+    version: string;
+    steps: Array<Record<string, unknown> & { step: string }>;
+  };
 };
 
 export type PayrollRun = {
@@ -219,7 +445,11 @@ export type PayrollRun = {
  * queue the run stays `processing`, and this says so rather than timing out
  * with no reason.
  */
-export async function processedRun(page: Page, run: string, timeoutMs = 180_000): Promise<PayrollRun> {
+export async function processedRun(
+  page: Page,
+  run: string,
+  timeoutMs = 180_000,
+): Promise<PayrollRun> {
   const deadline = Date.now() + timeoutMs;
   let status = "unknown";
 
@@ -239,8 +469,13 @@ export async function processedRun(page: Page, run: string, timeoutMs = 180_000)
 }
 
 /** One step of an entry's calculation log, by name. */
-export function step(entry: PayrollEntry, name: string): Record<string, unknown> {
-  const found = entry.calculation_log?.steps.find((candidate) => candidate.step === name);
+export function step(
+  entry: PayrollEntry,
+  name: string,
+): Record<string, unknown> {
+  const found = entry.calculation_log?.steps.find(
+    (candidate) => candidate.step === name,
+  );
   expect(found, `calculation log step "${name}"`).toBeTruthy();
 
   return found!;

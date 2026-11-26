@@ -92,6 +92,7 @@ class ExportTenantDataJob implements ShouldQueue
         'mfa_recovery_codes',
         'mfa_secret',
         'national_id_hash',
+        'account_number_hash',
         'offline_private_key',
         'offline_token',
         'password',
@@ -100,6 +101,11 @@ class ExportTenantDataJob implements ShouldQueue
         'token',
         'token_hash',
         'webhook_token',
+        'webhook_token_hash',
+        'webhook_token_head_hash',
+        'webhook_token_prefix',
+        'webhook_token_previous_expires_at',
+        'webhook_token_previous_hash',
     ];
 
     public function __construct(

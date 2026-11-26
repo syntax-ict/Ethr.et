@@ -35,10 +35,12 @@ final class WorkforceProfileCatalog
      * @var array<string, array{
      *     label: string,
      *     label_am: string,
+     *     label_om: string,
      *     description: string,
      *     description_am: string,
+     *     description_om: string,
      *     shifts: list<array<string, mixed>>,
-     *     rotations?: list<array{name: string, name_am?: string, description?: string, cycle_days: int, steps: list<array{day_offset: int, shift: string|null}>}>,
+     *     rotations?: list<array{name: string, name_am?: string, name_om?: string, description?: string, cycle_days: int, steps: list<array{day_offset: int, shift: string|null}>}>,
      *     working_days: list<int>,
      *     attendance?: array<string, mixed>,
      *     review?: list<string>
@@ -48,25 +50,30 @@ final class WorkforceProfileCatalog
         'standard_office' => [
             'label' => 'Standard office hours',
             'label_am' => 'መደበኛ የቢሮ ሰዓት',
+            'label_om' => 'Sa\'aatii Waajjiraa Idilee',
             'description' => 'Monday to Friday, 08:30–17:30 with an hour for lunch.',
             'description_am' => 'ከሰኞ እስከ ዓርብ፣ 08:30–17:30፣ የአንድ ሰዓት የምሳ እረፍት።',
+            'description_om' => 'Wiixata hanga Jimaata, 08:30–17:30, nyaata saafaaf boqonnaa sa\'aatii tokko.',
             'shifts' => [
-                ['name' => 'Regular', 'name_am' => 'መደበኛ', 'start_time' => '08:30', 'end_time' => '17:30', 'working_days' => '1,2,3,4,5', 'break_minutes' => 60],
+                ['name' => 'Regular', 'name_am' => 'መደበኛ', 'name_om' => 'Idilee', 'start_time' => '08:30', 'end_time' => '17:30', 'working_days' => '1,2,3,4,5', 'break_minutes' => 60],
             ],
             'working_days' => [1, 2, 3, 4, 5],
         ],
         'six_day_week' => [
             'label' => 'Six-day week (Saturday morning)',
             'label_am' => 'የስድስት ቀን ሳምንት (ቅዳሜ ጠዋት)',
+            'label_om' => 'Torban Guyyaa Jahaa (Sanbata Ganama)',
             'description' => 'Monday to Friday 08:00–17:00 and Saturday 08:00–12:00.',
             'description_am' => 'ከሰኞ እስከ ዓርብ 08:00–17:00 እና ቅዳሜ 08:00–12:00።',
+            'description_om' => 'Wiixata hanga Jimaata 08:00–17:00 fi Sanbata 08:00–12:00.',
             'shifts' => [
-                ['name' => 'Weekday', 'name_am' => 'የሥራ ቀን', 'start_time' => '08:00', 'end_time' => '17:00', 'working_days' => '1,2,3,4,5', 'break_minutes' => 60],
-                ['name' => 'Saturday', 'name_am' => 'ቅዳሜ', 'start_time' => '08:00', 'end_time' => '12:00', 'working_days' => '6', 'break_minutes' => 0],
+                ['name' => 'Weekday', 'name_am' => 'የሥራ ቀን', 'name_om' => 'Guyyaa Hojii', 'start_time' => '08:00', 'end_time' => '17:00', 'working_days' => '1,2,3,4,5', 'break_minutes' => 60],
+                ['name' => 'Saturday', 'name_am' => 'ቅዳሜ', 'name_om' => 'Sanbata', 'start_time' => '08:00', 'end_time' => '12:00', 'working_days' => '6', 'break_minutes' => 0],
             ],
             'rotations' => [[
                 'name' => 'Weekdays + Saturday morning',
                 'name_am' => 'የሥራ ቀናት + ቅዳሜ ጠዋት',
+                'name_om' => 'Guyyoota Hojii + Sanbata Ganama',
                 'description' => 'One week, Monday first. Everyone works it, so it is the default schedule.',
                 'cycle_days' => 7,
                 // The whole organisation works this week, so it is the default
@@ -87,10 +94,12 @@ final class WorkforceProfileCatalog
         'flexible_hybrid' => [
             'label' => 'Flexible start / hybrid',
             'label_am' => 'ተለዋዋጭ መግቢያ / ድብልቅ',
+            'label_om' => 'Seensa Jijjiiramaa / Makaa',
             'description' => 'An 08:00–17:00 day where arriving by 10:00 still counts as on time.',
             'description_am' => 'የ08:00–17:00 ቀን፤ እስከ 10:00 የገባ በሰዓቱ እንደገባ ይቆጠራል።',
+            'description_om' => 'Guyyaa 08:00–17:00; hanga sa\'aatii 10:00 kan galu yeroo isaatti akka galetti lakkaa\'ama.',
             'shifts' => [
-                ['name' => 'Flexible day', 'name_am' => 'ተለዋዋጭ ቀን', 'start_time' => '08:00', 'end_time' => '17:00', 'working_days' => '1,2,3,4,5', 'break_minutes' => 60, 'grace_minutes' => 120, 'early_departure_minutes' => 60],
+                ['name' => 'Flexible day', 'name_am' => 'ተለዋዋጭ ቀን', 'name_om' => 'Guyyaa Jijjiiramaa', 'start_time' => '08:00', 'end_time' => '17:00', 'working_days' => '1,2,3,4,5', 'break_minutes' => 60, 'grace_minutes' => 120, 'early_departure_minutes' => 60],
             ],
             'working_days' => [1, 2, 3, 4, 5],
             'review' => ['flexible_is_grace'],
@@ -98,16 +107,19 @@ final class WorkforceProfileCatalog
         'rotating_three_shift' => [
             'label' => 'Three rotating shifts, six days',
             'label_am' => 'ሦስት ተዘዋዋሪ ፈረቃዎች፣ ስድስት ቀን',
+            'label_om' => 'Shiftii Jijjiiramaa Sadii, Guyyaa Jaha',
             'description' => 'Day, swing and night shifts of eight hours, Monday to Saturday, rotating weekly.',
             'description_am' => 'የቀን፣ የከሰዓትና የሌሊት የስምንት ሰዓት ፈረቃዎች፣ ከሰኞ እስከ ቅዳሜ፣ በየሳምንቱ የሚዞሩ።',
+            'description_om' => 'Shiftiiwwan guyyaa, waaree booda fi halkanii kan sa\'aatii saddeetii, Wiixata hanga Sanbata, torbaniin kan jijjiiraman.',
             'shifts' => [
-                ['name' => 'Day', 'name_am' => 'ቀን', 'start_time' => '06:00', 'end_time' => '14:00', 'working_days' => '1,2,3,4,5,6', 'break_minutes' => 30],
-                ['name' => 'Swing', 'name_am' => 'ከሰዓት', 'start_time' => '14:00', 'end_time' => '22:00', 'working_days' => '1,2,3,4,5,6', 'break_minutes' => 30],
-                ['name' => 'Night', 'name_am' => 'ሌሊት', 'start_time' => '22:00', 'end_time' => '06:00', 'working_days' => '1,2,3,4,5,6', 'break_minutes' => 30],
+                ['name' => 'Day', 'name_am' => 'ቀን', 'name_om' => 'Guyyaa', 'start_time' => '06:00', 'end_time' => '14:00', 'working_days' => '1,2,3,4,5,6', 'break_minutes' => 30],
+                ['name' => 'Swing', 'name_am' => 'ከሰዓት', 'name_om' => 'Waaree Booda', 'start_time' => '14:00', 'end_time' => '22:00', 'working_days' => '1,2,3,4,5,6', 'break_minutes' => 30],
+                ['name' => 'Night', 'name_am' => 'ሌሊት', 'name_om' => 'Halkan', 'start_time' => '22:00', 'end_time' => '06:00', 'working_days' => '1,2,3,4,5,6', 'break_minutes' => 30],
             ],
             'rotations' => [[
                 'name' => 'Weekly day / swing / night',
                 'name_am' => 'ሳምንታዊ ቀን / ከሰዓት / ሌሊት',
+                'name_om' => 'Torbaniin Guyyaa / Waaree Booda / Halkan',
                 'description' => 'Three weeks: six days on each shift, then a rest day. Stagger crews by a week.',
                 'cycle_days' => 21,
                 'steps' => [
@@ -127,16 +139,19 @@ final class WorkforceProfileCatalog
         'continuous_24_7' => [
             'label' => 'Round the clock (24/7)',
             'label_am' => 'ሌት ተቀን (24/7)',
+            'label_om' => 'Halkanii fi Guyyaa (24/7)',
             'description' => 'Morning, afternoon and night every day, covered by four crews on a 2-2-2-2 rotation.',
             'description_am' => 'ጠዋት፣ ከሰዓትና ሌሊት በየቀኑ፣ በ2-2-2-2 ሽክርክሪት በአራት ቡድኖች የሚሸፈን።',
+            'description_om' => 'Ganama, waaree booda fi halkan guyyaa guyyaan, gareewwan afuriin jijjiirama 2-2-2-2 tiin kan haguugamu.',
             'shifts' => [
-                ['name' => 'Morning', 'name_am' => 'ጠዋት', 'start_time' => '06:00', 'end_time' => '14:00', 'working_days' => '1,2,3,4,5,6,7', 'break_minutes' => 30],
-                ['name' => 'Afternoon', 'name_am' => 'ከሰዓት', 'start_time' => '14:00', 'end_time' => '22:00', 'working_days' => '1,2,3,4,5,6,7', 'break_minutes' => 30],
-                ['name' => 'Night', 'name_am' => 'ሌሊት', 'start_time' => '22:00', 'end_time' => '06:00', 'working_days' => '1,2,3,4,5,6,7', 'break_minutes' => 30],
+                ['name' => 'Morning', 'name_am' => 'ጠዋት', 'name_om' => 'Ganama', 'start_time' => '06:00', 'end_time' => '14:00', 'working_days' => '1,2,3,4,5,6,7', 'break_minutes' => 30],
+                ['name' => 'Afternoon', 'name_am' => 'ከሰዓት', 'name_om' => 'Waaree Booda', 'start_time' => '14:00', 'end_time' => '22:00', 'working_days' => '1,2,3,4,5,6,7', 'break_minutes' => 30],
+                ['name' => 'Night', 'name_am' => 'ሌሊት', 'name_om' => 'Halkan', 'start_time' => '22:00', 'end_time' => '06:00', 'working_days' => '1,2,3,4,5,6,7', 'break_minutes' => 30],
             ],
             'rotations' => [[
                 'name' => 'Continuous 2-2-2-2',
                 'name_am' => 'ቀጣይ 2-2-2-2',
+                'name_om' => 'Itti Fufaa 2-2-2-2',
                 'description' => 'Eight days: two mornings, two afternoons, two nights, two off. Four crews anchored two days apart cover every shift every day.',
                 'cycle_days' => 8,
                 'steps' => [
@@ -153,15 +168,18 @@ final class WorkforceProfileCatalog
         'extended_hours_two_shift' => [
             'label' => 'Extended hours, opening and closing shifts',
             'label_am' => 'የተራዘመ ሰዓት፣ የመክፈቻና የመዝጊያ ፈረቃ',
+            'label_om' => 'Sa\'aatii Dheeraa, Shiftii Banuu fi Cufuu',
             'description' => 'Open 07:00–22:00 every day with an opening and a closing shift that overlap at midday.',
             'description_am' => 'በየቀኑ 07:00–22:00 ክፍት፣ እኩለ ቀን ላይ የሚደራረቡ የመክፈቻና የመዝጊያ ፈረቃዎች።',
+            'description_om' => 'Guyyaa guyyaan 07:00–22:00 banaa, shiftiiwwan banuu fi cufuu giddu guyyaatti walitti makamu.',
             'shifts' => [
-                ['name' => 'Opening', 'name_am' => 'መክፈቻ', 'start_time' => '07:00', 'end_time' => '15:00', 'working_days' => '1,2,3,4,5,6,7', 'break_minutes' => 30],
-                ['name' => 'Closing', 'name_am' => 'መዝጊያ', 'start_time' => '14:00', 'end_time' => '22:00', 'working_days' => '1,2,3,4,5,6,7', 'break_minutes' => 30],
+                ['name' => 'Opening', 'name_am' => 'መክፈቻ', 'name_om' => 'Banuu', 'start_time' => '07:00', 'end_time' => '15:00', 'working_days' => '1,2,3,4,5,6,7', 'break_minutes' => 30],
+                ['name' => 'Closing', 'name_am' => 'መዝጊያ', 'name_om' => 'Cufuu', 'start_time' => '14:00', 'end_time' => '22:00', 'working_days' => '1,2,3,4,5,6,7', 'break_minutes' => 30],
             ],
             'rotations' => [[
                 'name' => 'Opening / closing, alternate weeks',
                 'name_am' => 'መክፈቻ / መዝጊያ፣ በየሳምንቱ',
+                'name_om' => 'Banuu / Cufuu, Torbaniin',
                 'description' => 'Two weeks: six opening shifts and a rest day, then six closing shifts and a rest day.',
                 'cycle_days' => 14,
                 'steps' => [
@@ -178,21 +196,25 @@ final class WorkforceProfileCatalog
         'part_time' => [
             'label' => 'Part-time half days',
             'label_am' => 'የግማሽ ቀን የትርፍ ጊዜ',
+            'label_om' => 'Hojii Yeroo Muraasaa Walakkaa Guyyaa',
             'description' => 'Morning and afternoon half days, Monday to Friday.',
             'description_am' => 'የጠዋትና የከሰዓት ግማሽ ቀናት፣ ከሰኞ እስከ ዓርብ።',
+            'description_om' => 'Walakkaa guyyaa ganamaa fi waaree booda, Wiixata hanga Jimaata.',
             'shifts' => [
-                ['name' => 'Half day (morning)', 'name_am' => 'ግማሽ ቀን (ጠዋት)', 'start_time' => '08:30', 'end_time' => '12:30', 'working_days' => '1,2,3,4,5', 'break_minutes' => 0],
-                ['name' => 'Half day (afternoon)', 'name_am' => 'ግማሽ ቀን (ከሰዓት)', 'start_time' => '13:30', 'end_time' => '17:30', 'working_days' => '1,2,3,4,5', 'break_minutes' => 0],
+                ['name' => 'Half day (morning)', 'name_am' => 'ግማሽ ቀን (ጠዋት)', 'name_om' => 'Walakkaa Guyyaa (Ganama)', 'start_time' => '08:30', 'end_time' => '12:30', 'working_days' => '1,2,3,4,5', 'break_minutes' => 0],
+                ['name' => 'Half day (afternoon)', 'name_am' => 'ግማሽ ቀን (ከሰዓት)', 'name_om' => 'Walakkaa Guyyaa (Waaree Booda)', 'start_time' => '13:30', 'end_time' => '17:30', 'working_days' => '1,2,3,4,5', 'break_minutes' => 0],
             ],
             'working_days' => [1, 2, 3, 4, 5],
         ],
         'field_distributed' => [
             'label' => 'Field and distributed teams',
             'label_am' => 'የመስክና የተበተኑ ቡድኖች',
+            'label_om' => 'Gareewwan Dirree fi Bal\'inaan Bobba\'an',
             'description' => 'A 08:00–17:00 day checked in by phone with a photo, closed automatically if someone forgets.',
             'description_am' => 'የ08:00–17:00 ቀን፤ በስልክ ከፎቶ ጋር መግቢያ፣ ቢረሳ በራሱ የሚዘጋ መውጫ።',
+            'description_om' => 'Guyyaa 08:00–17:00; seensi bilbilaan suuraa waliin, yoo dagatame bahiinsi ofumaan cufama.',
             'shifts' => [
-                ['name' => 'Field day', 'name_am' => 'የመስክ ቀን', 'start_time' => '08:00', 'end_time' => '17:00', 'working_days' => '1,2,3,4,5', 'break_minutes' => 60, 'grace_minutes' => 30],
+                ['name' => 'Field day', 'name_am' => 'የመስክ ቀን', 'name_om' => 'Guyyaa Dirree', 'start_time' => '08:00', 'end_time' => '17:00', 'working_days' => '1,2,3,4,5', 'break_minutes' => 60, 'grace_minutes' => 30],
             ],
             'working_days' => [1, 2, 3, 4, 5],
             'attendance' => [
@@ -203,10 +225,12 @@ final class WorkforceProfileCatalog
         'seasonal_agricultural' => [
             'label' => 'Seasonal / agricultural',
             'label_am' => 'ወቅታዊ / ግብርና',
+            'label_om' => 'Yeroo Isaa Eegu / Qonna',
             'description' => 'An early field shift, 06:30–14:30, Monday to Saturday.',
             'description_am' => 'ማለዳ የሚጀምር የመስክ ፈረቃ፣ 06:30–14:30፣ ከሰኞ እስከ ቅዳሜ።',
+            'description_om' => 'Shiftii dirree barii jalqabu, 06:30–14:30, Wiixata hanga Sanbata.',
             'shifts' => [
-                ['name' => 'Field shift', 'name_am' => 'የመስክ ፈረቃ', 'start_time' => '06:30', 'end_time' => '14:30', 'working_days' => '1,2,3,4,5,6', 'break_minutes' => 30],
+                ['name' => 'Field shift', 'name_am' => 'የመስክ ፈረቃ', 'name_om' => 'Shiftii Dirree', 'start_time' => '06:30', 'end_time' => '14:30', 'working_days' => '1,2,3,4,5,6', 'break_minutes' => 30],
             ],
             'working_days' => [1, 2, 3, 4, 5, 6],
             'attendance' => ['auto_checkout_enabled' => true],
@@ -215,10 +239,12 @@ final class WorkforceProfileCatalog
         'weekend' => [
             'label' => 'Weekend staff',
             'label_am' => 'የሳምንት መጨረሻ ሠራተኞች',
+            'label_om' => 'Hojjettoota Dhuma Torbanii',
             'description' => 'Saturday and Sunday, 08:00–17:00.',
             'description_am' => 'ቅዳሜና እሑድ፣ 08:00–17:00።',
+            'description_om' => 'Sanbataa fi Dilbata, 08:00–17:00.',
             'shifts' => [
-                ['name' => 'Weekend', 'name_am' => 'የሳምንት መጨረሻ', 'start_time' => '08:00', 'end_time' => '17:00', 'working_days' => '6,7', 'break_minutes' => 60],
+                ['name' => 'Weekend', 'name_am' => 'የሳምንት መጨረሻ', 'name_om' => 'Dhuma Torbanii', 'start_time' => '08:00', 'end_time' => '17:00', 'working_days' => '6,7', 'break_minutes' => 60],
             ],
             'working_days' => [6, 7],
         ],
@@ -238,7 +264,7 @@ final class WorkforceProfileCatalog
     }
 
     /**
-     * @return array{key: string, label: string, label_am: string, description: string, description_am: string, shifts: list<array<string, mixed>>, rotations: list<array<string, mixed>>, working_days: list<int>, attendance: array<string, mixed>, review: list<string>}|null
+     * @return array{key: string, label: string, label_am: string, label_om: string, description: string, description_am: string, description_om: string, shifts: list<array<string, mixed>>, rotations: list<array<string, mixed>>, working_days: list<int>, attendance: array<string, mixed>, review: list<string>}|null
      */
     public function find(string $key): ?array
     {
@@ -252,8 +278,10 @@ final class WorkforceProfileCatalog
             'key' => $key,
             'label' => $entry['label'],
             'label_am' => $entry['label_am'],
+            'label_om' => $entry['label_om'],
             'description' => $entry['description'],
             'description_am' => $entry['description_am'],
+            'description_om' => $entry['description_om'],
             'shifts' => $entry['shifts'],
             'rotations' => $entry['rotations'] ?? [],
             'working_days' => $entry['working_days'],
@@ -265,7 +293,7 @@ final class WorkforceProfileCatalog
     /**
      * For a picker: what each profile is, not its full definition.
      *
-     * @return list<array{key: string, label: string, label_am: string, description: string, description_am: string}>
+     * @return list<array{key: string, label: string, label_am: string, label_om: string, description: string, description_am: string, description_om: string}>
      */
     public function all(): array
     {
@@ -276,8 +304,10 @@ final class WorkforceProfileCatalog
                 'key' => $key,
                 'label' => $entry['label'],
                 'label_am' => $entry['label_am'],
+                'label_om' => $entry['label_om'],
                 'description' => $entry['description'],
                 'description_am' => $entry['description_am'],
+                'description_om' => $entry['description_om'],
             ];
         }
 

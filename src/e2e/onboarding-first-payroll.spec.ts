@@ -24,6 +24,11 @@ test.describe("Onboarding to first payroll", () => {
     await page.goto("/register");
     await page.fill("#org_name", "Abay Share Company");
     await page.fill("#subdomain", slug);
+    // The industry has no preselection, and it narrows the kinds offered
+    // below it: a bank suggests the private and public kinds, share company
+    // among them. Chosen first, since changing it clears a kind it does not
+    // suggest.
+    await page.selectOption("#org_type", "bank");
     await page
       .locator('#org_kind option[value="share_company"]')
       .waitFor({ state: "attached" });

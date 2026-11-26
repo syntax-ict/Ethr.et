@@ -132,7 +132,9 @@ The interactive frontend for the onboarding-v2 steps is implemented in
 - **Access & identity** (`access-step.tsx`) — choose login identifiers.
 - **Readiness & go live** (`readiness-step.tsx`) — scored report, category checks,
   gap deep links, launch.
-- Composed by `guided-onboarding.tsx` (4-step stepper).
+- Composed by `guided-onboarding.tsx` (4-step stepper). The steps are shown in the order
+  configuration, access, workforce, go live (since 2026-11-16, so how people sign in is
+  settled before anyone is added); the server's step numbers are unchanged.
 
 Hooks in `v2/api.ts`, types in `v2/types.ts`. Bilingual (en + am `setup2.*`
 keys), semantic tokens, `QueryBoundary` on every fetch. Type-clean (`tsc`) and

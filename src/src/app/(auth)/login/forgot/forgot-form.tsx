@@ -12,6 +12,7 @@ import axios from "axios";
 import { FormField } from "@/components/patterns/FormField";
 import { FormErrorSummary } from "@/components/patterns/FormErrorSummary";
 import { useT } from "@/lib/i18n/useT";
+import { useHydrated } from "@/lib/hooks/useHydrated";
 import { useZodForm } from "@/lib/forms/use-zod-form";
 import { rules, fieldMessage } from "@/lib/forms/rules";
 import { prepareCsrfCookie } from "@/features/auth/sign-in";
@@ -19,6 +20,7 @@ import { useAuthHostContext } from "@/lib/auth/use-auth-host-context";
 import { TenantHostIndicator } from "@/components/shared/tenant-host-indicator";
 import { OrgMark } from "@/components/shared/org-mark";
 import { TenantLookupErrorState } from "@/components/shared/tenant-lookup-error-state";
+import { EthrSymbol } from "@/components/shared/ethr-logo";
 
 const forgotSchema = z.object({
   // Optional in the schema because the field is not always rendered: on a
@@ -32,6 +34,7 @@ type ForgotValues = z.infer<typeof forgotSchema>;
 
 export function ForgotForm() {
   const { t } = useT();
+  const hydrated = useHydrated();
   const {
     context: hostAppContext,
     tenantSlug: subdomainFromHost,
@@ -159,9 +162,7 @@ export function ForgotForm() {
             initialClassName="text-lg"
           />
         ) : (
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary">
-            <span className="text-lg font-bold text-primary-foreground">E</span>
-          </div>
+          <EthrSymbol className="mx-auto h-12 w-12" />
         )}
         <h1 className="mt-4 text-2xl font-bold text-foreground">
           {t("auth.forgot_title", "Forgot your password?")}
@@ -175,6 +176,7 @@ export function ForgotForm() {
       </div>
 
       <form
+        method="post"
         onSubmit={submit(
           onSubmit,
           t("auth.forgot_failed", "Something went wrong. Try again."),
@@ -230,7 +232,11 @@ export function ForgotForm() {
           />
         </FormField>
 
-        <Button type="submit" className="w-full" disabled={isSubmitting}>
+        <Button
+          type="submit"
+          className="w-full"
+          disabled={!hydrated || isSubmitting}
+        >
           {isSubmitting ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />{" "}

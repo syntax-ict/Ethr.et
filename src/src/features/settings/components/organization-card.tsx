@@ -15,6 +15,8 @@ import {
   useUpdateOrganization,
   type OrganizationUpdate,
 } from "@/features/settings/api";
+import { useSaveStatus } from "@/components/shared/save-status";
+import { useUnsavedChangesWarning } from "@/lib/hooks/useUnsavedChangesWarning";
 import { useT } from "@/lib/i18n/useT";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,6 +37,10 @@ import { apiErrorMessage } from "@/lib/api/error-message";
 import { orgTypeLabel } from "@/features/settings/org-type-label";
 import { OrgKindSelect } from "@/features/settings/components/org-kind-select";
 import { orgKindName } from "@/features/settings/org-kind";
+import {
+  EmploymentLawField,
+  type EmploymentFrameworkState,
+} from "@/features/settings/components/employment-law-field";
 
 /**
  * Organization profile — name, type, timezone, default language.
@@ -54,7 +60,6 @@ import { orgKindName } from "@/features/settings/org-kind";
 // empty Type field.
 const ORG_TYPES = [
   "general",
-  "private",
   "government",
   "university",
   "ngo",
@@ -87,6 +92,7 @@ export interface OrganizationCardProps {
       effective_from: string;
     } | null;
     organization_type_earliest_change?: string | null;
+    employment_framework?: EmploymentFrameworkState | null;
   } | null;
 }
 
@@ -95,9 +101,10 @@ export function OrganizationCard({ organization }: OrganizationCardProps) {
   const { formatDate } = useCalendar();
   const updateOrganization = useUpdateOrganization();
   const organizationTypes = useOrganizationTypes();
+  const { announceSaved, announceError } = useSaveStatus();
 
   const [name, setName] = useState(organization?.name ?? "");
-  const [type, setType] = useState(organization?.type ?? "private");
+  const [type, setType] = useState(organization?.type ?? "");
   const [timezone, setTimezone] = useState(
     organization?.timezone ?? "Africa/Addis_Ababa",
   );
@@ -122,12 +129,15 @@ export function OrganizationCard({ organization }: OrganizationCardProps) {
     return found ? orgKindName(found, uiLocale) : code;
   };
 
+  const storedType = organization?.type ?? "";
+  const typeChanged = type !== (organization?.type ?? "");
   const dirty =
     name !== (organization?.name ?? "") ||
-    type !== (organization?.type ?? "private") ||
+    typeChanged ||
     timezone !== (organization?.timezone ?? "Africa/Addis_Ababa") ||
     locale !== (organization?.locale ?? "en") ||
     kind !== (organization?.organization_type ?? "private");
+  useUnsavedChangesWarning(dirty);
 
   // The kind is sent when it changed, or to confirm one the migration
   // guessed. Re-sending the kind in force would say nothing, and a scheduled
@@ -138,11 +148,15 @@ export function OrganizationCard({ organization }: OrganizationCardProps) {
     updateOrganization.mutate(
       { cancel_pending_organization_type: true },
       {
-        onSuccess: () =>
+        onSuccess: () => {
           toast.success(
             t("settings.organization_kind_cancelled", "Change cancelled"),
-          ),
-        onError: (err) =>
+          );
+          announceSaved(
+            t("settings.organization_kind_cancelled", "Change cancelled"),
+          );
+        },
+        onError: (err) => {
           toast.error(
             apiErrorMessage(
               err,
@@ -151,7 +165,15 @@ export function OrganizationCard({ organization }: OrganizationCardProps) {
                 "Could not update the organisation",
               ),
             ),
-          ),
+          );
+          announceError(
+            err,
+            t(
+              "settings.organization_save_failed",
+              "Could not update the organisation",
+            ),
+          );
+        },
       },
     );
   }
@@ -162,18 +184,22 @@ export function OrganizationCard({ organization }: OrganizationCardProps) {
     updateOrganization.mutate(
       {
         name,
-        type,
+        ...(typeChanged ? { type } : {}),
         timezone,
         locale: locale as OrganizationUpdate["locale"],
         ...(kindChanged || needsReview ? { organization_type: kind } : {}),
         ...(askDate ? { effective_from: kindFrom } : {}),
       },
       {
-        onSuccess: () =>
+        onSuccess: () => {
           toast.success(
             t("settings.organization_saved", "Organisation updated"),
-          ),
-        onError: (err) =>
+          );
+          announceSaved(
+            t("settings.organization_saved", "Organisation updated"),
+          );
+        },
+        onError: (err) => {
           toast.error(
             apiErrorMessage(
               err,
@@ -182,7 +208,15 @@ export function OrganizationCard({ organization }: OrganizationCardProps) {
                 "Could not update the organisation",
               ),
             ),
-          ),
+          );
+          announceError(
+            err,
+            t(
+              "settings.organization_save_failed",
+              "Could not update the organisation",
+            ),
+          );
+        },
       },
     );
   }
@@ -192,7 +226,7 @@ export function OrganizationCard({ organization }: OrganizationCardProps) {
       <CardHeader>
         <div className="flex items-center gap-2">
           <Building2 className="h-4 w-4 text-muted-foreground" />
-          <CardTitle className="text-base">
+          <CardTitle as="h2" className="text-base">
             {t("settings.organization", "Organisation")}
           </CardTitle>
         </div>
@@ -279,6 +313,8 @@ export function OrganizationCard({ organization }: OrganizationCardProps) {
                   value={kind}
                   onChange={setKind}
                   disabled={organizationTypes.isPending}
+                  sector={type}
+                  keep={organization?.organization_type}
                 />
               </div>
             )}
@@ -339,6 +375,9 @@ export function OrganizationCard({ organization }: OrganizationCardProps) {
               </p>
             )}
           </div>
+          <div className="sm:col-span-2">
+            <EmploymentLawField state={organization?.employment_framework} />
+          </div>
           <div>
             <Label htmlFor="org-type">
               {t("settings.industry", "Industry")}
@@ -353,6 +392,12 @@ export function OrganizationCard({ organization }: OrganizationCardProps) {
                     {orgTypeLabel(value, t)}
                   </SelectItem>
                 ))}
+                {storedType &&
+                  !(ORG_TYPES as readonly string[]).includes(storedType) && (
+                    <SelectItem value={storedType}>
+                      {orgTypeLabel(storedType, t) ?? storedType}
+                    </SelectItem>
+                  )}
               </SelectContent>
             </Select>
           </div>

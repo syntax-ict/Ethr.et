@@ -1,5 +1,13 @@
 # Search listings: getting ETHR found outside its own site
 
+| At a glance | |
+|---|---|
+| **Purpose** | Lists the off-site steps, each one only the owner can take, that get ETHR found in search engines and directories. |
+| **Open it when** | You are working on ETHR's search visibility, or an organisation's address has a Search Console problem. |
+| **For** | Owner |
+| **Organisation types** | Not about an organisation. ETHR's own listings; its section on organisation addresses in Search Console applies to every kind alike. |
+| **Source of truth** | The owner's own records and the search engines' own consoles; no code backs these steps, and the measurements in it are dated. |
+
 Written 2026-10-19, after the on-site work in PR #314 went live (v2026.10.19.1)
 and ethr.et was verified in Google Search Console and imported into Bing
 Webmaster Tools.
@@ -184,6 +192,22 @@ fixture test cannot: `statePayloadRobots()` reports any page that still says
 `noindex` after being told to be indexable, and the DOM check below. Run the
 DOM check after the release — `curl` cannot see this, which is how it survived
 three weeks.
+
+**The description is stated in the payload as well (2026-11-23).** The same
+mechanism left a second defect, smaller and quieter. The exports carry a
+generic description in their payload ("Sign in to your ETHR workspace." on
+`/login`, "News and announcements." on `/news` and each article), so after
+hydration every organisation page held two description tags, the
+organisation's and the export's. Measured on production at `0a6150d0a4` on
+`/login`, `/news` and an article. A crawler that reads the rendered DOM has to
+choose between them. `PortalHead::inject()` now writes the organisation's
+description over the payload's entry too, read back out of the head it is about
+to insert so the two cannot differ. Unlike the robots line it is free text, so
+it is encoded (`statePayloadDescription()`) and the end of the old value is
+found by counting backslashes, not by looking for the next quote. The same sweep
+idea applies: a description entry that was not rewritten is logged as an
+unrecognised export shape. The rendered-DOM check below should now find one
+description tag, as well as one robots tag.
 
 **An empty news page is now `noindex, follow` and is left out of the sitemap.**
 Nine of the ten news pages in the sitemap had no articles; once the robots line

@@ -385,6 +385,27 @@ describe('the first sign-in', function () {
         test()->withToken($token)->getJson(SP_HOST.'/auth/me')->assertOk();
     });
 
+    it('refuses an impersonating operator by name, not only through the step-up', function () {
+        [, $hr, $employees] = startingPasswordFixture();
+        $before = $employees[0]->fresh()->updated_at;
+        spVisitor();
+
+        $token = $hr->createToken(ImpersonationToken::nameFor(999), ['*', ImpersonationToken::ABILITY], now()->addMinutes(30))->plainTextToken;
+
+        test()->withToken($token)->postJson(SP_HOST.'/employees/starting-password', [
+            'employee_ids' => array_map(fn (Employee $e) => $e->public_id, $employees),
+            'current_password' => 'password',
+        ])
+            ->assertForbidden()
+            ->assertJsonPath('type', 'https://ethr.et/errors/impersonation-restricted');
+
+        // Refused before the request was validated, so the right password does
+        // not get an operator past it either, and nobody was given one.
+        expect($employees[0]->fresh()->updated_at->equalTo($before))->toBeTrue()
+            ->and(User::withoutGlobalScopes()->whereNotNull('starting_password_expires_at')->exists())->toBeFalse()
+            ->and(AuditLog::withoutGlobalScopes()->where('action', 'user.starting_password_issued')->exists())->toBeFalse();
+    });
+
     it('says nothing is owed for an ordinary account', function () {
         $tenant = createTenant(['subdomain' => 'acme']);
         $user = createUser(['email' => 'plain@acme.test', 'status' => 'active'], $tenant);

@@ -133,7 +133,7 @@ describe("Notification preferences — channel availability", () => {
     },
   };
 
-  it("disables the SMS column when no gateway is configured", async () => {
+  it("draws no SMS column while SMS is unavailable", async () => {
     vi.mocked(apiClient.get).mockResolvedValue({
       data: {
         ...basePrefs,
@@ -143,13 +143,12 @@ describe("Notification preferences — channel availability", () => {
 
     render(<NotificationPreferencesPage />, { wrapper });
 
-    expect(await screen.findByText(/Not configured/i)).toBeInTheDocument();
-
     const checkboxes = await screen.findAllByRole("checkbox");
-    // in_app is always-on, email is available, sms is unavailable.
-    expect(checkboxes).toHaveLength(3);
+    // in_app is always-on and email is available; there is no SMS switch to
+    // change nothing with.
+    expect(checkboxes).toHaveLength(2);
     expect(checkboxes[1]).not.toBeDisabled();
-    expect(checkboxes[2]).toBeDisabled();
+    expect(screen.queryByText(/Not configured/i)).not.toBeInTheDocument();
   });
 
   it("leaves the SMS column usable when a gateway is configured", async () => {

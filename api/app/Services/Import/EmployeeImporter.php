@@ -14,12 +14,15 @@ use App\Services\CurrentTenant;
 use App\Services\EmployeeNumbering;
 use App\Services\Identity\EmployeeIntake;
 use App\Services\Identity\IdentityResolver;
+use App\Services\Identity\IdentitySignals;
 use App\Services\Identity\IntakeResult;
+use App\Services\Identity\SameNameRoster;
 use App\Services\Invitations\EmployeeLogins;
 use App\Services\Invitations\InvitationDispatcher;
 use App\Support\Csv;
 use App\Support\EmployeeImportRow;
 use App\Support\EthiopianPhone;
+use App\Support\SalaryChangeContext;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\UploadedFile;
 
@@ -46,7 +49,8 @@ class EmployeeImporter
 
     /**
      * `errors` is keyed by CSV line number (the header is line 1); key 0 is a
-     * file-level error. The `@scramble-return` states the shape for the API
+     * file-level error. It also says, without stopping the rows, when the file
+     * brings columns this route does not store (EmployeeImportRow::PROFILE and SIGN_IN). The `@scramble-return` states the shape for the API
      * contract, which cannot follow rows built from the file's own headers;
      * it types the line-number keys as strings, which is what JSON makes them.
      *
@@ -111,6 +115,20 @@ class EmployeeImporter
             $rows[] = $row;
         }
 
+        // A file-level line, and the rows are returned as before: this route
+        // does not store a grade, a contract, a bank account or an emergency
+        // contact, and a file that brings one should not look as if it had.
+        $unstored = array_values(array_filter(
+            [...EmployeeImportRow::PROFILE, EmployeeImportRow::SIGN_IN],
+            fn (string $column): bool => array_filter(
+                array_column($rows, $column),
+                fn (mixed $value): bool => $value !== null && $value !== '',
+            ) !== [],
+        ));
+        if ($unstored !== []) {
+            $errors[0][] = __('employee.import_not_stored', ['columns' => implode(', ', $unstored)]);
+        }
+
         return ['headers' => $headers, 'rows' => $rows, 'errors' => $errors];
     }
 
@@ -138,6 +156,11 @@ class EmployeeImporter
 
         $tenantId = $this->currentTenant->id();
         $tenant = $this->currentTenant->get();
+
+        // Everyone here by full name, read once before the first row: a row
+        // is held back when someone already here has its name (sameNameHolder),
+        // and two people of one name in this file are still both added.
+        $names = $this->resolver->sameNameRoster($tenant->id);
 
         // Numbers for the rows that bring none, read once rather than per row.
         $unnumbered = count(array_filter($rows, fn (array $row): bool => ($row['employee_code'] ?? null) === null || $row['employee_code'] === ''));
@@ -274,8 +297,29 @@ class EmployeeImporter
                 continue;
             }
 
+            // Nobody matched on anything a person has only one of, and someone
+            // is already here under exactly this name, in the department the
+            // row would give them. On 2026-11-18 a list imported a second time
+            // added 167 people who were all already here, because a name alone
+            // never reaches "may be this person". This import has nobody to
+            // ask, so the row is refused and named, as the line above refuses
+            // a likeness; a row whose own number, email, badge, phone or
+            // national ID differs from theirs is a different person and added.
+            $holder = $this->sameNameHolder($names, $tenant->id, $row, $attributes);
+            if ($holder !== null) {
+                $errors[$i] = [__('employee.import_possible_duplicate', ['row' => $i, 'name' => $holder->name])];
+
+                continue;
+            }
+
             try {
-                $employee = $this->intake->create($tenant, $attributes, EmployeeIntake::VIA_IMPORT, $asked, seatChecked: true, pool: $pool)->record();
+                $employee = SalaryChangeContext::during(
+                    // No date: the hook dates a created employee at their own hire date.
+                    '',
+                    'import',
+                    null,
+                    fn () => $this->intake->create($tenant, $attributes, EmployeeIntake::VIA_IMPORT, $asked, seatChecked: true, pool: $pool)->record(),
+                );
             } catch (UniqueConstraintViolationException) {
                 // A code or badge another employee already holds: the resolver
                 // above did not call it the same person, so the row is refused
@@ -321,6 +365,58 @@ class EmployeeImporter
     public function templateCsv(): string
     {
         return implode(',', EmployeeImportRow::TEMPLATE)."\n";
+    }
+
+    /**
+     * The first employee (not deleted) under this row's full name, in the
+     * department the row gives them (any, when it names none), whom nothing
+     * the row brings contradicts. A row and a person contradict each other
+     * when both hold an employee number, an email, a badge, a phone or a
+     * national ID and the two differ: that is someone else of the same name.
+     *
+     * @param  array<string, mixed>  $row
+     * @param  array<string, mixed>  $attributes
+     */
+    private function sameNameHolder(SameNameRoster $names, int $tenantId, array $row, array $attributes): ?Employee
+    {
+        $department = $row['department_code'] ?? null;
+        $ids = $names->holders(
+            is_string($attributes['name'] ?? null) ? $attributes['name'] : null,
+            is_string($department) && trim($department) !== '',
+            is_int($attributes['department_id'] ?? null) ? $attributes['department_id'] : null,
+        );
+
+        foreach ($this->resolver->sameNameCandidates($tenantId, $ids) as $found) {
+            if (! $this->contradicts($found['employee'], $attributes)) {
+                return $found['employee'];
+            }
+        }
+
+        return null;
+    }
+
+    /** @param  array<string, mixed>  $attributes */
+    private function contradicts(Employee $employee, array $attributes): bool
+    {
+        $text = static fn (mixed $value): ?string => is_string($value) && trim($value) !== '' ? mb_strtolower(trim($value)) : null;
+
+        foreach (['employee_code', 'email', 'badge_number'] as $column) {
+            $theirs = $text($employee->getAttribute($column));
+            $ours = $text($attributes[$column] ?? null);
+            if ($theirs !== null && $ours !== null && $theirs !== $ours) {
+                return true;
+            }
+        }
+
+        $ourPhone = IdentitySignals::phoneForms(is_string($attributes['phone'] ?? null) ? $attributes['phone'] : null);
+        $theirPhone = IdentitySignals::phoneForms(is_string($employee->phone) ? $employee->phone : null);
+        if ($ourPhone !== [] && $theirPhone !== [] && array_intersect($ourPhone, $theirPhone) === []) {
+            return true;
+        }
+
+        $ourId = Employee::hashNationalId(is_string($attributes['national_id'] ?? null) ? $attributes['national_id'] : null);
+
+        return $ourId !== null && $employee->national_id_hash !== null && $employee->national_id_hash !== $ourId;
     }
 
     /**

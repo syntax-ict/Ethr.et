@@ -24,10 +24,16 @@ import {
 } from "@/features/attendance/api";
 import { currentFix, punchSignals } from "@/lib/attendance/punch-signals";
 import {
+  VISIT_QUEUE_CHANGED_EVENT,
   dropQueuedVisit,
+  loggedAt,
   queueVisit,
-  queuedVisits,
+  refusedVisitsOwnedBy,
+  visitsOwnedBy,
+  type QueuedVisit,
 } from "@/lib/attendance/visit-queue";
+import { tenantHeaderValue } from "@/api/client";
+import { useCurrentUser } from "@/features/auth/api";
 import { apiErrorDetail } from "@/lib/api/error-message";
 import { useOfflineStatus } from "@/lib/hooks/useOfflineStatus";
 import { fitSelfie } from "@/lib/uploads/selfie";
@@ -77,32 +83,23 @@ export function VisitLogCard({ photoConsent }: { photoConsent: boolean }) {
   const [note, setNote] = useState("");
   const [photo, setPhoto] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [queued, setQueued] = useState(() =>
-    typeof window === "undefined" ? 0 : queuedVisits().length,
-  );
-
-  // Send what was logged offline as soon as there is a connection.
+  const { data: me } = useCurrentUser();
+  const employeePublicId = me?.employee_public_id ?? null;
+  // Only this person's own. Sending is the shell's OfflineSyncAgent, from any
+  // page; this card only shows what is waiting.
+  const [queued, setQueued] = useState(0);
+  // Visits the server refused for good. They are no longer sent, so each is
+  // shown with the server's reason until the person removes it.
+  const [refused, setRefused] = useState<QueuedVisit[]>([]);
   useEffect(() => {
-    if (!isOnline) return;
-    let cancelled = false;
-    void (async () => {
-      for (const visit of queuedVisits()) {
-        if (cancelled) return;
-        try {
-          await log.mutateAsync(visit);
-          dropQueuedVisit(visit.idempotency_key);
-        } catch {
-          // Refused for good (too old, method off): keep it out of the way.
-          dropQueuedVisit(visit.idempotency_key);
-        }
-      }
-      if (!cancelled) setQueued(queuedVisits().length);
-    })();
-    return () => {
-      cancelled = true;
+    const refresh = () => {
+      setQueued(visitsOwnedBy(employeePublicId).length);
+      setRefused(refusedVisitsOwnedBy(employeePublicId));
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOnline]);
+    refresh();
+    window.addEventListener(VISIT_QUEUE_CHANGED_EVENT, refresh);
+    return () => window.removeEventListener(VISIT_QUEUE_CHANGED_EVENT, refresh);
+  }, [employeePublicId]);
 
   async function submit() {
     setBusy(true);
@@ -128,10 +125,11 @@ export function VisitLogCard({ photoConsent }: { photoConsent: boolean }) {
     };
 
     if (!isOnline) {
-      const kept = queueVisit({
-        ...visit,
-        occurred_at: new Date().toISOString(),
-      });
+      const kept = queueVisit(
+        { ...visit, occurred_at: new Date().toISOString() },
+        employeePublicId,
+        tenantHeaderValue(),
+      );
       setBusy(false);
       if (!kept) {
         toast.error(
@@ -139,7 +137,6 @@ export function VisitLogCard({ photoConsent }: { photoConsent: boolean }) {
         );
         return;
       }
-      setQueued(queuedVisits().length);
       toast.success(
         t(
           "visits.saved_offline",
@@ -208,6 +205,68 @@ export function VisitLogCard({ photoConsent }: { photoConsent: boolean }) {
           <p className="text-xs text-muted-foreground">
             {t("visits.queued", ":count waiting to be sent", { count: queued })}
           </p>
+        )}
+        {refused.length > 0 && (
+          <section
+            aria-labelledby="refused-visits-title"
+            className="space-y-2 rounded-lg border border-warning-edge bg-warning-soft p-3 text-sm text-warning-on-soft"
+          >
+            <div className="space-y-1">
+              <h3 id="refused-visits-title" className="font-medium">
+                {t("visits.refused_title", "Visits that were not recorded")}
+              </h3>
+              <p>
+                {t(
+                  "attendance.punch.refused_hint",
+                  "Ask HR to enter them for you. Remove each one here once you have noted it.",
+                )}
+              </p>
+            </div>
+            <ul className="space-y-2">
+              {refused.map((v) => {
+                const at = loggedAt(v.idempotency_key);
+                return (
+                  <li
+                    key={v.idempotency_key}
+                    className="flex items-start justify-between gap-3 rounded-md bg-card px-3 py-2 text-foreground"
+                  >
+                    <div
+                      id={`refused-${v.idempotency_key}`}
+                      className="min-w-0"
+                    >
+                      <p className="font-medium">
+                        {v.note ?? t("visits.unnamed", "Visit")}
+                        {at && (
+                          <>
+                            {" "}
+                            <span className="tabular-nums">
+                              {formatTime(at)}
+                            </span>
+                          </>
+                        )}
+                      </p>
+                      <p className="text-muted-foreground">
+                        {v.refused?.reason ??
+                          t(
+                            "visits.refused_local",
+                            "The server will not accept this visit as it is.",
+                          )}
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="min-h-11 shrink-0"
+                      aria-describedby={`refused-${v.idempotency_key}`}
+                      onClick={() => dropQueuedVisit(v.idempotency_key)}
+                    >
+                      {t("common.remove", "Remove")}
+                    </Button>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
         )}
         {items.length > 0 && (
           <ul className="space-y-1 text-xs text-muted-foreground">

@@ -1,13 +1,23 @@
 # SMS delivery
 
+| At a glance | |
+|---|---|
+| **Purpose** | Explains how ETHR sends text messages, where that is configured, and what to do on the day an SMS provider is subscribed. |
+| **Open it when** | Text messages are not arriving, or an SMS subscription is being set up. |
+| **For** | Platform operator (super admin) |
+| **Organisation types** | Not about an organisation. One gateway configuration and one daily limit for the whole platform, whatever kind an organisation is. |
+| **Source of truth** | The SMS code and its tests in `api/tests/Feature/Sms/`; nothing here has been exercised against a real gateway. |
+
 How ETHR sends text messages (one-time sign-in codes and SMS notifications), where that is
 configured, and what to do on the day ETHR subscribes to an SMS provider.
 
-**State on 2026-10-14: ETHR has no SMS subscription.** SMS is off, the sign-in page offers
-codes by email only, and nothing in this document has been exercised against a real gateway.
-Every behaviour below is verified against faked HTTP responses (`api/tests/Feature/Sms/`).
-Whether a given provider accepts what ETHR sends can only be proven on subscription day, with
-the console's test button.
+**State on 2026-11-21: AfroMessage is configured and its primary gateway is verified on
+production, and Send SMS is off.** The AfroMessage account is still a beta account: it can send
+to verified contacts only, it appends a testing notice to every message, and it refuses the
+sender name ETHR until the account is upgraded. So the sign-in page offers codes by email only,
+and SMS is switched on once the account is upgraded and a test to a number that is not a
+verified contact is delivered. Everything else below is verified against faked HTTP responses
+(`api/tests/Feature/Sms/`); what a provider accepts is proven only by the console's test button.
 
 ## Where it is configured
 
@@ -107,9 +117,39 @@ sign-in page and carries **no link and no token**. They sign in with their phone
 code, and that first sign-in activates the account (`OtpController::verify`). A person with an
 email is still activated by their link, never by a code.
 
-**Not done yet:** a person activated this way has no password. They keep signing in by code,
-which is fine, but setting a password afterwards needs a "set a password" step for signed-in
-accounts with no usable one. Build it before switching this on.
+**Not done yet, re-checked 2026-11-13 and still true:** a person activated this way has no
+password. They keep signing in by code, which is fine, but setting one afterwards needs a "set a
+password" step for a signed-in account that has no usable password. The only route that sets a
+password for a signed-in person is `POST /auth/password/change`, and it refuses unless
+`current_password` hashes to the stored one (`PasswordResetController::change`), which an account
+that never had a password cannot satisfy. Build the step before switching this on.
+
+## When the gateway keeps refusing
+
+A gateway can pass its test and still refuse real messages: credit gone, an account still in
+beta, a sender name revoked. Some answer HTTP 200 and put the reason in the body, so the status
+alone says nothing. ETHR now records what each gateway does with real messages, not only with
+the test.
+
+- **Every refusal is kept.** Each gateway card on `/admin/sms` has a *Live sends* block: when it
+  last delivered, how many messages it refused in a row, and the last refusal with its HTTP
+  status and what the gateway said. The recipient's number is taken out of that text before it
+  is stored, logged or mailed.
+- **Five refusals in a row pause it for 15 minutes.** The status reads **Paused**, SMS reports
+  itself unavailable, and the sign-in page offers email codes alone instead of a text message
+  that never arrives. A paused second gateway is skipped and its numbers go to the primary.
+- **Super admins get one email and one notification**, naming the gateway, the last answer and
+  when SMS will be tried again. It is sent once per pause, not once per refusal, and it is
+  written to the audit log as `platform.sms_gateway_paused` (slot, count, status; no number and
+  no response text).
+- **How it recovers.** After 15 minutes the next real send is the probe: a delivery clears the
+  count and the pause; a refusal pauses it again without another email. A successful test in
+  the console clears it at once, and so does saving a changed connection. A failed test does not
+  touch the live count. A gateway that was never given a console row (the `.env` gateway) is not
+  tracked.
+- **The one-time-code reply does not change.** Asking for a code still answers "code sent" for
+  every number, so the page cannot be used to learn which numbers exist; the pause is what stops
+  the offer.
 
 ## Out of scope: SMPP and SS7
 

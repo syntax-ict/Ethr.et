@@ -39,6 +39,7 @@ final class IndustryCatalog
      * @var array<string, array{
      *     label: string,
      *     label_am: string,
+     *     label_om: string,
      *     base: string,
      *     icon: string,
      *     group: string,
@@ -50,12 +51,12 @@ final class IndustryCatalog
     private const INDUSTRIES = [
         // ── Public sector → government ──────────────────────────────
         'federal_government' => [
-            'label' => 'Federal Government', 'label_am' => 'የፌዴራል መንግስት',
+            'label' => 'Federal Government', 'label_am' => 'የፌዴራል መንግስት', 'label_om' => 'Mootummaa Federaalaa',
             'base' => 'government', 'icon' => 'landmark', 'group' => 'public_sector',
             'profile' => 'standard_office', 'policy' => 'ethiopia_public',
         ],
         'ministry' => [
-            'label' => 'Federal Ministry', 'label_am' => 'ሚኒስቴር',
+            'label' => 'Federal Ministry', 'label_am' => 'ሚኒስቴር', 'label_om' => 'Ministeera Federaalaa',
             'base' => 'government', 'icon' => 'building-government', 'group' => 'public_sector',
             'profile' => 'standard_office', 'policy' => 'ethiopia_public',
             'overrides' => [
@@ -65,7 +66,7 @@ final class IndustryCatalog
             ],
         ],
         'federal_agency' => [
-            'label' => 'Federal Agency / Authority', 'label_am' => 'የፌዴራል ኤጀንሲ / ባለሥልጣን',
+            'label' => 'Federal Agency / Authority', 'label_am' => 'የፌዴራል ኤጀንሲ / ባለሥልጣን', 'label_om' => 'Ejensii / Abbaa Taayitaa Federaalaa',
             'base' => 'government', 'icon' => 'landmark', 'group' => 'public_sector',
             'profile' => 'standard_office', 'policy' => 'ethiopia_public',
             'overrides' => [
@@ -75,12 +76,12 @@ final class IndustryCatalog
             ],
         ],
         'regional_government' => [
-            'label' => 'Regional Government', 'label_am' => 'የክልል መንግስት',
+            'label' => 'Regional Government', 'label_am' => 'የክልል መንግስት', 'label_om' => 'Mootummaa Naannoo',
             'base' => 'government', 'icon' => 'map', 'group' => 'public_sector',
             'profile' => 'standard_office', 'policy' => 'ethiopia_public',
         ],
         'regional_bureau' => [
-            'label' => 'Regional Bureau', 'label_am' => 'የክልል ቢሮ',
+            'label' => 'Regional Bureau', 'label_am' => 'የክልል ቢሮ', 'label_om' => 'Biiroo Naannoo',
             'base' => 'government', 'icon' => 'building-2', 'group' => 'public_sector',
             'profile' => 'standard_office', 'policy' => 'ethiopia_public',
             'overrides' => [
@@ -90,7 +91,7 @@ final class IndustryCatalog
             ],
         ],
         'zonal_administration' => [
-            'label' => 'Zonal Administration', 'label_am' => 'የዞን አስተዳደር',
+            'label' => 'Zonal Administration', 'label_am' => 'የዞን አስተዳደር', 'label_om' => 'Bulchiinsa Godinaa',
             'base' => 'government', 'icon' => 'map', 'group' => 'public_sector',
             'profile' => 'standard_office', 'policy' => 'ethiopia_public',
             'overrides' => [
@@ -100,7 +101,7 @@ final class IndustryCatalog
             ],
         ],
         'city_administration' => [
-            'label' => 'City Administration', 'label_am' => 'የከተማ አስተዳደር',
+            'label' => 'City Administration', 'label_am' => 'የከተማ አስተዳደር', 'label_om' => 'Bulchiinsa Magaalaa',
             'base' => 'government', 'icon' => 'building-2', 'group' => 'public_sector',
             'profile' => 'standard_office', 'policy' => 'ethiopia_public',
             'overrides' => [
@@ -110,7 +111,7 @@ final class IndustryCatalog
             ],
         ],
         'woreda_administration' => [
-            'label' => 'Woreda Administration', 'label_am' => 'የወረዳ አስተዳደር',
+            'label' => 'Woreda Administration', 'label_am' => 'የወረዳ አስተዳደር', 'label_om' => 'Bulchiinsa Aanaa',
             'base' => 'government', 'icon' => 'map-pin', 'group' => 'public_sector',
             'profile' => 'standard_office', 'policy' => 'ethiopia_public',
             'overrides' => [
@@ -120,7 +121,7 @@ final class IndustryCatalog
             ],
         ],
         'sector_office' => [
-            'label' => 'Government Sector Office', 'label_am' => 'የመንግሥት ዘርፍ ጽሕፈት ቤት',
+            'label' => 'Government Sector Office', 'label_am' => 'የመንግሥት ዘርፍ ጽሕፈት ቤት', 'label_om' => 'Waajjira Sektara Mootummaa',
             'base' => 'government', 'icon' => 'building', 'group' => 'public_sector',
             'profile' => 'standard_office', 'policy' => 'ethiopia_public',
             'overrides' => [
@@ -132,12 +133,12 @@ final class IndustryCatalog
 
         // ── Education → university ───────────────────────────────────
         'university' => [
-            'label' => 'University', 'label_am' => 'ዩኒቨርሲቲ',
+            'label' => 'University', 'label_am' => 'ዩኒቨርሲቲ', 'label_om' => 'Yuunivarsiitii',
             'base' => 'university', 'icon' => 'graduation-cap', 'group' => 'education',
             'profile' => 'standard_office', 'policy' => 'ethiopia_public',
         ],
         'tvet' => [
-            'label' => 'TVET College', 'label_am' => 'ቴክኒክና ሙያ ኮሌጅ',
+            'label' => 'TVET College', 'label_am' => 'ቴክኒክና ሙያ ኮሌጅ', 'label_om' => 'Kolleejjii Teekinikaa fi Ogummaa',
             'base' => 'university', 'icon' => 'wrench', 'group' => 'education',
             'profile' => 'standard_office', 'policy' => 'ethiopia_public',
             'overrides' => [
@@ -147,7 +148,7 @@ final class IndustryCatalog
             ],
         ],
         'school' => [
-            'label' => 'School', 'label_am' => 'ትምህርት ቤት',
+            'label' => 'School', 'label_am' => 'ትምህርት ቤት', 'label_om' => 'Mana Barumsaa',
             'base' => 'university', 'icon' => 'school', 'group' => 'education',
             'profile' => 'standard_office', 'policy' => 'ethiopia_private',
             'overrides' => [
@@ -159,25 +160,25 @@ final class IndustryCatalog
 
         // ── Healthcare → hospital ────────────────────────────────────
         'hospital' => [
-            'label' => 'Hospital', 'label_am' => 'ሆስፒታል',
+            'label' => 'Hospital', 'label_am' => 'ሆስፒታል', 'label_om' => 'Hospitaala',
             'base' => 'hospital', 'icon' => 'building-hospital', 'group' => 'healthcare',
             'profile' => 'continuous_24_7', 'policy' => 'ethiopia_private',
             'overrides' => [
                 'allowances' => [
-                    ['name' => 'Hazard allowance', 'name_am' => 'የጤና ጠንቅ አበል'],
-                    ['name' => 'Night duty allowance', 'name_am' => 'የሌሊት ተረኛ አበል'],
+                    ['name' => 'Hazard allowance', 'name_am' => 'የጤና ጠንቅ አበል', 'name_om' => 'Abbaltii Balaa Fayyaa'],
+                    ['name' => 'Night duty allowance', 'name_am' => 'የሌሊት ተረኛ አበል', 'name_om' => 'Abbaltii Tajaajila Halkanii'],
                 ],
             ],
         ],
         'health_center' => [
-            'label' => 'Health Center / Clinic', 'label_am' => 'ጤና ጣቢያ / ክሊኒክ',
+            'label' => 'Health Center / Clinic', 'label_am' => 'ጤና ጣቢያ / ክሊኒክ', 'label_om' => 'Buufata Fayyaa / Kiliinikii',
             'base' => 'hospital', 'icon' => 'stethoscope', 'group' => 'healthcare',
             'profile' => 'extended_hours_two_shift', 'policy' => 'ethiopia_private',
             'overrides' => [
                 'departments' => ['Outpatient', 'Emergency', 'Pharmacy', 'Laboratory', 'Nursing', 'Administration'],
                 'positions' => ['Medical Director', 'General Practitioner', 'Head Nurse', 'Nurse', 'Lab Technician', 'Pharmacist', 'Receptionist'],
                 'allowances' => [
-                    ['name' => 'Hazard allowance', 'name_am' => 'የጤና ጠንቅ አበል'],
+                    ['name' => 'Hazard allowance', 'name_am' => 'የጤና ጠንቅ አበል', 'name_om' => 'Abbaltii Balaa Fayyaa'],
                 ],
                 'settings' => ['employee_number_format' => 'HC-{SEQ:4}'],
             ],
@@ -185,19 +186,19 @@ final class IndustryCatalog
 
         // ── Nonprofit → ngo ──────────────────────────────────────────
         'ngo' => [
-            'label' => 'NGO / International Organization', 'label_am' => 'መንግስታዊ ያልሆነ ድርጅት',
+            'label' => 'NGO / International Organization', 'label_am' => 'መንግስታዊ ያልሆነ ድርጅት', 'label_om' => 'Dhaabbata Miti-Mootummaa',
             'base' => 'ngo', 'icon' => 'globe', 'group' => 'nonprofit',
             'profile' => 'standard_office', 'policy' => 'ethiopia_private',
         ],
 
         // ── Financial → bank ─────────────────────────────────────────
         'bank' => [
-            'label' => 'Bank', 'label_am' => 'ባንክ',
+            'label' => 'Bank', 'label_am' => 'ባንክ', 'label_om' => 'Baankii',
             'base' => 'bank', 'icon' => 'building-bank', 'group' => 'financial',
             'profile' => 'six_day_week', 'policy' => 'ethiopia_private',
         ],
         'insurance' => [
-            'label' => 'Insurance Company', 'label_am' => 'የመድን ድርጅት',
+            'label' => 'Insurance Company', 'label_am' => 'የመድን ድርጅት', 'label_om' => 'Dhaabbata Inshuraansii',
             'base' => 'bank', 'icon' => 'shield', 'group' => 'financial',
             'profile' => 'standard_office', 'policy' => 'ethiopia_private',
             'overrides' => [
@@ -207,7 +208,7 @@ final class IndustryCatalog
             ],
         ],
         'microfinance' => [
-            'label' => 'Microfinance Institution', 'label_am' => 'የአነስተኛ ብድር ተቋም',
+            'label' => 'Microfinance Institution', 'label_am' => 'የአነስተኛ ብድር ተቋም', 'label_om' => 'Dhaabbata Maayikiroofaayinaansii',
             'base' => 'bank', 'icon' => 'coins', 'group' => 'financial',
             'profile' => 'six_day_week', 'policy' => 'ethiopia_private',
             'overrides' => [
@@ -219,25 +220,25 @@ final class IndustryCatalog
 
         // ── Industrial → manufacturing ───────────────────────────────
         'manufacturing' => [
-            'label' => 'Manufacturing / Factory', 'label_am' => 'ማምረቻ / ፋብሪካ',
+            'label' => 'Manufacturing / Factory', 'label_am' => 'ማምረቻ / ፋብሪካ', 'label_om' => 'Oomishtummaa / Warshaa',
             'base' => 'manufacturing', 'icon' => 'building-factory', 'group' => 'industrial',
             'profile' => 'rotating_three_shift', 'policy' => 'ethiopia_private',
         ],
         'construction' => [
-            'label' => 'Construction / Engineering projects', 'label_am' => 'ግንባታ / የምሕንድስና ፕሮጀክቶች',
+            'label' => 'Construction / Engineering projects', 'label_am' => 'ግንባታ / የምሕንድስና ፕሮጀክቶች', 'label_om' => 'Ijaarsa / Pirojeektoota Injinariingii',
             'base' => 'manufacturing', 'icon' => 'hard-hat', 'group' => 'industrial',
             'profile' => 'six_day_week', 'policy' => 'ethiopia_private',
             'overrides' => [
                 'departments' => ['Site Operations', 'Project Management', 'Engineering', 'Safety (HSE)', 'Procurement', 'Equipment & Machinery', 'Finance', 'HR'],
                 'positions' => ['Project Director', 'Project Manager', 'Site Engineer', 'Foreman', 'Surveyor', 'Skilled Worker', 'Laborer', 'Guard'],
                 'allowances' => [
-                    ['name' => 'Site allowance', 'name_am' => 'የሳይት አበል'],
+                    ['name' => 'Site allowance', 'name_am' => 'የሳይት አበል', 'name_om' => 'Abbaltii Bakka Hojii'],
                 ],
                 'settings' => ['employee_number_format' => 'CON-{SEQ:4}'],
             ],
         ],
         'agriculture' => [
-            'label' => 'Agriculture / Agro-processing', 'label_am' => 'ግብርና / የግብርና ምርት ማቀነባበሪያ',
+            'label' => 'Agriculture / Agro-processing', 'label_am' => 'ግብርና / የግብርና ምርት ማቀነባበሪያ', 'label_om' => 'Qonna / Oomisha Qonnaa Qopheessuu',
             'base' => 'manufacturing', 'icon' => 'sprout', 'group' => 'industrial',
             'profile' => 'seasonal_agricultural', 'policy' => 'ethiopia_private',
             'overrides' => [
@@ -249,12 +250,12 @@ final class IndustryCatalog
 
         // ── Hospitality & trade → hotel ──────────────────────────────
         'hotel' => [
-            'label' => 'Hotel / Hospitality', 'label_am' => 'ሆቴል',
+            'label' => 'Hotel / Hospitality', 'label_am' => 'ሆቴል', 'label_om' => 'Hoteela / Tajaajila Keessummaa',
             'base' => 'hotel', 'icon' => 'building-hotel', 'group' => 'hospitality_trade',
             'profile' => 'continuous_24_7', 'policy' => 'ethiopia_private',
         ],
         'restaurant' => [
-            'label' => 'Restaurant / Catering', 'label_am' => 'ምግብ ቤት / ምግብ አቅርቦት',
+            'label' => 'Restaurant / Catering', 'label_am' => 'ምግብ ቤት / ምግብ አቅርቦት', 'label_om' => 'Mana Nyaataa / Dhiyeessii Nyaataa',
             'base' => 'hotel', 'icon' => 'utensils', 'group' => 'hospitality_trade',
             'profile' => 'extended_hours_two_shift', 'policy' => 'ethiopia_private',
             'overrides' => [
@@ -264,7 +265,7 @@ final class IndustryCatalog
             ],
         ],
         'retail' => [
-            'label' => 'Retail', 'label_am' => 'ችርቻሮ',
+            'label' => 'Retail', 'label_am' => 'ችርቻሮ', 'label_om' => 'Daldala Xixiqqaa',
             'base' => 'hotel', 'icon' => 'shopping-bag', 'group' => 'hospitality_trade',
             'profile' => 'extended_hours_two_shift', 'policy' => 'ethiopia_private',
             'overrides' => [
@@ -274,7 +275,7 @@ final class IndustryCatalog
             ],
         ],
         'wholesale' => [
-            'label' => 'Wholesale / Distribution', 'label_am' => 'ጅምላ ንግድ',
+            'label' => 'Wholesale / Distribution', 'label_am' => 'ጅምላ ንግድ', 'label_om' => 'Daldala Jumlaa / Raabsa',
             'base' => 'hotel', 'icon' => 'package', 'group' => 'hospitality_trade',
             'profile' => 'six_day_week', 'policy' => 'ethiopia_private',
             'overrides' => [
@@ -286,7 +287,7 @@ final class IndustryCatalog
 
         // ── Services & technology → general ──────────────────────────
         'professional_services' => [
-            'label' => 'Professional Services / Consulting', 'label_am' => 'የሙያ አገልግሎት / ማማከር',
+            'label' => 'Professional Services / Consulting', 'label_am' => 'የሙያ አገልግሎት / ማማከር', 'label_om' => 'Tajaajila Ogummaa / Gorsa',
             'base' => 'general', 'icon' => 'briefcase', 'group' => 'services_tech',
             'profile' => 'flexible_hybrid', 'policy' => 'ethiopia_private',
             'overrides' => [
@@ -296,7 +297,7 @@ final class IndustryCatalog
             ],
         ],
         'logistics' => [
-            'label' => 'Logistics / Warehousing', 'label_am' => 'ሎጂስቲክስ / መጋዘን',
+            'label' => 'Logistics / Warehousing', 'label_am' => 'ሎጂስቲክስ / መጋዘን', 'label_om' => 'Loojistiksii / Mana Kuusaa',
             'base' => 'general', 'icon' => 'truck', 'group' => 'services_tech',
             'profile' => 'six_day_week', 'policy' => 'ethiopia_private',
             'overrides' => [
@@ -306,7 +307,7 @@ final class IndustryCatalog
             ],
         ],
         'transport' => [
-            'label' => 'Transport', 'label_am' => 'ትራንስፖርት',
+            'label' => 'Transport', 'label_am' => 'ትራንስፖርት', 'label_om' => 'Geejjiba',
             'base' => 'general', 'icon' => 'bus', 'group' => 'services_tech',
             'profile' => 'extended_hours_two_shift', 'policy' => 'ethiopia_private',
             'overrides' => [
@@ -316,7 +317,7 @@ final class IndustryCatalog
             ],
         ],
         'telecom' => [
-            'label' => 'Telecommunications', 'label_am' => 'ቴሌኮሙኒኬሽን',
+            'label' => 'Telecommunications', 'label_am' => 'ቴሌኮሙኒኬሽን', 'label_om' => 'Telekoominikeeshinii',
             'base' => 'general', 'icon' => 'signal', 'group' => 'services_tech',
             'profile' => 'standard_office', 'policy' => 'ethiopia_private',
             'overrides' => [
@@ -326,7 +327,7 @@ final class IndustryCatalog
             ],
         ],
         'security_company' => [
-            'label' => 'Security / Facilities Management', 'label_am' => 'ጥበቃ / የፋሲሊቲ አስተዳደር',
+            'label' => 'Security / Facilities Management', 'label_am' => 'ጥበቃ / የፋሲሊቲ አስተዳደር', 'label_om' => 'Eegumsa / Bulchiinsa Qabeenya Dhaabbataa',
             'base' => 'general', 'icon' => 'shield-check', 'group' => 'services_tech',
             'profile' => 'continuous_24_7', 'policy' => 'ethiopia_private',
             'overrides' => [
@@ -336,7 +337,7 @@ final class IndustryCatalog
             ],
         ],
         'bpo' => [
-            'label' => 'Customer Support / Contact Center', 'label_am' => 'የደንበኞች አገልግሎት / ጥሪ ማዕከል',
+            'label' => 'Customer Support / Contact Center', 'label_am' => 'የደንበኞች አገልግሎት / ጥሪ ማዕከል', 'label_om' => 'Tajaajila Maamiltootaa / Wiirtuu Bilbilaa',
             'base' => 'general', 'icon' => 'headset', 'group' => 'services_tech',
             'profile' => 'extended_hours_two_shift', 'policy' => 'ethiopia_private',
             'overrides' => [
@@ -346,7 +347,7 @@ final class IndustryCatalog
             ],
         ],
         'technology_company' => [
-            'label' => 'Technology / Software Company', 'label_am' => 'የቴክኖሎጂ / ሶፍትዌር ድርጅት',
+            'label' => 'Technology / Software Company', 'label_am' => 'የቴክኖሎጂ / ሶፍትዌር ድርጅት', 'label_om' => 'Dhaabbata Teekinoolojii / Sooftiweerii',
             'base' => 'general', 'icon' => 'cpu', 'group' => 'services_tech',
             'profile' => 'flexible_hybrid', 'policy' => 'ethiopia_private',
             'overrides' => [
@@ -358,7 +359,7 @@ final class IndustryCatalog
 
         // ── General business → general ───────────────────────────────
         'small_business' => [
-            'label' => 'Small or Medium Business', 'label_am' => 'አነስተኛና መካከለኛ ንግድ',
+            'label' => 'Small or Medium Business', 'label_am' => 'አነስተኛና መካከለኛ ንግድ', 'label_om' => 'Daldala Xixiqqaa fi Giddugaleessaa',
             'base' => 'general', 'icon' => 'store', 'group' => 'other',
             'profile' => 'standard_office', 'policy' => 'ethiopia_private',
             'overrides' => [
@@ -367,7 +368,7 @@ final class IndustryCatalog
             ],
         ],
         'multi_branch' => [
-            'label' => 'Multi-Branch Enterprise', 'label_am' => 'ባለብዙ ቅርንጫፍ ድርጅት',
+            'label' => 'Multi-Branch Enterprise', 'label_am' => 'ባለብዙ ቅርንጫፍ ድርጅት', 'label_om' => 'Dhaabbata Dameewwan Hedduu Qabu',
             'base' => 'general', 'icon' => 'network', 'group' => 'other',
             'profile' => 'standard_office', 'policy' => 'ethiopia_private',
             'overrides' => [
@@ -377,7 +378,7 @@ final class IndustryCatalog
             ],
         ],
         'custom' => [
-            'label' => 'Custom Organization', 'label_am' => 'ብጁ ድርጅት',
+            'label' => 'Custom Organization', 'label_am' => 'ብጁ ድርጅት', 'label_om' => 'Dhaabbata Kan Mataa Keessanii',
             'base' => 'general', 'icon' => 'settings-2', 'group' => 'other',
             'profile' => 'standard_office', 'policy' => 'ethiopia_private',
         ],
@@ -407,7 +408,7 @@ final class IndustryCatalog
     }
 
     /**
-     * @return array{key: string, label: string, label_am: string, base: string, icon: string, group: string, profile: string, policy: string, overrides: array<string, mixed>}|null
+     * @return array{key: string, label: string, label_am: string, label_om: string, base: string, icon: string, group: string, profile: string, policy: string, overrides: array<string, mixed>}|null
      */
     public function find(string $key): ?array
     {
@@ -421,6 +422,7 @@ final class IndustryCatalog
             'key' => $key,
             'label' => $entry['label'],
             'label_am' => $entry['label_am'],
+            'label_om' => $entry['label_om'],
             'base' => $entry['base'],
             'icon' => $entry['icon'],
             'group' => $entry['group'],
@@ -433,7 +435,7 @@ final class IndustryCatalog
     /**
      * The catalog as a flat list for a picker, in declared order.
      *
-     * @return array<int, array{key: string, label: string, label_am: string, base: string, icon: string, group: string, profile: string, policy: string}>
+     * @return array<int, array{key: string, label: string, label_am: string, label_om: string, base: string, icon: string, group: string, profile: string, policy: string}>
      */
     public function all(): array
     {
@@ -444,6 +446,7 @@ final class IndustryCatalog
                 'key' => $key,
                 'label' => $entry['label'],
                 'label_am' => $entry['label_am'],
+                'label_om' => $entry['label_om'],
                 'base' => $entry['base'],
                 'icon' => $entry['icon'],
                 'group' => $entry['group'],

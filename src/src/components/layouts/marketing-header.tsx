@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useT } from "@/lib/i18n/useT";
 import { useLocaleHref } from "@/lib/i18n/route-locale";
 import { LanguageSwitcher } from "@/components/shared/language-switcher";
+import { EthrSymbol, EthrWordmark } from "@/components/shared/ethr-logo";
 
 export function MarketingHeader() {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -45,13 +46,9 @@ export function MarketingHeader() {
     >
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Logo */}
-        <Link href={href("/")} className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary shadow-sm">
-            <span className="text-sm font-bold text-primary-foreground">E</span>
-          </div>
-          <span className="text-xl font-bold tracking-tight text-foreground">
-            ETHR
-          </span>
+        <Link href={href("/")} className="flex items-center gap-2">
+          <EthrSymbol className="h-8 w-8" />
+          <EthrWordmark className="h-6 w-auto text-foreground" />
         </Link>
 
         {/* Desktop nav */}
@@ -87,10 +84,12 @@ export function MarketingHeader() {
             className="text-muted-foreground hover:text-foreground"
             asChild
           >
-            <Link href="/login">{t("marketing.nav.login", "Log In")}</Link>
+            <Link href="/login" prefetch={false}>
+              {t("marketing.nav.login", "Log In")}
+            </Link>
           </Button>
           <Button size="sm" className="shadow-sm" asChild>
-            <Link href="/register">
+            <Link href="/register" prefetch={false}>
               {t("marketing.nav.start_trial", "Start Free Trial")}
             </Link>
           </Button>
@@ -152,12 +151,20 @@ export function MarketingHeader() {
 
             <div className="flex flex-col gap-2 px-3 pt-1">
               <Button variant="outline" asChild>
-                <Link href="/login" onClick={() => setMobileOpen(false)}>
+                <Link
+                  href="/login"
+                  prefetch={false}
+                  onClick={() => setMobileOpen(false)}
+                >
                   {t("marketing.nav.login", "Log In")}
                 </Link>
               </Button>
               <Button asChild>
-                <Link href="/register" onClick={() => setMobileOpen(false)}>
+                <Link
+                  href="/register"
+                  prefetch={false}
+                  onClick={() => setMobileOpen(false)}
+                >
                   {t("marketing.nav.start_trial", "Start Free Trial")}
                 </Link>
               </Button>

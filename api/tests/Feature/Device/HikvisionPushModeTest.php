@@ -10,6 +10,7 @@ use App\Models\Branch;
 use App\Models\Device;
 use App\Models\DeviceSyncLog;
 use App\Models\Employee;
+use App\Models\MigrationBatch;
 use App\Models\Tenant;
 use App\Services\CurrentTenant;
 use App\Services\Device\DeviceManager;
@@ -132,7 +133,7 @@ it('records a punch the terminal sends, as the terminal sends it', function () {
                 'subEventType' => 75,
             ],
         ]),
-    ])->assertOk()->assertJsonPath('status', 'processed');
+    ])->assertOk()->assertJsonPath('status', 'accepted');
 
     $record = AttendanceRecord::withoutGlobalScope('tenant')->where('employee_id', $employee->id)->firstOrFail();
 
@@ -198,7 +199,7 @@ it('is never pulled: not by the schedule, and not when asked by hand', function 
     Http::assertNothingSent();
 });
 
-it('says a terminal that only sends is offline once it has been silent for a day, and connects to nothing to find out', function () {
+it('says a terminal that only sends is quiet, then offline, once it has been silent, and connects to nothing to find out', function () {
     Http::fake();
     Carbon::setTestNow(Carbon::parse('2026-11-03 06:00:00', 'UTC'));
     [$tenant, $branch] = pushModeOrganisation();
@@ -207,14 +208,18 @@ it('says a terminal that only sends is offline once it has been silent for a day
         'branch_id' => $branch->id,
         'adapter_type' => 'hikvision',
         'connection_config' => ['mode' => 'push'],
-        'last_sync_at' => now()->subHours(2),
+        'last_sync_at' => now()->subMinutes(2),
     ]);
     $url = "http://{$tenant->subdomain}.ethr.test/api/v1/devices/{$device->public_id}/status";
 
     test()->getJson($url)->assertOk()->assertJsonPath('details.online', true)->assertJsonPath('details.mode', 'push');
 
+    $device->update(['last_sync_at' => now()->subHours(2)]);
+    test()->getJson($url)->assertOk()->assertJsonPath('details.online', false)->assertJsonPath('status', 'quiet');
+    expect($device->refresh()->status)->toBe('quiet');
+
     $device->update(['last_sync_at' => now()->subHours(25)]);
-    test()->getJson($url)->assertOk()->assertJsonPath('details.online', false);
+    test()->getJson($url)->assertOk()->assertJsonPath('details.online', false)->assertJsonPath('status', 'offline');
 
     Http::assertNothingSent();
 });
@@ -239,4 +244,117 @@ it('drops the address and the password when a terminal is switched to send to ET
         ->assertOk()
         ->assertJsonPath('receives_only', false);
     expect($device->refresh()->connection_config)->toBe(['ip' => '203.0.113.20', 'port' => 80]);
+});
+
+it('refuses to list the roster of a terminal that only sends to ETHR, instead of answering an empty one', function () {
+    Http::fake();
+    [$tenant, $branch] = pushModeOrganisation();
+    $device = Device::factory()->create([
+        'tenant_id' => $tenant->id,
+        'branch_id' => $branch->id,
+        'adapter_type' => 'hikvision',
+        'connection_config' => ['mode' => 'push'],
+    ]);
+    $base = "http://{$tenant->subdomain}.ethr.test/api/v1";
+
+    test()->getJson("{$base}/devices/{$device->public_id}/enrollments")
+        ->assertStatus(409)
+        ->assertHeader('Content-Type', 'application/problem+json')
+        ->assertJsonPath('code', 'device-roster-unavailable')
+        ->assertJsonPath('detail', __('device.roster.receives_only'));
+
+    // The refusal comes before the batch: nothing is left behind to read as
+    // "nobody is enrolled".
+    test()->postJson("{$base}/onboarding/migration/devices/{$device->public_id}")
+        ->assertStatus(409)
+        ->assertJsonPath('code', 'device-roster-unavailable');
+
+    expect(MigrationBatch::withoutGlobalScopes()->where('tenant_id', $tenant->id)->count())->toBe(0);
+    Http::assertNothingSent();
+});
+
+it('switches commands off when a terminal is switched to send to ETHR, so nothing is queued that cannot be delivered', function () {
+    [$tenant, $branch] = pushModeOrganisation();
+    $device = Device::factory()->create([
+        'tenant_id' => $tenant->id,
+        'branch_id' => $branch->id,
+        'adapter_type' => 'hikvision',
+        'commands_enabled' => true,
+        'connection_config' => ['ip' => '203.0.113.10', 'port' => 8085, 'username' => 'admin', 'password' => 'secret'],
+    ]);
+    $url = "http://{$tenant->subdomain}.ethr.test/api/v1/devices/{$device->public_id}";
+
+    test()->putJson($url, ['connection_config' => ['mode' => 'push']])
+        ->assertOk()
+        ->assertJsonPath('receives_only', true)
+        ->assertJsonPath('commands_enabled', false);
+
+    expect($device->refresh()->commands_enabled)->toBeFalse();
+});
+
+it('brings a quiet terminal back to online at once when it sends anything', function () {
+    Carbon::setTestNow(Carbon::parse('2026-11-17 06:00:00', 'UTC'));
+    [$tenant, $branch] = pushModeOrganisation();
+    $device = Device::factory()->create([
+        'tenant_id' => $tenant->id,
+        'branch_id' => $branch->id,
+        'adapter_type' => 'hikvision',
+        'connection_config' => ['mode' => 'push'],
+        'webhook_token' => 'quiet-token',
+        'status' => 'quiet',
+        'last_sync_at' => now()->subHours(3),
+    ]);
+
+    test()->postJson('http://ethr.test/api/v1/devices/webhook/hikvision?token=quiet-token', ['eventType' => 'heartBeat'])
+        ->assertOk()->assertJsonPath('status', 'ignored');
+
+    expect($device->refresh()->status)->toBe('online')
+        ->and($device->last_sync_at->equalTo(now()))->toBeTrue();
+});
+
+it('records a post that is not an access event as a keep-alive, for a terminal that only sends and for no other', function () {
+    Carbon::setTestNow(Carbon::parse('2026-11-17 06:00:00', 'UTC'));
+    [$tenant, $branch] = pushModeOrganisation();
+    $make = fn (string $token, array $config): Device => Device::factory()->create([
+        'tenant_id' => $tenant->id,
+        'branch_id' => $branch->id,
+        'adapter_type' => 'hikvision',
+        'connection_config' => $config,
+        'webhook_token' => $token,
+    ]);
+    $sends = $make('keepalive-sends', ['mode' => 'push']);
+    $called = $make('keepalive-called', ['ip' => '203.0.113.10', 'port' => 80]);
+    $show = fn (Device $d) => test()->getJson("http://{$tenant->subdomain}.ethr.test/api/v1/devices/{$d->public_id}")->assertOk();
+
+    expect($show($sends)->json('last_keepalive_at'))->toBeNull();
+
+    test()->postJson('http://ethr.test/api/v1/devices/webhook/hikvision?token=keepalive-sends', ['eventType' => 'heartBeat'])->assertOk();
+    test()->postJson('http://ethr.test/api/v1/devices/webhook/hikvision?token=keepalive-called', ['eventType' => 'heartBeat'])->assertOk();
+
+    $shown = $show($sends);
+    expect(Carbon::parse($shown->json('last_keepalive_at'))->equalTo(now()))->toBeTrue()
+        ->and($show($called)->json())->not->toHaveKey('last_keepalive_at');
+});
+
+it('does not take a punch for a keep-alive', function () {
+    Carbon::setTestNow(Carbon::parse('2026-11-17 06:00:00', 'UTC'));
+    [$tenant, $branch] = pushModeOrganisation();
+    $device = Device::factory()->create([
+        'tenant_id' => $tenant->id,
+        'branch_id' => $branch->id,
+        'adapter_type' => 'hikvision',
+        'connection_config' => ['mode' => 'push'],
+        'webhook_token' => 'punch-token',
+    ]);
+
+    test()->post('http://ethr.test/api/v1/devices/webhook/hikvision?token=punch-token', [
+        'event_log' => json_encode([
+            'dateTime' => '2026-11-17T09:00:00+03:00',
+            'eventType' => 'AccessControllerEvent',
+            'AccessControllerEvent' => ['employeeNoString' => '7301', 'attendanceStatus' => 'checkIn', 'majorEventType' => 5, 'subEventType' => 75],
+        ]),
+    ])->assertOk()->assertJsonPath('status', 'accepted');
+
+    $url = "http://{$tenant->subdomain}.ethr.test/api/v1/devices/{$device->public_id}";
+    expect(test()->getJson($url)->assertOk()->json('last_keepalive_at'))->toBeNull();
 });

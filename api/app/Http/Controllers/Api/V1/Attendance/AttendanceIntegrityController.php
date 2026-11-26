@@ -62,7 +62,7 @@ class AttendanceIntegrityController extends Controller
     {
         Gate::authorize('attendance.viewConflicts');
 
-        $open = $this->visible($request->user())->where('status', 'open');
+        $open = AttendanceIntegrityFlag::openFor($request->user());
 
         return response()->json([
             'open' => (clone $open)->count(),
@@ -98,7 +98,8 @@ class AttendanceIntegrityController extends Controller
 
         // Rejecting voids the punch, which a reprocess of a paid day would then
         // drop (PayrollPeriodLock).
-        if ($decision === 'reject' && $model->record !== null) {
+        $voids = $decision === 'reject' && in_array($model->punch, AttendanceIntegrityFlag::VOIDING_PUNCHES, true);
+        if ($voids && $model->record !== null) {
             app(PayrollPeriodLock::class)->assertOpen($model->record->employee_id, $model->record->date);
         }
 
@@ -110,7 +111,7 @@ class AttendanceIntegrityController extends Controller
         ]);
 
         $record = $model->record;
-        if ($decision === 'reject' && $record !== null && $record->status !== AttendanceStatus::VOIDED) {
+        if ($voids && $record !== null && $record->status !== AttendanceStatus::VOIDED) {
             $record->update([
                 'status' => AttendanceStatus::VOIDED,
                 'metadata' => array_merge($record->metadata ?? [], [

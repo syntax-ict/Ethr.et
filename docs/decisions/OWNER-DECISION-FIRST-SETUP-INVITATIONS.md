@@ -1,0 +1,80 @@
+# First setup: sign-in is chosen before anyone is invited
+
+> **OWNER DECIDED, 2026-11-16.** In the guided setup (`/setup/guided`):
+>
+> 1. The steps are **Organisation, Sign-in, People, Go live**. How people sign in is chosen
+>    before a list of people is added.
+> 2. "Invite them to sign in as soon as they are added" **starts unticked** in the guided
+>    setup only. On Employees → Import and on a device's roster it stays ticked.
+> 3. Invitations are sent **in slices of 200**, one request after another, wherever they are
+>    sent from a list.
+>
+> "Disabled" means exactly this: the person has **no login row** yet. No new account state and
+> no organisation-wide switch were added. The 2026-11-10 decision that a list brings a login for
+> everyone by default
+> ([`OWNER-DECISION-MASS-ACTIVATION.md`](OWNER-DECISION-MASS-ACTIVATION.md)) stands everywhere
+> outside first setup.
+
+## What forced it
+
+- **Invitations left before the organisation had chosen how employees sign in.** With People
+  before Sign-in and the tick ticked, every person with an email was invited the moment the list
+  was added. People without an email cannot be given a printed code or a starting password until
+  employee-number sign-in is chosen, and that choice was the next step.
+- **A first list is the least-checked data an organisation has.** A wrong address sends a
+  72-hour activation link to a stranger, and a sent email cannot be recalled. An employee
+  record can be corrected afterwards.
+- **Activation mail is essential mail.** `MailBudget` never holds it
+  (`App\Notifications\Contracts\EssentialMail`), and it counts against one daily cap shared by
+  every organisation, `config/mail.php` `daily_cap` (`MAIL_DAILY_CAP`, default 500). One
+  organisation's first list can use a large part of the day for all of them.
+- **A list of more than 1,000 people got a 422.** `POST /api/v1/employees/logins` accepts at most
+  1,000 ids (`CreateEmployeeLoginsRequest`), and the automatic send posted every id in one request.
+  The controller creates every login inside the request and only claims that a few hundred fit
+  the host's 30 seconds, so the browser now sends 200 at a time.
+
+## What exists now: a sign-in column in the employee workbook
+
+A list may carry an optional **Sign in** column (`yes`, `no` or blank), and a row outranks the
+tick: `yes` invites that person even with the tick off, `no` leaves them out of this list even with
+it on, and blank leaves it to the tick. `no` is about this list only, is not stored on the person,
+and HR can still invite them later.
+
+## What it costs
+
+An organisation that skips the offer to invite has staff who cannot use QR, mobile or web
+punching, or self-service, until HR sends invitations from Employees or from the card after the
+commit. The kiosk, attendance terminals, payroll and leave recorded by HR do not need a login.
+
+## Not done, on purpose
+
+Both things first listed here were added afterwards, on 2026-11-16. The per-organisation daily
+ceiling on invitations: see "A daily ceiling per organisation" in
+[`../EMPLOYEE-INVITATIONS-PLAN.md`](../EMPLOYEE-INVITATIONS-PLAN.md#a-daily-ceiling-per-organisation).
+Sign-in state on the Employees list: see "nobody is forgotten" below.
+
+See [`../MIGRATION.md`](../MIGRATION.md), "What the whole list is brought in with".
+
+## 2026-11-16: nobody is forgotten
+
+Off must not mean forgotten. After a first setup that invited nobody, the Employees list and the
+Next Steps card keep saying who cannot sign in yet, and offer the way to fix it.
+
+- **One meaning.** "Cannot sign in yet" is a current employee with no login, or with a login that
+  was invited and never activated. A login that is active, inactive or suspended counts as a login,
+  exactly as `EmployeeLogins::forEmployees()` leaves those people alone. It is defined once, in
+  `App\Support\EmployeeSignIn`, and read by the list filter, the list's row state and the Next Steps
+  count, so the three cannot disagree. Whose login it is follows `Employee::hasLogin()`: either side
+  of the link, live rows only.
+- **The list.** `GET /employees?filter[missing]=sign_in` and the page link `/employees?missing=sign_in`.
+  Each row carries `sign_in` (`none`, `invited`, `active`, `inactive`, `suspended`) and the page
+  shows a quiet note beside the person only for `none` and `invited`.
+- **The bulk action.** "Give a way to sign in" in the selection bar, for someone who holds both
+  `users.invite` and `employee.update`. It posts the selected people to `POST /employees/logins` in
+  slices of 200, shows the totals, and offers the printed code sheet and the starting password for
+  selected people with no email and no phone.
+- **Next Steps.** `records_cannot_sign_in`, an information step in the Records group, offered to the
+  same two permissions. It is not a blocker and does not count as setup progress.
+
+This replaces PR 11 of the workbook plan together with the sign-in column above: the column decides
+who is invited when a list is added, and this keeps the people it left out in view.

@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Notifications;
 
+use App\Enums\NotificationType;
 use App\Models\EmploymentLetterRequest;
+use App\Notifications\Concerns\RespectsNotificationPreferences;
 use App\Support\FrontendUrl;
 use App\Support\NotificationMessage;
 use Illuminate\Bus\Queueable;
@@ -14,16 +16,21 @@ use Illuminate\Notifications\Notification;
 /** To HR: an employee asked for an employment letter. */
 class LetterRequestedNotification extends Notification
 {
-    use Queueable;
+    use Queueable, RespectsNotificationPreferences;
 
     public function __construct(
         private readonly EmploymentLetterRequest $letter,
         private readonly string $employeeName,
     ) {}
 
+    protected function preferenceType(): NotificationType
+    {
+        return NotificationType::LETTER;
+    }
+
     public function via(object $notifiable): array
     {
-        return ['database', 'mail'];
+        return $this->filterChannels($notifiable, ['database', 'mail']);
     }
 
     public function toArray(object $notifiable): array

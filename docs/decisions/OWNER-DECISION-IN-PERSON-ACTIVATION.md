@@ -57,6 +57,28 @@ Audit: `user.provisioned_no_contact`, `user.activation_code_issued`, `_revoked`,
 `_failed`, `_locked`, `user.activated`. A scheduled `auth:purge-activation-codes` deletes rows a
 month after they expire.
 
+## Amended 2026-11-12: a sheet of codes, and an invitation nobody answered
+
+Two rules of this decision changed with the mass-activation plan the owner approved on
+2026-11-10 (PR 9 of the one-employee-identity plan). Both are in
+`ActivationCodeService`, pinned by `BulkActivationCodeTest`.
+
+- **Codes may be issued for many people at once.** `POST /employees/activation-codes`
+  issues one for each of up to 200 employees and returns them once, as a sheet of slips.
+  Every guard of a single issue applies to each person. What moves is the identity
+  check: HR undertakes to make it when the slip is handed over, and the codes record
+  `document_type` `at_handover`. A sheet's codes may live up to **7 days** (72 hours by
+  default); a single code stays at the 24 to 72 hours above.
+- **An email on file no longer rules a code out for ever.** Someone invited by email
+  who has not activated in **3 days**, with nothing sent or queued to them since, may be
+  given a code. The address may be wrong, or the person may have no way to read mail.
+  Someone already active is still sent to password reset.
+
+What this costs: a printed sheet holds many live codes at once, so it is a thing to keep
+out of sight and to shred. A code still needs its own employee code to be redeemed, is
+spent by one use and locks after five wrong guesses, and a newer sheet withdraws the
+older codes of the people it covers.
+
 ## What it costs
 
 - **`users.email` is nullable.** Anything that reads `$user->email` must tolerate NULL.

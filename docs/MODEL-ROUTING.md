@@ -53,7 +53,7 @@ escalation test under *Cost Optimization* decides.
   Say which journeys ran and which did not, and name the ones a session could not run at all
   (a suite that needs credentials this machine does not hold is *not run*, not *passing*).
   Why this rule was stated, and what it did and did not change, is in
-  [`audit/BASELINE.md`](audit/BASELINE.md) §25n.
+  [`audit/BASELINE.md`](audit/BASELINE.md) §25bi.
 
 The machine-wide copy of this rule, for every other project, is `~/.claude/CLAUDE.md`, and the
 default model is set in `~/.claude/settings.json`. Neither is in this repository, so neither is

@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Traits\BelongsToTenant;
 use App\Traits\HasPublicId;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -20,10 +21,17 @@ use Illuminate\Support\Carbon;
  * @property bool $commands_enabled
  * @property int|null $clock_offset_seconds
  * @property Carbon|null $clock_checked_at
+ * @property int $sync_interval_minutes
+ * @property string|null $webhook_token_hash
+ * @property string|null $webhook_token_prefix
+ * @property string|null $webhook_token_previous_hash
+ * @property Carbon|null $webhook_token_previous_expires_at
  */
 class Device extends Model
 {
     use BelongsToTenant, HasFactory, HasPublicId, SoftDeletes;
+
+    public const MIN_SYNC_INTERVAL_MINUTES = 5;
 
     protected $fillable = [
         'public_id',
@@ -49,7 +57,20 @@ class Device extends Model
         'tenant_id',
         'branch_id',
         'connection_config',
+        'webhook_token',
+        'webhook_token_hash',
+        'webhook_token_prefix',
+        'webhook_token_head_hash',
+        'webhook_token_previous_hash',
+        'webhook_token_previous_expires_at',
     ];
+
+    /**
+     * The token issued on this instance, in clear. Never persisted: it exists so
+     * the create and regenerate responses can show it once. A device read from
+     * the database has none.
+     */
+    public ?string $issuedWebhookToken = null;
 
     protected function casts(): array
     {
@@ -62,7 +83,79 @@ class Device extends Model
             'clock_offset_seconds' => 'integer',
             'clock_checked_at' => 'datetime',
             'sync_interval_minutes' => 'integer',
+            'webhook_token_previous_expires_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Assigning a token stores its hash, its first eight characters for display
+     * and the hash of its first sixteen for tracing a cut-off address; the
+     * plaintext column stays null. Assigning null clears all three. Reading it
+     * gives the token only on the instance it was assigned to.
+     *
+     * @return Attribute<string|null, string|null>
+     */
+    protected function webhookToken(): Attribute
+    {
+        return Attribute::make(
+            get: fn ($value): ?string => $this->issuedWebhookToken ?? $value,
+            set: function (?string $token): array {
+                $this->issuedWebhookToken = $token === '' ? null : $token;
+
+                if ($token === null || $token === '') {
+                    return [
+                        'webhook_token' => null,
+                        'webhook_token_hash' => null,
+                        'webhook_token_prefix' => null,
+                        'webhook_token_head_hash' => null,
+                    ];
+                }
+
+                return [
+                    'webhook_token' => null,
+                    'webhook_token_hash' => self::hashToken($token),
+                    'webhook_token_prefix' => substr($token, 0, 8),
+                    'webhook_token_head_hash' => self::hashToken(substr($token, 0, self::HEAD_LENGTH)),
+                ];
+            },
+        );
+    }
+
+    public const HEAD_LENGTH = 16;
+
+    public static function hashToken(string $token): string
+    {
+        return hash('sha256', $token);
+    }
+
+    /** The address a terminal is configured with; null for an adapter that does not push. */
+    public function webhookUrlFor(string $token): ?string
+    {
+        if (! in_array($this->adapter_type, ['hikvision', 'zkteco', 'suprema'], true)) {
+            return null;
+        }
+
+        return config('app.url').'/api/v1/devices/webhook/'.$this->adapter_type.'?token='.$token;
+    }
+
+    /** Whether a token is set, which the plaintext column no longer says. */
+    public function hasWebhookToken(): bool
+    {
+        return ! empty($this->webhook_token_hash);
+    }
+
+    /**
+     * A pulled terminal is read when the scheduler ticks, every five minutes at
+     * best, so a stored interval under that reads as the floor (2026-11-17).
+     * No migration: the next save stores the clamped value.
+     *
+     * @return Attribute<int, int>
+     */
+    protected function syncIntervalMinutes(): Attribute
+    {
+        return Attribute::make(
+            get: fn ($value): int => max(self::MIN_SYNC_INTERVAL_MINUTES, (int) $value),
+        );
     }
 
     /**
@@ -139,6 +232,17 @@ class Device extends Model
     public function attendanceRecords(): HasMany
     {
         return $this->hasMany(AttendanceRecord::class);
+    }
+
+    /**
+     * Punches this terminal sent that could not be recorded and nobody has
+     * dismissed (DeviceQuarantine).
+     *
+     * @return HasMany<DeviceInboundPunch, $this>
+     */
+    public function quarantinedPunches(): HasMany
+    {
+        return $this->hasMany(DeviceInboundPunch::class)->whereNotNull('failed_at')->whereNull('dismissed_at');
     }
 
     public function syncLogs(): HasMany

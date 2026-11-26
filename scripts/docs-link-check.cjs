@@ -47,10 +47,21 @@ const ROOT = path.resolve(__dirname, "..");
 // rehearsal's assembled release copies the repo's markdown without the `docs/`
 // tree its relative links point at, so checking it fails a clean checkout's
 // gate on a machine that has run the rehearsal (2026-10-09). CI has neither.
+//
+// `.claude` joined them on 2026-11-13, for the same reason one step further on.
+// It holds `worktrees/`, a full checkout of this repository per concurrent agent
+// session, so the walk below counted every one of them: measured that day, a
+// local run read 1116 markdown files of which 924 were inside `.claude/worktrees`
+// and only ~192 were the tree itself. CI's fresh checkout has no `.claude`, so
+// the local gate and the CI gate were scoring substantially different file sets
+// — the very failure the paragraph above records, reappearing through a directory
+// nobody had added to this set. Nothing tracked lives under `.claude`
+// (`git ls-files .claude` is empty), so no real link goes unchecked.
 const SKIP = new Set([
   "node_modules",
   "vendor",
   ".git",
+  ".claude",
   ".next",
   "dist",
   "coverage",

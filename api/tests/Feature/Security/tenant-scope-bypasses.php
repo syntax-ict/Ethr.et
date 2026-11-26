@@ -11,6 +11,26 @@ declare(strict_types=1);
  * It does **not** claim these 158 bypasses are correct. Auditing each one is a
  * human job and this file is not the record of it.
  *
+ * (2026-11-23, one lookup for "this organisation's users holding these roles":
+ * the four listeners that each wrote it (`NotifyDeviceOffline`,
+ * `NotifyDeviceSyncFailed`, `NotifyPayrollProcessed`, `NotifyPayrollRunFailed`)
+ * went, and `Support/TenantRecipients` joined, 205/80. It drops only the
+ * `tenant` scope and states `tenant_id` from the caller's device or payroll run,
+ * both tenant-owned; it returns active users only.)
+ * (2026-11-21, device capture export: one more, in
+ * `Admin/AdminDeviceCaptureController`, 208/83. The platform console finds one
+ * terminal by its public id across organisations, behind `admin.manage` and the
+ * platform MFA guard, to hand over its redacted inbox; the inbox itself is read
+ * with `tenant_id` and `device_id` stated from that device.)
+ * (2026-11-18, a return from a break reopens the day: two more in
+ * `AttendanceEngine`, 207/82. `rejoinTarget()` finds the person's latest
+ * closed record of the work day and `findByRejoinKey()` the record whose
+ * breaks hold a resent punch's key; both state `tenant_id` and `employee_id`
+ * from the punch, as the engine's other lookups do, because a queued device
+ * punch resolves no tenant.)
+ * (2026-11-13, webhook refusals: two in `Services/Device/WebhookRejections`,
+ * 205/82. A refused terminal call is traced to the device it was meant for by
+ * a retired token's hash or a cut-off token's prefix; see the entry below.)
  * (2026-11-09, first-payroll checklist: four more in `ReadinessScorer`,
  * 202/80. Whether a tax ladder or pension rule the organisation saved before
  * they were locked is in force, whether one of its leave types grants less
@@ -276,6 +296,7 @@ return [
     'Console/Commands/ResetMfaCommand.php' => 1,
     'Console/Commands/SyncDevicesCommand.php' => 1,
     'Http/Controllers/Api/V1/Admin/AdminDashboardController.php' => 3,
+    'Http/Controllers/Api/V1/Admin/AdminDeviceCaptureController.php' => 1,
     // Platform-admin plan catalog. Both sites count subscriptions on one plan,
     // cross-tenant by intent, from a surface that runs with no tenant resolved
     // (EnsurePlatformContext) — where the fail-closed scope would return 0 for
@@ -331,10 +352,6 @@ return [
     'Jobs/RunDashboardDigestsJob.php' => 1,
     'Jobs/RunScheduledReportsJob.php' => 1,
     'Jobs/ScanMissingPunchesJob.php' => 1,
-    'Listeners/NotifyDeviceOffline.php' => 1,
-    'Listeners/NotifyDeviceSyncFailed.php' => 1,
-    'Listeners/NotifyPayrollProcessed.php' => 1,
-    'Listeners/NotifyPayrollRunFailed.php' => 1,
     'Listeners/PushDatabaseNotification.php' => 1,
     // Pre-authentication: the kiosk token (64 random hex, looked up by its
     // SHA-256 in the globally unique `token_hash` since 2026-11-09, and only
@@ -353,7 +370,7 @@ return [
     'Services/Analytics/BranchAnalyticsService.php' => 5,
     'Services/Analytics/DepartmentAnalyticsService.php' => 5,
     'Services/Analytics/ExecutiveDashboardService.php' => 17,
-    'Services/Attendance/AttendanceEngine.php' => 4,
+    'Services/Attendance/AttendanceEngine.php' => 6,
     // Retention sweep: deletes expired passkey challenges across every
     // organisation from the scheduler; selects and returns nothing.
     'Services/Attendance/Device/DeviceChallenges.php' => 1,
@@ -376,6 +393,13 @@ return [
     // request (fail-closed when empty). It states no `tenant_id` — the tenant
     // is what it finds out — and two rows for one serial authenticate neither.
     'Services/Device/AdmsDeviceResolver.php' => 1,
+    // Webhook refusals traced to a device (2026-11-13). Pre-authentication,
+    // after the token lookup above has already refused the call: a token this
+    // device had before it was regenerated (found by a device id the rotation
+    // itself stored), or the start of this device's token (hex only, one match
+    // only). The tenant is what each finds out, so neither states `tenant_id`;
+    // what they find is only ever written to that device's own trace.
+    'Services/Device/WebhookRejections.php' => 2,
     // Feature control center (2026-10-28): an organisation's grants and
     // revokes, read for the tenant in hand, stating `tenant_id` on the chain.
     // Feature control console (2026-10-28): one organisation's overrides,
@@ -425,4 +449,5 @@ return [
     'Services/Webhook/WebhookDispatcher.php' => 1,
     'Support/AuditSubjects.php' => 3,
     'Support/EmployeeGaps.php' => 1,
+    'Support/TenantRecipients.php' => 1,
 ];

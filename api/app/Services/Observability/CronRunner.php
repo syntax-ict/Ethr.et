@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Services\Observability;
 
+use App\Support\BackgroundWork;
+use App\Support\StaleReleaseCaches;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
+use Throwable;
 
 /**
  * Runs the scheduler catch-up and a bounded queue drain, one at a time.
@@ -24,15 +27,67 @@ final class CronRunner
      * `ethr:schedule-run`, the catch-up scheduler: every event due since the
      * last run, once each.
      *
-     * @return array{exit_code: int, output: string}|null null when another run holds the lock
+     * When the sweep dropped a stale config or route cache (StaleReleaseCaches),
+     * this tick rebuilds them first. The rebuild never decides the tick's
+     * result: a failure is reported under `recache` and retried next tick.
+     *
+     * @return array{exit_code: int, output: string, recache?: array{status: string, commands: list<array{command: string, exit_code: int}>}}|null null when another run holds the lock
      */
     public function schedule(): ?array
     {
         return $this->exclusively('schedule', function (): array {
+            $recache = $this->recache();
+
             $exit = Artisan::call('ethr:schedule-run');
 
-            return ['exit_code' => $exit, 'output' => $this->tail(Artisan::output())];
+            $result = ['exit_code' => $exit, 'output' => $this->tail(Artisan::output())];
+
+            return $recache === null ? $result : $result + ['recache' => $recache];
         });
+    }
+
+    /**
+     * @return array{status: string, commands: list<array{command: string, exit_code: int}>}|null null when no sweep is waiting on a rebuild
+     */
+    private function recache(): ?array
+    {
+        try {
+            $app = app();
+            $marker = StaleReleaseCaches::markerPath($app);
+
+            if (! is_file($marker)) {
+                return null;
+            }
+
+            if (StaleReleaseCaches::cachesAreFresh($app)) {
+                @unlink($marker);
+
+                return ['status' => 'already-fresh', 'commands' => []];
+            }
+
+            $commands = [];
+            $ok = true;
+
+            foreach (StaleReleaseCaches::RECACHE as $command) {
+                $exit = Artisan::call($command);
+                $commands[] = ['command' => $command, 'exit_code' => $exit];
+
+                if ($exit !== 0) {
+                    $ok = false;
+                    break;
+                }
+            }
+
+            if ($ok) {
+                @unlink($marker);
+            }
+
+            return ['status' => $ok ? 'rebuilt' : 'failed', 'commands' => $commands];
+        } catch (Throwable $e) {
+            report($e);
+
+            return ['status' => 'failed', 'commands' => []];
+        }
     }
 
     /**
@@ -75,7 +130,7 @@ final class CronRunner
         }
 
         try {
-            return $work();
+            return BackgroundWork::run($work);
         } finally {
             $lock->release();
         }

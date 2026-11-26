@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Device } from "@/features/devices/api";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
+import { AdmsSetupValues } from "@/features/devices/components/adms-setup-values";
+import { AllowAddressButton } from "@/features/devices/components/allow-address-button";
 
 /**
  * What to enter on a ZKTeco terminal so it reaches ETHR over ADMS, and why it
@@ -22,14 +24,6 @@ export function AdmsSetupCard({ device }: { device: Device }) {
   if (!adms) return null;
 
   const allowlist = device.webhook_ip_allowlist ?? [];
-  // Monospace for what is typed on the device; plain text for advice.
-  const rows: [string, string, boolean][] = [
-    [t("adms_setup.server_address"), adms.server, true],
-    [t("adms_setup.server_port"), t("adms_setup.server_port_value"), false],
-    [t("adms_setup.domain_name"), t("adms_setup.on"), false],
-    [t("adms_setup.serial"), device.serial_number ?? "—", true],
-  ];
-
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -37,14 +31,10 @@ export function AdmsSetupCard({ device }: { device: Device }) {
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-sm text-muted-foreground">{t("adms_setup.where")}</p>
-        <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-[max-content_1fr]">
-          {rows.map(([label, value, typed]) => (
-            <div key={label} className="contents">
-              <dt className="text-muted-foreground">{label}</dt>
-              <dd className={typed ? "font-mono break-all" : ""}>{value}</dd>
-            </div>
-          ))}
-        </dl>
+        <p className="text-sm text-muted-foreground">
+          {t("adms_setup.resends")}
+        </p>
+        <AdmsSetupValues server={adms.server} serial={device.serial_number} />
 
         {allowlist.length === 0 && (
           <div className="flex gap-2 rounded-lg border border-warning-edge bg-warning-soft p-3 text-sm text-warning-on-soft">
@@ -54,14 +44,18 @@ export function AdmsSetupCard({ device }: { device: Device }) {
         )}
 
         {adms.last_rejected && (
-          <div className="flex gap-2 rounded-lg border p-3 text-sm">
+          <div className="flex flex-wrap items-center gap-2 rounded-lg border p-3 text-sm">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-status-warning" />
-            <p>
+            <p className="flex-1">
               {t("adms_setup.last_rejected", undefined, {
                 ip: adms.last_rejected.ip ?? "?",
                 when: timeAgo(adms.last_rejected.at),
               })}
             </p>
+            <AllowAddressButton
+              devicePublicId={device.public_id}
+              ip={adms.last_rejected.ip}
+            />
           </div>
         )}
       </CardContent>

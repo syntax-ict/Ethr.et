@@ -90,7 +90,7 @@ export function LandingHero({
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
               <Button size="lg" className="h-12 px-7 text-base" asChild>
-                <Link href="/register">
+                <Link href="/register" prefetch={false}>
                   {t("marketing.hero.cta", "Start Free Trial")}
                   <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
                 </Link>

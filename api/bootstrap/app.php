@@ -5,7 +5,9 @@ declare(strict_types=1);
 use App\Exceptions\AttendanceRefused;
 use App\Exceptions\DeviceBindingRefused;
 use App\Exceptions\DeviceRequestFailed;
+use App\Exceptions\DeviceRosterUnavailable;
 use App\Exceptions\EmployeeAlreadyExists;
+use App\Exceptions\ImpersonationRestricted;
 use App\Exceptions\PayrollRunRefused;
 use App\Http\Controllers\Api\V1\Device\AdmsController;
 use App\Http\Controllers\Api\V1\Maintenance\MaintenanceController;
@@ -27,6 +29,7 @@ use App\Http\Middleware\SetLocale;
 use App\Http\Middleware\VerifyMaintenanceToken;
 use App\Http\Middleware\VerifyUploadedFiles;
 use App\Services\Auth\SessionCookie;
+use App\Support\StaleReleaseCaches;
 use App\Support\UploadLimit;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
@@ -42,7 +45,7 @@ use Illuminate\Validation\ValidationException;
 use Sentry\Laravel\Integration;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
-return Application::configure(basePath: dirname(__DIR__))
+$app = Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         api: __DIR__.'/../routes/api.php',
         web: __DIR__.'/../routes/web.php',
@@ -73,7 +76,7 @@ return Application::configure(basePath: dirname(__DIR__))
             // is outside the api group too. AdmsDeviceResolver authenticates
             // each request by serial and IP allowlist.
             Route::prefix('iclock')
-                ->middleware('throttle:adms')
+                ->middleware(['throttle:adms', RunBackgroundWorkAfterResponse::class])
                 ->group(function (): void {
                     foreach (['', '.aspx'] as $ext) {
                         Route::get('/cdata'.$ext, [AdmsController::class, 'handshake']);
@@ -224,6 +227,9 @@ return Application::configure(basePath: dirname(__DIR__))
         // are unaffected. Payload scrubbing lives in config/sentry.php `before_send`.
         Integration::handles($exceptions);
 
+        // A refusal, not a fault: it records itself when rendered.
+        $exceptions->dontReport(ImpersonationRestricted::class);
+
         $exceptions->shouldRenderJsonWhen(fn (Request $request) => $request->is('api/*') || $request->expectsJson());
 
         // Handle HTTP exceptions (4xx, 5xx)
@@ -328,6 +334,7 @@ return Application::configure(basePath: dirname(__DIR__))
             if ($e->employees !== []) {
                 $problem['employees'] = $e->employees;
             }
+            $problem += $e->extra;
 
             return response()->json($problem, 422, ['Content-Type' => 'application/problem+json']);
         });
@@ -368,8 +375,25 @@ return Application::configure(basePath: dirname(__DIR__))
                 'type' => 'https://ethr.et/errors/device-unreachable',
                 'title' => 'Bad Gateway',
                 'status' => 502,
-                'detail' => __('device.read_failed'),
+                'detail' => __($e->detailKey),
             ], 502, ['Content-Type' => 'application/problem+json']);
+        });
+
+        // A device that only sends to ETHR has no roster to read. 409 rather
+        // than 502: nothing is down, and trying again changes nothing. The
+        // detail is translated; the message names the device for the log.
+        $exceptions->render(function (DeviceRosterUnavailable $e, Request $request) {
+            if (! $request->is('api/*') && ! $request->expectsJson()) {
+                return null;
+            }
+
+            return response()->json([
+                'type' => 'https://ethr.et/errors/device-roster-unavailable',
+                'title' => 'Conflict',
+                'status' => 409,
+                'detail' => __('device.roster.receives_only'),
+                'code' => 'device-roster-unavailable',
+            ], 409, ['Content-Type' => 'application/problem+json']);
         });
 
         // Handle validation exceptions (422)
@@ -418,3 +442,7 @@ return Application::configure(basePath: dirname(__DIR__))
             ], 403, ['Content-Type' => 'application/problem+json']);
         });
     })->create();
+
+StaleReleaseCaches::sweep($app);
+
+return $app;

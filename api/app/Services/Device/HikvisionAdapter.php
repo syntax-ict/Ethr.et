@@ -8,6 +8,7 @@ use App\Contracts\AcceptsDeviceCommands;
 use App\Contracts\DeviceAdapter;
 use App\Enums\DeviceCommandType;
 use App\Exceptions\DeviceCommandRejected;
+use App\Exceptions\DeviceRequestFailed;
 use App\Models\Device;
 use App\Models\DeviceCommand;
 use App\Services\Device\Concerns\ReadsFromDevice;
@@ -51,7 +52,7 @@ final class HikvisionAdapter implements AcceptsDeviceCommands, DeviceAdapter
                 ];
             }
 
-            return ['online' => false, 'error' => 'Non-200 response'];
+            return ['online' => false, 'error' => 'HTTP '.$response->status()];
         } catch (\Throwable $e) {
             return ['online' => false, 'error' => $e->getMessage()];
         }
@@ -127,30 +128,65 @@ final class HikvisionAdapter implements AcceptsDeviceCommands, DeviceAdapter
         return $events;
     }
 
+    /** Rows per roster page, and the most pages one read follows: 1000 people in all. */
+    private const ROSTER_PAGE_SIZE = 200;
+
+    private const ROSTER_MAX_PAGES = 5;
+
+    /**
+     * Everyone enrolled on the terminal, paged with `searchResultPosition`
+     * while the device answers `MORE`. It used to read one page of 200, so a
+     * roster above that was truncated without a word, which is the same fault
+     * as an empty roster: the caller takes what it is given for everyone.
+     *
+     * The device says when it has finished (`responseStatusStrg` `OK`); a
+     * device that does not say is taken at its page length, a short page
+     * being the last. A roster still unfinished at the cap throws rather than
+     * answer part of the list as all of it.
+     */
     public function pullEnrollments(Device $device): array
     {
-        $body = [
-            'UserInfoSearchCond' => [
-                'searchID' => (string) Str::uuid(),
-                'searchResultPosition' => 0,
-                'maxResults' => 200,
-            ],
-        ];
-
-        $response = $this->readDevice('Hikvision', fn () => $this->request(
-            $device, 'POST', '/ISAPI/AccessControl/UserInfo/Search?format=json', $body,
-        ));
-
+        $searchId = (string) Str::uuid();
         $enrollments = [];
-        foreach ($response->json('UserInfoSearch.UserInfo') ?? [] as $user) {
-            $enrollments[] = [
-                'device_user_id' => (string) ($user['employeeNo'] ?? ''),
-                'name' => $user['name'] ?? null,
-                'card_number' => $user['cardNo'] ?? null,
-                'department' => $user['belongGroup'] ?? null,
-                'fingerprint_count' => isset($user['numOfFP']) ? (int) $user['numOfFP'] : null,
-                'face_registered' => isset($user['numOfFace']) ? ((int) $user['numOfFace']) > 0 : null,
+
+        for ($page = 0; ; $page++) {
+            if ($page === self::ROSTER_MAX_PAGES) {
+                throw DeviceRequestFailed::incomplete('Hikvision', count($enrollments));
+            }
+
+            $body = [
+                'UserInfoSearchCond' => [
+                    'searchID' => $searchId,
+                    'searchResultPosition' => $page * self::ROSTER_PAGE_SIZE,
+                    'maxResults' => self::ROSTER_PAGE_SIZE,
+                ],
             ];
+
+            $response = $this->readDevice('Hikvision', fn () => $this->request(
+                $device, 'POST', '/ISAPI/AccessControl/UserInfo/Search?format=json', $body,
+            ));
+
+            $users = $response->json('UserInfoSearch.UserInfo') ?? [];
+            $status = $response->json('UserInfoSearch.responseStatusStrg');
+
+            foreach ($users as $user) {
+                $enrollments[] = [
+                    'device_user_id' => (string) ($user['employeeNo'] ?? ''),
+                    'name' => $user['name'] ?? null,
+                    'card_number' => $user['cardNo'] ?? null,
+                    'department' => $user['belongGroup'] ?? null,
+                    'fingerprint_count' => isset($user['numOfFP']) ? (int) $user['numOfFP'] : null,
+                    'face_registered' => isset($user['numOfFace']) ? ((int) $user['numOfFace']) > 0 : null,
+                ];
+            }
+
+            $more = is_string($status)
+                ? $status === 'MORE'
+                : count($users) === self::ROSTER_PAGE_SIZE;
+
+            if (! $more || $users === []) {
+                break;
+            }
         }
 
         return $enrollments;

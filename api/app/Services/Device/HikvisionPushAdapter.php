@@ -27,11 +27,18 @@ use App\Models\Device;
 final class HikvisionPushAdapter implements DeviceAdapter, ReceivesPunchesOnly
 {
     /**
+     * Heard from inside this window, a terminal is `online`: ETHR has fresh
+     * evidence, which is all "online" can honestly mean for a terminal it
+     * cannot call.
+     */
+    public const ONLINE_WITHIN_MINUTES = PushDeviceStatus::ONLINE_WITHIN_MINUTES;
+
+    /**
      * A terminal that has sent nothing for this long is shown as offline. It
      * is a label, not a gate: a punch from an "offline" terminal is still
      * recorded. Long enough to cover a night; a weekend will show offline.
      */
-    public const OFFLINE_AFTER_HOURS = 24;
+    public const OFFLINE_AFTER_HOURS = PushDeviceStatus::OFFLINE_AFTER_HOURS;
 
     public function connect(Device $device): bool
     {
@@ -51,8 +58,8 @@ final class HikvisionPushAdapter implements DeviceAdapter, ReceivesPunchesOnly
     {
         return [
             'serial_number' => $device->serial_number,
-            'manufacturer' => 'Hikvision',
-            'protocol' => 'ISAPI event notification (push)',
+            'manufacturer' => ucfirst($device->adapter_type),
+            'protocol' => $device->adapter_type === 'hikvision' ? 'ISAPI event notification (push)' : 'Webhook (push)',
         ];
     }
 
@@ -76,7 +83,17 @@ final class HikvisionPushAdapter implements DeviceAdapter, ReceivesPunchesOnly
 
     private function recentlyHeardFrom(Device $device): bool
     {
-        return $device->last_sync_at !== null
-            && $device->last_sync_at->greaterThan(now()->subHours(self::OFFLINE_AFTER_HOURS));
+        return self::statusFor($device) === 'online';
+    }
+
+    /** The rule is shared by every terminal that only sends: PushDeviceStatus. */
+    public static function statusFor(Device $device): string
+    {
+        return PushDeviceStatus::statusFor($device);
+    }
+
+    public static function settleStatus(Device $device): string
+    {
+        return PushDeviceStatus::settle($device);
     }
 }

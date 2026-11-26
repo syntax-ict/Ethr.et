@@ -7,8 +7,8 @@
         @font-face { font-family: 'Noto Sans Ethiopic'; font-weight: bold; src: url('{{ resource_path('fonts/NotoSansEthiopic-Bold.ttf') }}') format('truetype'); }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'DejaVu Sans', 'Noto Sans Ethiopic', sans-serif; font-size: 9px; color: #0F172A; padding: 20px; }
-        .header { border-bottom: 2px solid #0F4C75; padding-bottom: 10px; margin-bottom: 15px; }
-        .header h1 { font-size: 14px; color: #0F4C75; }
+        .header { margin-bottom: 12px; }
+        .header h1 { font-size: 13px; color: #0F172A; }
         .header p { font-size: 9px; color: #64748B; margin-top: 2px; }
         table { width: 100%; border-collapse: collapse; }
         th { background: #F1F5F9; text-align: left; padding: 6px 8px; font-size: 8px; color: #64748B; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -17,9 +17,16 @@
     </style>
 </head>
 <body>
+    @include('pdf.partials.letterhead', ['letterhead' => $letterhead ?? ['name' => (string) ($organisation ?? ''), 'logo' => null, 'lines' => []], 'compact' => true])
     <div class="header">
-        <h1>{{ __('report.pdf_title', [], $locale) }}</h1>
+        <h1>{{ __('report.pdf_title', [], $locale) }}@if(! empty($source_name)): {{ $source_name }}@endif</h1>
+        @if(! empty($period_text))
+        <p>{{ $period_text }}</p>
+        @endif
         <p>{{ __('report.pdf_generated', ['date' => $generated_at], $locale) }}</p>
+        @if(! empty($note))
+        <p>{{ $note }}</p>
+        @endif
     </div>
 
     <table>

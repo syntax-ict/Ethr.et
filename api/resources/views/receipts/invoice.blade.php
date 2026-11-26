@@ -2,50 +2,51 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Invoice Receipt — {{ $invoice->public_id }}</title>
+<title>Invoice Receipt {{ $invoice->public_id }}</title>
 <style>
-  body { font-family: DejaVu Sans, Arial, sans-serif; color: #1a1a2e; font-size: 12px; margin: 0; padding: 0; }
+  @font-face { font-family: 'Noto Sans Ethiopic'; font-weight: normal; src: url('{{ resource_path('fonts/NotoSansEthiopic-Regular.ttf') }}') format('truetype'); }
+  @font-face { font-family: 'Noto Sans Ethiopic'; font-weight: bold; src: url('{{ resource_path('fonts/NotoSansEthiopic-Bold.ttf') }}') format('truetype'); }
+  body { font-family: 'DejaVu Sans', 'Noto Sans Ethiopic', sans-serif; color: #1a1a2e; font-size: 12px; margin: 0; padding: 0; }
   .page { padding: 40px; }
-  .header { display: flex; justify-content: space-between; margin-bottom: 32px; }
-  .brand { font-size: 22px; font-weight: 700; color: #2563eb; }
+  .layout { width: 100%; margin: 0 0 32px; }
+  .layout td { border-bottom: none; padding: 0; vertical-align: top; }
+  .brand { font-size: 22px; font-weight: 700; color: #0F4C75; }
   .brand-sub { font-size: 11px; color: #6b7280; margin-top: 2px; }
-  .badge { background: #dcfce7; color: #166534; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+  .badge { background: #dcfce7; color: #166534; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: bold; }
   h2 { font-size: 18px; margin: 0 0 4px; }
   .meta { color: #6b7280; font-size: 11px; }
-  .section-title { font-weight: 600; font-size: 11px; text-transform: uppercase; color: #9ca3af; letter-spacing: 0.05em; margin-bottom: 8px; margin-top: 24px; }
+  .section-title { font-weight: bold; font-size: 11px; text-transform: uppercase; color: #9ca3af; letter-spacing: 0.05em; margin-bottom: 8px; margin-top: 24px; }
   table { width: 100%; border-collapse: collapse; margin-top: 4px; }
-  th { text-align: left; padding: 8px; background: #f3f4f6; font-size: 11px; font-weight: 600; color: #374151; }
+  th { text-align: left; padding: 8px; background: #f3f4f6; font-size: 11px; font-weight: bold; color: #374151; }
   td { padding: 8px; border-bottom: 1px solid #e5e7eb; font-size: 12px; }
   .amount { text-align: right; }
   .total-row td { font-weight: 700; border-top: 2px solid #374151; border-bottom: none; }
   .footer { margin-top: 40px; font-size: 10px; color: #9ca3af; text-align: center; }
-  .two-col { display: flex; gap: 32px; }
-  .two-col > div { flex: 1; }
 </style>
 </head>
 <body>
 <div class="page">
-  <div class="header">
-    <div>
+  <table class="layout"><tr>
+    <td>
       <div class="brand">ETHR</div>
       <div class="brand-sub">Ethiopian Workforce Operating System</div>
-    </div>
-    <div style="text-align:right">
+    </td>
+    <td style="text-align:right">
       <h2>RECEIPT</h2>
       <div class="meta">{{ $invoice->public_id }}</div>
       @if($invoice->paid_at)
       <div style="margin-top:6px"><span class="badge">PAID</span></div>
       @endif
-    </div>
-  </div>
+    </td>
+  </tr></table>
 
-  <div class="two-col">
-    <div>
+  <table class="layout"><tr>
+    <td style="width:50%; padding-right:16px">
       <div class="section-title">Billed To</div>
-      <div style="font-weight:600">{{ $tenant->name }}</div>
-      <div class="meta">{{ $tenant->subdomain }}.ethr.et</div>
-    </div>
-    <div>
+      <div style="font-weight:bold">{{ $tenant->name }}</div>
+      <div class="meta">{{ $address }}</div>
+    </td>
+    <td style="width:50%; padding-left:16px">
       <div class="section-title">Invoice Details</div>
       <table>
         <tr>
@@ -54,7 +55,7 @@
         </tr>
         <tr>
           <td class="meta">Due Date</td>
-          <td>{{ $invoice->due_date ? $dates->date($invoice->due_date->toDateString()) : '—' }}</td>
+          <td>{{ $invoice->due_date ? $dates->date($invoice->due_date->toDateString()) : '' }}</td>
         </tr>
         @if($invoice->paid_at)
         <tr>
@@ -63,8 +64,8 @@
         </tr>
         @endif
       </table>
-    </div>
-  </div>
+    </td>
+  </tr></table>
 
   <div class="section-title" style="margin-top:32px">Line Items</div>
   <table>
@@ -77,7 +78,7 @@
     <tbody>
       @foreach($line_items as $item)
       <tr>
-        <td>{{ $item['description'] ?? '—' }}</td>
+        <td>{{ $item['description'] ?? '' }}</td>
         <td class="amount">{{ number_format(($item['amount_cents'] ?? 0) / 100, 2) }} ETB</td>
       </tr>
       @endforeach

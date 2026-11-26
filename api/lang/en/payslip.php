@@ -24,6 +24,16 @@ return [
     'currency' => 'ETB',
     'generated' => 'Generated on :date. This is a computer-generated document.',
     'powered_by' => ':organisation, powered by ETHR',
+    'employer_tin' => 'Employer TIN',
+    'employee_tin' => 'Employee TIN',
+    'pension_number' => 'Pension no.',
+    'bank' => 'Bank',
+    'account' => 'Account',
+    'pay_date' => 'Pay date',
+    'allowance_types' => [
+        'fixed' => 'Fixed allowance',
+        'percentage' => 'Percentage allowance',
+    ],
     'deduction_types' => [
         'loan' => 'Loan repayment',
         'cost_sharing' => 'Cost sharing',

@@ -6,6 +6,7 @@ namespace App\Services\Identity;
 
 use App\Enums\EmployeeStatus;
 use App\Models\Employee;
+use App\Models\User;
 
 /**
  * The outcome of resolving external signals against existing employees.
@@ -72,6 +73,61 @@ final class IdentityMatch
         return $this->employee !== null
             && ! $this->employee->trashed()
             && in_array($this->employee->status, EmployeeStatus::leaving(), true);
+    }
+
+    /**
+     * Each match as toArray() gives it, naming only the people `$viewer` may
+     * open. The resolver reads the whole organisation, archived people
+     * included, and is not scoped to the viewer's part of it (#561), so a
+     * department manager listing a device would otherwise see the names and
+     * ids of people they cannot open. A hidden person is left out of the
+     * candidates, and a match that resolved to one keeps its outcome with no
+     * employee id: the screen can say nothing more about them.
+     *
+     * One query for every match given, not one per match.
+     *
+     * @template TKey of array-key
+     *
+     * @param  array<TKey, self>  $matches
+     * @return array<TKey, array{outcome: string, employee_public_id: string|null, confidence: float, candidates: list<array{employee_public_id: string, employee_name: string, score: float, reasons: array<int, string>}>}>
+     */
+    public static function visibleTo(array $matches, User $viewer): array
+    {
+        $ids = [];
+        foreach ($matches as $match) {
+            if ($match->employee !== null) {
+                $ids[] = (string) $match->employee->public_id;
+            }
+            foreach ($match->candidates as $candidate) {
+                $ids[] = $candidate['employee_public_id'];
+            }
+        }
+
+        $visible = [];
+        if ($ids !== []) {
+            Employee::withTrashed()
+                ->whereIn('public_id', array_values(array_unique($ids)))
+                ->get()
+                ->each(function (Employee $employee) use ($viewer, &$visible) {
+                    if ($viewer->canAccessEmployee($employee)) {
+                        $visible[(string) $employee->public_id] = true;
+                    }
+                });
+        }
+
+        return array_map(function (self $match) use ($visible): array {
+            $id = $match->employee?->public_id;
+
+            return [
+                'outcome' => $match->outcome,
+                'employee_public_id' => $id !== null && isset($visible[$id]) ? (string) $id : null,
+                'confidence' => round($match->confidence, 2),
+                'candidates' => array_values(array_filter(
+                    $match->candidates,
+                    fn (array $candidate): bool => isset($visible[$candidate['employee_public_id']]),
+                )),
+            ];
+        }, $matches);
     }
 
     /** @return array<string, mixed> */

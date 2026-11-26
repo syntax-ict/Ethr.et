@@ -9,22 +9,27 @@ use App\Contracts\SmsSender;
 use App\Enums\EmployeeStatus;
 use App\Events\AttendanceRecorded;
 use App\Events\DeviceOffline;
+use App\Events\DeviceSilent;
 use App\Events\DeviceSyncFailed;
 use App\Events\EmployeeTransitioned;
 use App\Events\PayrollApproved;
 use App\Events\PayrollProcessed;
 use App\Events\PayrollRunFailed;
 use App\Events\TenantCreated;
+use App\Events\TitleAccessHeld;
 use App\Http\Middleware\AuthenticateApiKey;
 use App\Http\Middleware\EnforceSessionIdleTimeout;
+use App\Listeners\BrandMail;
 use App\Listeners\CloseLeaverLogin;
 use App\Listeners\HoldMailOverBudget;
 use App\Listeners\InvalidateDashboardCache;
 use App\Listeners\NotifyDeviceOffline;
+use App\Listeners\NotifyDeviceSilent;
 use App\Listeners\NotifyDeviceSyncFailed;
 use App\Listeners\NotifyPayrollProcessed;
 use App\Listeners\NotifyPayrollRunFailed;
 use App\Listeners\NotifyPayslipsReleased;
+use App\Listeners\NotifyTitleAccessHeld;
 use App\Listeners\ProvisionTenant;
 use App\Listeners\PushDatabaseNotification;
 use App\Listeners\StartExitClearance;
@@ -38,6 +43,7 @@ use App\Models\DisciplinaryCase;
 use App\Models\Employee;
 use App\Models\LeaveRequest;
 use App\Models\OvertimeRequest;
+use App\Models\PayrollPayDifference;
 use App\Models\PayrollRun;
 use App\Models\Permission;
 use App\Models\PersonalAccessToken;
@@ -54,6 +60,7 @@ use App\Policies\DisciplinaryCasePolicy;
 use App\Policies\EmployeePolicy;
 use App\Policies\LeaveRequestPolicy;
 use App\Policies\OvertimeRequestPolicy;
+use App\Policies\PayrollPayDifferencePolicy;
 use App\Policies\PayrollRunPolicy;
 use App\Policies\PersonnelActionPolicy;
 use App\Policies\ProfileUpdateRequestPolicy;
@@ -68,6 +75,7 @@ use App\Services\Sms\ConfiguredSmsSender;
 use App\Services\Sso\SamlProvider;
 use App\Services\Sso\SsoProviderInterface;
 use App\Support\Mail\SmtpTransportWithCaFile;
+use App\Support\MailBrand;
 use App\Support\Scramble\DescribeApiDocument;
 use App\Support\Scramble\GroupOperationsByDomain;
 use App\Support\Scramble\TypeLoadedRelationOverlays;
@@ -107,6 +115,8 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(DnsResolver::class, SystemDnsResolver::class);
 
         $this->app->singleton(SmsSender::class, fn ($app) => $app->make(ConfiguredSmsSender::class));
+
+        $this->app->scoped(MailBrand::class);
     }
 
     public function boot(): void
@@ -191,9 +201,14 @@ class AppServiceProvider extends ServiceProvider
 
         Event::listen(TenantCreated::class, ProvisionTenant::class);
         Event::listen(NotificationSent::class, PushDatabaseNotification::class);
+        // BrandMail first: it returns nothing, and a listener ahead of it that returned
+        // true would stop the rest, leaving the previous mail's brand on this one.
+        Event::listen(NotificationSending::class, BrandMail::class);
         Event::listen(NotificationSending::class, HoldMailOverBudget::class);
         Event::listen(DeviceOffline::class, NotifyDeviceOffline::class);
         Event::listen(DeviceSyncFailed::class, NotifyDeviceSyncFailed::class);
+        Event::listen(DeviceSilent::class, NotifyDeviceSilent::class);
+        Event::listen(TitleAccessHeld::class, NotifyTitleAccessHeld::class);
         Event::listen(PayrollRunFailed::class, NotifyPayrollRunFailed::class);
         Event::listen(AttendanceRecorded::class, [InvalidateDashboardCache::class, 'handleAttendance']);
         Event::listen(PayrollProcessed::class, [InvalidateDashboardCache::class, 'handlePayroll']);
@@ -271,12 +286,26 @@ class AppServiceProvider extends ServiceProvider
         // locked the admin who made it out of their own pages (API/webhook
         // end-to-end test, 2026-10-14, D4).
         RateLimiter::for('api-global', function (Request $request) {
+            // A device webhook has the `device-webhook` limiter on its route:
+            // one limiter check per post instead of two.
+            if ($request->is('api/v1/devices/webhook/*')) {
+                return Limit::none();
+            }
+
             $apiKey = $request->attributes->get(AuthenticateApiKey::ATTRIBUTE);
             if ($apiKey instanceof ApiKey) {
                 return Limit::perMinute(300)->by('api-key:'.$apiKey->id);
             }
 
             return Limit::perMinute(300)->by($request->user()?->id ?: $request->ip());
+        });
+
+        // A terminal re-sends a refused event at once instead of backing off,
+        // so this is a ceiling against a broken or abusive sender, not a
+        // delivery pace. Keyed per address with its own prefix, so it never
+        // shares the guests' bucket at an office NAT.
+        RateLimiter::for('device-webhook', function (Request $request) {
+            return Limit::perMinute(600)->by('device-webhook:'.$request->ip());
         });
 
         // A kiosk's admin PIN is four to eight digits, guessed at a shared
@@ -434,6 +463,11 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(30)->by($request->user()?->id ?: $request->ip());
         });
 
+        // Every run reads a tenant's attendance or payslips and renders a file.
+        RateLimiter::for('reports', function (Request $request) {
+            return Limit::perMinute(20)->by('reports:'.($request->user()?->id ?: $request->ip()));
+        });
+
         // Each test is a real message the platform pays for.
         RateLimiter::for('sms-test', function (Request $request) {
             return Limit::perHour(10)->by('sms-test:'.($request->user()?->id ?: $request->ip()));
@@ -467,6 +501,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(OvertimeRequest::class, OvertimeRequestPolicy::class);
         Gate::policy(AttendanceConflict::class, AttendanceConflictPolicy::class);
         Gate::policy(PayrollRun::class, PayrollRunPolicy::class);
+        Gate::policy(PayrollPayDifference::class, PayrollPayDifferencePolicy::class);
         Gate::policy(LeaveRequest::class, LeaveRequestPolicy::class);
         Gate::policy(ShiftRotation::class, ShiftRotationPolicy::class);
         Gate::policy(ProfileUpdateRequest::class, ProfileUpdateRequestPolicy::class);

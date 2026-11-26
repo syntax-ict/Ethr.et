@@ -9,6 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DnsRecord } from "@/components/shared/dns-record";
+import { useSaveStatus } from "@/components/shared/save-status";
+import { useUnsavedChangesWarning } from "@/lib/hooks/useUnsavedChangesWarning";
 import { useT } from "@/lib/i18n/useT";
 import {
   useUpdateAddress,
@@ -40,12 +42,21 @@ export function AddressCard({ address }: AddressCardProps) {
   const { t } = useT();
   const updateAddress = useUpdateAddress();
   const verifyAddress = useVerifyAddress();
+  const { announceSaved, announceError } = useSaveStatus();
 
   const currentMode = (address?.mode ?? "path") as Mode;
   const [mode, setMode] = useState<Mode>(currentMode);
   const [domain, setDomain] = useState(address?.custom_domain ?? "");
   const [domainError, setDomainError] = useState<string | null>(null);
   const [verifyErrors, setVerifyErrors] = useState<string[]>([]);
+
+  // Before the early return: a hook cannot be skipped.
+  useUnsavedChangesWarning(
+    !!address &&
+      (mode !== currentMode ||
+        (mode === "custom_domain" &&
+          domain.trim() !== (address.custom_domain ?? ""))),
+  );
 
   if (!address) return null;
 
@@ -89,8 +100,10 @@ export function AddressCard({ address }: AddressCardProps) {
     }
 
     updateAddress.mutate(payload, {
-      onSuccess: () =>
-        toast.success(t("settings.address_saved", "Address updated")),
+      onSuccess: () => {
+        toast.success(t("settings.address_saved", "Address updated"));
+        announceSaved(t("settings.address_saved", "Address updated"));
+      },
       // A field error belongs under the field; anything else carries its
       // reason in `detail`.
       onError: (err: unknown) => {
@@ -107,12 +120,14 @@ export function AddressCard({ address }: AddressCardProps) {
         const fieldError = data?.errors?.custom_domain?.[0];
         if (fieldError) {
           setDomainError(fieldError);
+          announceError(err, fieldError);
         } else {
-          toast.error(
+          const reason =
             data?.errors?.mode?.[0] ||
-              data?.detail ||
-              t("settings.address_save_failed", "Failed to update address"),
-          );
+            data?.detail ||
+            t("settings.address_save_failed", "Failed to update address");
+          toast.error(reason);
+          announceError(err, reason);
         }
       },
     });
@@ -123,8 +138,10 @@ export function AddressCard({ address }: AddressCardProps) {
   function verify() {
     setVerifyErrors([]);
     verifyAddress.mutate(undefined, {
-      onSuccess: () =>
-        toast.success(t("settings.address_verified_toast", "Domain verified")),
+      onSuccess: () => {
+        toast.success(t("settings.address_verified_toast", "Domain verified"));
+        announceSaved(t("settings.address_verified_toast", "Domain verified"));
+      },
       onError: (err: unknown) => {
         const data = (
           err as {
@@ -136,11 +153,13 @@ export function AddressCard({ address }: AddressCardProps) {
         const messages = Object.values(data?.errors ?? {}).flat();
         if (messages.length > 0) {
           setVerifyErrors(messages);
+          announceError(err, messages[0]);
         } else {
-          toast.error(
+          const reason =
             data?.detail ||
-              t("settings.address_verify_failed", "Verification failed"),
-          );
+            t("settings.address_verify_failed", "Verification failed");
+          toast.error(reason);
+          announceError(err, reason);
         }
       },
     });
@@ -162,7 +181,7 @@ export function AddressCard({ address }: AddressCardProps) {
       <CardHeader>
         <div className="flex items-center gap-2">
           <Globe className="h-4 w-4 text-muted-foreground" />
-          <CardTitle className="text-base">
+          <CardTitle as="h2" className="text-base">
             {t("settings.address_title", "Address")}
           </CardTitle>
         </div>

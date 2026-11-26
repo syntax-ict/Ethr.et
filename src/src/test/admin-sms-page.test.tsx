@@ -45,6 +45,13 @@ const GATEWAY: SmsGatewayState = {
   last_test_ok: false,
   last_test_status: 200,
   last_test_response: '{"status":"error","message":"invalid sender"}',
+  consecutive_failures: 0,
+  paused: false,
+  paused_until: null,
+  last_success_at: null,
+  last_failure_at: null,
+  last_failure_status: null,
+  last_failure_response: null,
 };
 
 function state(overrides: Partial<SmsDeliveryState> = {}): SmsDeliveryState {
@@ -186,5 +193,68 @@ describe("SMS delivery page", () => {
     expect(
       await screen.findByText(/second gateway: routed numbers/i),
     ).toBeInTheDocument();
+  });
+
+  it("says Paused, with when SMS is offered again, once the gateway keeps refusing", async () => {
+    server.use(
+      http.get("*/api/v1/admin/sms", () =>
+        HttpResponse.json(
+          state({
+            enabled: true,
+            available: false,
+            primary: {
+              ...GATEWAY,
+              verified: true,
+              consecutive_failures: 5,
+              paused: true,
+              paused_until: "2026-11-21T09:15:00Z",
+              last_failure_at: "2026-11-21T09:00:00Z",
+              last_failure_status: 200,
+              last_failure_response:
+                '{"acknowledge":"error","errors":["[number] is unverified contact number"]}',
+            },
+          }),
+        ),
+      ),
+    );
+
+    renderPage();
+
+    expect(await screen.findByText("Paused")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /refused the last 5 messages\. SMS is offered again at/i,
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("shows the live sends: refusals in a row and what the gateway said, without the number", async () => {
+    server.use(
+      http.get("*/api/v1/admin/sms", () =>
+        HttpResponse.json(
+          state({
+            primary: {
+              ...GATEWAY,
+              consecutive_failures: 2,
+              last_failure_at: "2026-11-21T09:00:00Z",
+              last_failure_status: 200,
+              last_failure_response:
+                '{"errors":["[number] is unverified contact number"]}',
+            },
+          }),
+        ),
+      ),
+    );
+
+    renderPage();
+
+    expect(await screen.findByText("Live sends")).toBeInTheDocument();
+    expect(screen.getByText(/Refused in a row: 2/)).toBeInTheDocument();
+    expect(screen.getByText("Last refusal")).toBeInTheDocument();
+    expect(
+      screen.getByText(/\[number\] is unverified contact number/),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Nothing delivered yet/)).toBeInTheDocument();
+    expect(screen.queryByText("Paused")).not.toBeInTheDocument();
   });
 });

@@ -72,10 +72,12 @@ import { toast } from "sonner";
 import { apiErrorDetail, apiErrorMessage } from "@/lib/api/error-message";
 import { cn } from "@/lib/utils";
 import { orgTypeLabel } from "@/features/settings/org-type-label";
+import { TenantKindCard } from "@/features/admin/components/tenant-kind-card";
 import { DeleteTenantDialog } from "./delete-tenant-dialog";
 import { TransferOwnershipDialog } from "./transfer-ownership-dialog";
 import { TenantFeaturesCard } from "./tenant-features-card";
 import { TenantJourneyCard } from "./tenant-journey-card";
+import { formatPhone, telHref } from "@/lib/phone";
 
 /** The shared host an organisation on the shared address is reached through. */
 const SHARED_HOST = new URL(SITE_URL).host;
@@ -589,7 +591,7 @@ function TenantDetail({ id }: { id: string }) {
           />
           <StatCard
             icon={Building2}
-            label={t("admin_tenant_detail_page.type")}
+            label={t("settings.industry", "Industry")}
             value={
               tenant.type
                 ? typeLabel(tenant.type, t)
@@ -597,6 +599,13 @@ function TenantDetail({ id }: { id: string }) {
             }
           />
         </div>
+
+        {/* The kind in law, read-only: the organisation changes it in its Settings */}
+        <TenantKindCard
+          kind={tenant.organization_type}
+          needsReview={tenant.organization_type_needs_review}
+          pending={tenant.organization_type_pending}
+        />
 
         {/* Where it is between sign-up and using ETHR, and what needs attention */}
         <TenantJourneyCard publicId={tenant.public_id} />
@@ -633,10 +642,10 @@ function TenantDetail({ id }: { id: string }) {
                 {tenant.owner.phone ? (
                   <span className="flex items-center gap-2">
                     <a
-                      href={`tel:${tenant.owner.phone}`}
+                      href={telHref(tenant.owner.phone)}
                       className="font-medium underline underline-offset-2"
                     >
-                      {tenant.owner.phone}
+                      {formatPhone(tenant.owner.phone)}
                     </a>
                     {!tenant.owner.phone_verified && (
                       <Badge variant="outline">
@@ -1105,7 +1114,7 @@ function TenantDetail({ id }: { id: string }) {
               }
             />
             <Row
-              label={t("admin_tenant_detail_page.type")}
+              label={t("settings.industry", "Industry")}
               value={typeLabel(tenant.type, t)}
             />
             <Row

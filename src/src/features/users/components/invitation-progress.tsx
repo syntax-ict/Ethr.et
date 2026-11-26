@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { useInvitationBatch, useSendInvitations } from "@/features/users/api";
 import { toastError } from "@/lib/errors";
+import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
 
 /**
@@ -23,6 +24,7 @@ export function InvitationProgress({
   onRetried?: (batch: string) => void;
 }) {
   const { t } = useT();
+  const { formatDate } = useDateFormatters();
   const query = useInvitationBatch(batch);
   const retry = useSendInvitations();
   const data = query.data;
@@ -33,6 +35,13 @@ export function InvitationProgress({
 
   const done = data.sent + data.failed + data.skipped;
   const waiting = data.queued > 0;
+  const held = data.held > 0;
+  const heldDate = data.held_until ? formatDate(data.held_until) : "";
+  const title = waiting
+    ? t("invitations.sending", "Invitations are being sent")
+    : held
+      ? t("invitations.finished_today", "Today's invitations are sent")
+      : t("invitations.finished", "Invitations sent");
   const label = t("invitations.progress", ":done of :total sent", {
     done: data.sent,
     total: data.total,
@@ -54,11 +63,7 @@ export function InvitationProgress({
   return (
     <Alert variant={!waiting && data.failed > 0 ? "warning" : "info"}>
       <div className="w-full space-y-2">
-        <AlertTitle>
-          {waiting
-            ? t("invitations.sending", "Invitations are being sent")
-            : t("invitations.finished", "Invitations sent")}
-        </AlertTitle>
+        <AlertTitle>{title}</AlertTitle>
         <AlertDescription className="space-y-2">
           <Progress
             value={
@@ -75,6 +80,32 @@ export function InvitationProgress({
                 "They go out a few a minute, so a large list takes a while. You can leave this page.",
               )}
             </p>
+          )}
+          {held && (
+            <div className="space-y-1 text-xs">
+              <p>
+                {data.held === 1
+                  ? t(
+                      "invitations.held_one",
+                      ":count is held and goes out on :date.",
+                      { count: data.held, date: heldDate },
+                    )
+                  : t(
+                      "invitations.held_many",
+                      ":count are held and go out over the next days, the last on :date.",
+                      { count: data.held, date: heldDate },
+                    )}
+              </p>
+              {data.daily_limit !== null && (
+                <p>
+                  {t(
+                    "invitations.held_limit",
+                    "Your organisation can send :limit invitation emails a day, so sign-in emails keep reaching everyone.",
+                    { limit: data.daily_limit },
+                  )}
+                </p>
+              )}
+            </div>
           )}
           {data.failed > 0 && (
             <div className="flex flex-wrap items-center gap-3">

@@ -69,7 +69,8 @@ for each code its `layer` (`baseline`, `parent_type`, `organization_type`,
 
 Each platform row carries the `profile_versions` batch it was published in:
 `2026.11.1` for every row in place on 2026-11-09, `2026.11.2` for the leave,
-sick-pay, deduction-cap and pension-coverage rows. A change in the law is a
+sick-pay, deduction-cap and pension-coverage rows, and `2026.11.3` for the
+employment framework rows. A change in the law is a
 new batch of new dated rows; it never touches an organisation's own rows, and
 no organisation pins a batch: the law in force on a payroll date is the law
 applied.
@@ -77,7 +78,7 @@ applied.
 ### Seeing and resetting them
 
 Settings → Payroll → Statutory rules (`GET /payroll/statutory-rules`,
-`payroll.viewConfig`) lists every code in force with its layer, enforcement,
+`payroll.viewConfig`) lists every payroll code in force with its layer, enforcement,
 legal reference, batch and the default it would have without the organisation's
 own value. A `default` code is changed where it always was (`PUT /settings`) and
 reset here (`DELETE /payroll/statutory-rules/{code}`, `payroll.manageConfig`),
@@ -97,6 +98,93 @@ keys; `StatutorySettingsBridge` writes a saved key through to the row (dated
 from the platform's first row for the code, because a key applied to every
 period), and removing the key removes the row. The `tenant_setting` source is
 retired.
+
+## Domains
+
+Every rule carries a `domain`: `payroll` (the default, and every row that
+existed before 2026-11-23) or `employment`, added on 2026-11-23 for HR rules.
+Payroll, its calculation log and the Statutory rules page read the payroll
+domain only, so an employment rule never reaches a payslip or that page.
+
+Every employment code starts with `employment.`, and the model derives the
+domain from that prefix when a writer does not state one, so an HR rule cannot
+land in payroll's set by omission. An explicitly stated domain is respected.
+
+Employment rows are `advisory` and unconfirmed. They are read through
+`StatutoryRules::employment()` and `StatutoryRules::framework()`, resolved by
+organisation kind exactly as payroll rules are. A missing employment rule is
+read with `find()`, `describe()` or `framework()`, which answer null and never
+fall back to a default; `get()` and the typed accessors are payroll's and
+refuse. `describe()` carries `confirmed`, `layer` and `legal_reference`, which
+a screen must show because every employment row is unconfirmed; `framework()`
+alone does not say whether its value is confirmed.
+
+A row starts on the date of the law it cites (`government` and
+`regional_government` from 2025-01-09, the labour kinds from 2019-09-05), so an
+earlier date answers null.
+
+The first employment rule, `employment.framework`, names the body of law that
+governs an organisation's staff (batch `2026.11.3`):
+
+| Organisation kind | Value | Source | Confirmed |
+|---|---|---|---|
+| `private` | `labour_proclamation` | Labour Proclamation No. 1156/2019, Art. 3 | no |
+| `ngo` | `labour_proclamation` | Labour Proclamation No. 1156/2019, Art. 3 | no |
+| `public_enterprise` | `labour_proclamation` | Labour Proclamation No. 1156/2019, Art. 3; Federal Civil Servants Proclamation No. 1353/2024, Art. 2 | no |
+| `government` | `federal_civil_service` | Federal Civil Servants Proclamation No. 1353/2024, Arts. 2 and 3 | no |
+| `regional_government` | `regional_civil_service` | Federal Civil Servants Proclamation No. 1353/2024, Arts. 2 and 3 | no |
+| `defence_police` | `unspecified` | Labour Proclamation No. 1156/2019, Art. 3(2)(e) | no |
+| `international_organization` | `unspecified` | none recorded | no |
+
+Child kinds inherit through their parent, except `regional_government`, which
+has its own row. The law behind each rule is traced in
+[`../EMPLOYMENT-LAW-REGISTER.md`](../EMPLOYMENT-LAW-REGISTER.md).
+
+### An organisation's own framework (since 2026-11-24)
+
+An organisation sees ETHR's reading in Settings (`GET /settings`,
+`organization.employment_framework`: `framework`, `confirmed`, `source`,
+`legal_reference`, `has_statutory_rules`, `ethr_reading`) and records its own
+with `PUT /settings/organization` and `employment_framework`: a value sets it,
+`null` goes back to ETHR's reading, an absent key changes nothing. The
+organisation's own row is `confirmed` (it recorded it) and, unlike ETHR's, has
+no legal reference. `App\Services\Employment\EmploymentFrameworks` writes it.
+
+The write is dated and never edits history. A row that started before today is
+closed the day before and a new one starts today, in the organisation's own
+zone, so `StatutoryRules::framework()` for an earlier date still answers what
+it did then. Only a row that started today is changed in place (a same-day
+change) or deleted (a same-day reset), and that is audited too. Every real
+change is audited as `statutory_parameter.overridden` or
+`statutory_parameter.reset`; saying what is already recorded writes no
+statutory row and no such entry, though the request itself is still recorded as
+`settings.organization_updated`. A write takes the organisation's row lock and
+ends every own row open on the day, so two saves cannot leave two open and a
+duplicate cannot survive a reset.
+
+The change is refused with a 422 on `employment_framework` when ETHR's rule for
+the organisation's kind is `locked`, because the resolver would ignore an own
+row. It is refused in a support session (`BlockImpersonatedActions`), for the
+organisation and for the employee exemption alike. Changing the organisation's
+kind leaves its own row in force.
+
+Because ETHR may have no row for a kind, the resolver lets an organisation's own
+**employment** row stand alone when no platform row exists for the code. A
+payroll code with no platform row stays absent, as before.
+
+`EmploymentFrameworks::forEmployee($employee, $on)` answers which framework
+governs one person: null when `employees.outside_employment_framework` is set
+(a managerial employee of a private company, mixed staff of a public
+enterprise; the optional `employment_framework_note` says why), otherwise the
+organisation's. A model loaded without that column is read from the database,
+so an unread column never means "covered". A feature that needs a person's
+framework must call it and treat null as "ask", never as a default.
+
+The exemption is a legal characterisation of a person, so `EmployeeResource`
+shows `outside_employment_framework` and `employment_framework_note` only to a
+viewer who holds `employee.update` and reaches that employee, and only when the
+columns were loaded. Everyone else, including a supervisor who may view the
+employee and every resource that embeds one, gets neither key.
 
 ## Organisation types
 
@@ -162,7 +250,7 @@ overtime limits stay `locked`: they only flag a run, but they are the law's.
 
 | Code | Value | Types | Overridable | Source | Confirmed |
 |---|---|---|---|---|---|
-| `payroll.working_days_per_month` | 22 | each type has its own row, so each is approved or changed alone | yes, on Payroll rules → Payroll schedule (20 to 31) | ETHR convention | no |
+| `payroll.working_days_per_month` | 22 | the six types without a parent each have their own row, approved or changed alone; the ten inheriting types resolve through their parent | yes, on Payroll rules → Payroll schedule (20 to 31) | ETHR convention | no |
 | `payroll.hours_per_day` | 8 | all | no | Labour Proclamation 1156/2019, Art. 61(1) | yes |
 | `overtime.minimum_rates` | normal 1.5, night 1.75, rest day 2.0, holiday 2.5, holiday night 2.5 | all | no (an organisation raises its own rates on the overtime card) | 1156/2019, Art. 68(1) | yes |
 | `overtime.night_window` | 22:00 to 06:00 | all | no | 1156/2019, Art. 68(1)(b) | yes |

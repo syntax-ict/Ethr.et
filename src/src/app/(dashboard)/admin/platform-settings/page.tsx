@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { EthrLogoTile } from "@/components/shared/ethr-logo";
 import { DualCalendarDateInput } from "@/components/shared/dual-calendar-date-input";
+import { ReferenceSelect } from "@/components/shared/reference-select";
 import { pickLocalised } from "@/features/marketing/site-content";
 import { SITE_URL } from "@/lib/site-url";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -99,6 +100,7 @@ function PaymentForm({ settings }: { settings: PlatformSettings }) {
 
   const seed = (s: PlatformSettings) => ({
     bank_name: s.bank_name ?? "",
+    bank_code: s.bank_code ?? "",
     bank_account_number: s.bank_account_number ?? "",
     bank_account_name: s.bank_account_name ?? "",
     payment_instructions: s.payment_instructions ?? "",
@@ -115,6 +117,7 @@ function PaymentForm({ settings }: { settings: PlatformSettings }) {
   // htmlFor/id pair), so screen readers announced two unlabelled text boxes.
   // The Input fields above escaped the same bug only because a placeholder
   // acts as a last-resort accessible name — see the Field helper below.
+  const bankId = useId();
   const instructionsEnId = useId();
   const instructionsAmId = useId();
   const instructionsOmId = useId();
@@ -149,15 +152,26 @@ function PaymentForm({ settings }: { settings: PlatformSettings }) {
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-3">
-          <Field
-            label={t("billing.bank", "Bank")}
-            value={form.bank_name}
-            onChange={set("bank_name")}
-            placeholder={t(
-              "billing.bank_placeholder",
-              "Commercial Bank of Ethiopia",
-            )}
-          />
+          <div className="space-y-1.5">
+            <Label className="text-xs" htmlFor={bankId}>
+              {t("billing.bank", "Bank")}
+            </Label>
+            <ReferenceSelect
+              id={bankId}
+              kind="bank"
+              value={{
+                code: form.bank_code || null,
+                text: form.bank_name,
+              }}
+              onChange={(next) =>
+                setForm((prev) => ({
+                  ...prev,
+                  bank_name: next.text,
+                  bank_code: next.code ?? "",
+                }))
+              }
+            />
+          </div>
           <Field
             label={t("billing.account_number", "Account Number")}
             value={form.bank_account_number}
@@ -744,7 +758,7 @@ function ProductMarkForm({ settings }: { settings: PlatformSettings }) {
                   <EthrLogoTile
                     logoUrl={settings.logo_url}
                     className="h-5 w-5 rounded ring-1 ring-sidebar-foreground/25"
-                    letterClassName="text-[11px]"
+                    small
                   />
                   <span className="min-w-0 flex-1 truncate text-xs font-medium text-sidebar-foreground/75">
                     {previewLabel}
@@ -754,7 +768,7 @@ function ProductMarkForm({ settings }: { settings: PlatformSettings }) {
                   <EthrLogoTile
                     logoUrl={settings.logo_url}
                     className="h-6 w-6 ring-1 ring-sidebar-foreground/25"
-                    letterClassName="text-xs"
+                    small
                   />
                 </div>
               </>

@@ -29,6 +29,7 @@ use App\Models\EmployeeCostSharing;
 use App\Models\EmployeeDocument;
 use App\Models\EmployeeEducation;
 use App\Models\EmployeeEmergencyContact;
+use App\Models\EmployeeExternalIdentity;
 use App\Models\EmployeeLoan;
 use App\Models\ExitClearance;
 use App\Models\ExitClearanceItem;
@@ -48,6 +49,7 @@ use App\Models\MigrationStagingRow;
 use App\Models\OrganizationTemplate;
 use App\Models\OvertimeRequest;
 use App\Models\PayrollEntry;
+use App\Models\PayrollPayDifference;
 use App\Models\PayrollRule;
 use App\Models\PayrollRun;
 use App\Models\PersonnelAction;
@@ -124,6 +126,11 @@ final class ParameterizedFixtures
         $entry = PayrollEntry::factory()->create([
             'tenant_id' => $tenant->id, 'payroll_run_id' => $run->id, 'employee_id' => $employee->id,
         ]);
+        $payDifference = PayrollPayDifference::query()->create([
+            'tenant_id' => $tenant->id, 'employee_id' => $employee->id, 'payroll_run_id' => $run->id,
+            'payroll_entry_id' => $entry->id, 'status' => 'open', 'kind' => 'underpaid', 'changed_from' => '2026-01-01',
+            'gross_cents' => 100, 'net_cents' => 80, 'paid_gross_cents' => 0, 'paid_net_cents' => 0, 'due_gross_cents' => 100, 'due_net_cents' => 80,
+        ]);
         $rule = PayrollRule::factory()->create(['tenant_id' => $tenant->id]);
         $kiosk = KioskSession::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $branch->id]);
         $customRole = CustomRole::create([
@@ -186,11 +193,16 @@ final class ParameterizedFixtures
             'leaveRequest' => $leaveRequest->public_id,
             'position' => $position->public_id, 'team' => $team->public_id, 'loan' => $loan->public_id,
             'costSharing' => $costSharing->public_id,
-            'payrollEntry' => $entry->public_id, 'payrollRule' => $rule->public_id, 'customRole' => $customRole->public_id,
+            'payDifference' => $payDifference->public_id, 'payrollEntry' => $entry->public_id, 'payrollRule' => $rule->public_id, 'customRole' => $customRole->public_id,
             'shift' => $shift->public_id, 'rotation' => $rotation->public_id, 'webhook' => $webhook->public_id,
             'publicId' => $tenant->public_id, 'employeePublicId' => $employee->public_id,
+            'devicePublicId' => $device->public_id,
             'subdomain' => $tenant->subdomain, 'slug' => (string) $templateSlug,
             'batch' => $migrationBatch->public_id,
+            'identity' => EmployeeExternalIdentity::query()->forceCreate([
+                'tenant_id' => $tenant->id, 'employee_id' => $employee->id, 'source_type' => 'zkteco',
+                'source_ref' => 'device:'.$device->id, 'identifier_type' => 'device_user_id', 'identifier_value' => '14',
+            ])->public_id,
             'importMapping' => ImportMapping::query()->forceCreate([
                 'tenant_id' => $tenant->id, 'name' => 'Old payroll', 'slug' => 'old-payroll',
                 'columns' => [['header' => 'Emp Nm', 'column' => 'name']],

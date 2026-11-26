@@ -19,6 +19,7 @@ class BankDetailResource extends JsonResource
         return [
             'public_id' => $this->public_id,
             'bank_name' => $this->bank_name,
+            'bank_code' => $this->bank_code,
             'branch_name' => $this->branch_name,
             'account_number_masked' => $masked,
             'is_primary' => $this->is_primary,

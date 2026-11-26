@@ -8,6 +8,7 @@ use App\Enums\EmployeeStatus;
 use App\Models\AuditLog;
 use App\Models\Employee;
 use App\Models\EmployeeExternalIdentity;
+use App\Support\PersonName;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\UniqueConstraintViolationException;
 
@@ -212,6 +213,56 @@ final class IdentityResolver
         return $existing;
     }
 
+    /**
+     * This organisation's employees by full name, for a list being staged
+     * (SameNameRoster). Read once, as three columns: a list is matched a
+     * chunk at a time and a query per row would read the same names again.
+     *
+     * Not part of resolve(). A name here only holds a row for review.
+     */
+    public function sameNameRoster(int $tenantId): SameNameRoster
+    {
+        $byName = [];
+
+        foreach ($this->employees($tenantId)->toBase()->get(['id', 'name', 'department_id']) as $row) {
+            $key = PersonName::normalised(is_string($row->name ?? null) ? $row->name : null);
+            if ($key !== '') {
+                $byName[$key][] = [
+                    'id' => (int) $row->id,
+                    'department_id' => $row->department_id === null ? null : (int) $row->department_id,
+                ];
+            }
+        }
+
+        return new SameNameRoster($byName);
+    }
+
+    /**
+     * The employees a SameNameRoster named, each as a shortlist entry whose
+     * reason is `same_full_name`, by employee number.
+     *
+     * @param  list<int>  $ids
+     * @return list<array{employee: Employee, candidate: array{employee_public_id: string, employee_name: string, score: float, reasons: array<int, string>}}>
+     */
+    public function sameNameCandidates(int $tenantId, array $ids): array
+    {
+        if ($ids === []) {
+            return [];
+        }
+
+        return $this->employees($tenantId)
+            ->whereIn('id', $ids)
+            ->orderBy('employee_code')
+            ->orderBy('id')
+            ->get()
+            ->map(fn (Employee $employee): array => [
+                'employee' => $employee,
+                'candidate' => $this->candidate($employee, self::WEIGHT_NAME_MAX, ['same_full_name']),
+            ])
+            ->values()
+            ->all();
+    }
+
     private function findMapping(int $tenantId, IdentitySignals $signals): ?EmployeeExternalIdentity
     {
         return EmployeeExternalIdentity::withoutGlobalScope('tenant')
@@ -327,82 +378,11 @@ final class IdentityResolver
 
         if ($identifiers !== []
             && array_diff($identifiers, $deviceNumbers) === []
-            && $this->namesShareNothing($employee, $signals->name)) {
+            && PersonName::shareNothing($signals->name, [$employee->name, $employee->name_am])) {
             $conflicts[] = 'name_differs';
         }
 
         return $conflicts;
-    }
-
-    /**
-     * The two names are written in the same script and have no word in common.
-     *
-     * Deliberately not a similarity score. A terminal holds "ABEBE", "Abebe K."
-     * or "Abebe 2" for Abebe Kebede Tesfaye, and each of those scores below any
-     * useful threshold while plainly being him; what marks a different person
-     * is that nothing overlaps at all. An Amharic name against a record that
-     * has only a Latin one cannot be compared, and is not called different.
-     */
-    private function namesShareNothing(Employee $employee, ?string $name): bool
-    {
-        $incoming = $this->nameWords($name);
-        if ($incoming === []) {
-            return false;
-        }
-
-        $compared = false;
-
-        foreach ([$employee->name, $employee->name_am] as $known) {
-            $words = $this->nameWords($known);
-            if ($words === [] || $this->isEthiopic($known) !== $this->isEthiopic($name)) {
-                continue;
-            }
-
-            $compared = true;
-
-            foreach ($incoming as $a) {
-                foreach ($words as $b) {
-                    if ($this->sameWord($a, $b)) {
-                        return false;
-                    }
-                }
-            }
-        }
-
-        return $compared;
-    }
-
-    /** @return list<string> */
-    private function nameWords(?string $name): array
-    {
-        if ($name === null) {
-            return [];
-        }
-
-        $words = preg_split('/[^\p{L}\p{M}]+/u', mb_strtolower($name), -1, PREG_SPLIT_NO_EMPTY);
-
-        return $words === false ? [] : $words;
-    }
-
-    private function isEthiopic(?string $text): bool
-    {
-        return $text !== null && preg_match('/\p{Ethiopic}/u', $text) === 1;
-    }
-
-    /** Equal, an initial or truncation of the other, or one transliteration apart. */
-    private function sameWord(string $a, string $b): bool
-    {
-        if ($a === $b || str_starts_with($a, $b) || str_starts_with($b, $a)) {
-            return true;
-        }
-
-        if (mb_strlen($a) < 4 || mb_strlen($b) < 4) {
-            return false;
-        }
-
-        similar_text($a, $b, $percent);
-
-        return $percent >= 80.0;
     }
 
     /**
@@ -588,13 +568,7 @@ final class IdentityResolver
 
     private function normalizeName(?string $name): string
     {
-        if ($name === null) {
-            return '';
-        }
-
-        $collapsed = preg_replace('/\s+/', ' ', trim($name)) ?? '';
-
-        return mb_strtolower($collapsed);
+        return PersonName::normalised($name);
     }
 
     private function ciEquals(?string $a, ?string $b): bool

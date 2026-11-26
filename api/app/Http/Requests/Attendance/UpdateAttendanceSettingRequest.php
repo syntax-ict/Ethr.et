@@ -44,6 +44,7 @@ class UpdateAttendanceSettingRequest extends FormRequest
             'geofence_auto_checkin_enabled' => ['sometimes', 'boolean'],
             'photo_retention_days' => ['sometimes', 'integer', 'min:1', 'max:90'],
             'risk_review_threshold' => ['sometimes', 'integer', 'min:10', 'max:100'],
+            'presence_checks_per_shift' => ['sometimes', 'integer', 'min:0', 'max:3'],
             'adaptive_selfie' => ['sometimes', 'boolean'],
             'liveness_check' => ['sometimes', 'boolean'],
             'device_binding' => ['sometimes', 'string', 'in:off,flag,enforce'],

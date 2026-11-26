@@ -2,28 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  Archive,
-  ClipboardCheck,
-  GitBranch,
-  SlidersHorizontal,
-  Clock,
-  Timer,
-  ListChecks,
-  Calendar,
-  Coins,
-  ShieldCheck,
-  KeyRound,
-  Webhook,
-  BookOpen,
-  Mail,
-  ScrollText,
-  UserCog,
-  Upload,
-} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/useT";
 import { usePermissions } from "@/lib/hooks/usePermissions";
+import { SETTINGS_GROUPS, settingsLandingFor } from "@/lib/navigation/registry";
 
 // The Settings hub's own sub-navigation. It replaces the two collapsible
 // "Settings" and "Integrations" groups that used to live in the main sidebar:
@@ -66,169 +48,35 @@ function resolveActiveHref(
 
 /**
  * The settings pages the caller may open, grouped, each on the ability its API
- * checks. Shared with the sidebar and command palette, which link to the first
- * one: they offered Settings to `settings.manage` alone, so an HR admin, who
- * holds Users, Leave Types, Holidays, Shift Rules and Attendance Rules, had no
- * way to reach any of them (audit N91).
+ * checks. The list is `SETTINGS_GROUPS` in the navigation registry, which the
+ * command palette searches too, so a page cannot be in one and not the other.
+ * Shared with the sidebar and command palette, which link to the first one:
+ * they offered Settings to `settings.manage` alone, so an HR admin, who holds
+ * Users, Leave Types, Holidays, Shift Rules and Attendance Rules, had no way to
+ * reach any of them (audit N91).
  */
 export function useSettingsNavGroups(): SettingsNavGroup[] {
   const { t } = useT();
-  const { can, isTenantAdmin, hasPermission } = usePermissions();
+  const { can, isSuperAdmin } = usePermissions();
+  const access = { can, isSuperAdmin };
 
-  const groups: SettingsNavGroup[] = [
-    {
-      title: t("settings.nav.workspace", "Workspace"),
-      items: [
-        {
-          label: t("nav.general", "General"),
-          href: "/settings",
-          icon: SlidersHorizontal,
-          show: can.manageSettings,
-        },
-      ],
-    },
-    {
-      title: t("settings.nav.configuration", "Configuration"),
-      items: [
-        {
-          label: t("nav.attendance_rules", "Attendance Rules"),
-          href: "/settings/attendance",
-          icon: Clock,
-          show: can.manageAttendance,
-        },
-        {
-          label: t("nav.shift_config", "Shift Rules"),
-          href: "/shifts",
-          icon: Timer,
-          show: can.manageShifts,
-        },
-        {
-          label: t("nav.leave_types", "Leave Types"),
-          href: "/settings/leave-types",
-          icon: ListChecks,
-          show: can.manageLeaveTypes,
-        },
-        {
-          label: t("nav.holidays", "Holidays"),
-          href: "/settings/holidays",
-          icon: Calendar,
-          show: can.manageHolidays,
-        },
-        {
-          label: t("nav.approval_chains", "Approval chains"),
-          href: "/settings/approval-chains",
-          icon: GitBranch,
-          show: can.manageSettings,
-        },
-        {
-          label: t("nav.exit_clearance_checklist", "Exit checklist"),
-          href: "/settings/exit-clearance",
-          icon: ClipboardCheck,
-          show: can.manageSettings,
-        },
-        {
-          label: t("nav.payroll_config", "Payroll Rules"),
-          href: "/settings/payroll",
-          icon: Coins,
-          show: isTenantAdmin,
-        },
-        {
-          label: t("nav.opening_balances", "Opening balances"),
-          href: "/settings/opening-balances",
-          icon: Upload,
-          show:
-            hasPermission("leave.adjustBalance") ||
-            hasPermission("payroll.manageLoan"),
-        },
-      ],
-    },
-    {
-      title: t("settings.nav.access", "Access & Security"),
-      items: [
-        {
-          label: t("nav.users", "Users & Access"),
-          href: "/settings/users",
-          icon: UserCog,
-          // users.viewAny, which HR admins hold too; the API guards which
-          // accounts each may change (N68).
-          show: can.viewUsers,
-        },
-        {
-          label: t("nav.roles", "Roles & Permissions"),
-          href: "/settings/roles",
-          icon: ShieldCheck,
-          show: can.manageSettings,
-        },
-      ],
-    },
-    {
-      title: t("nav.integrations", "Integrations"),
-      items: [
-        {
-          label: t("nav.api_keys", "API Keys"),
-          href: "/settings/api-keys",
-          icon: KeyRound,
-          show: can.manageApiKeys,
-        },
-        {
-          label: t("nav.webhooks", "Webhooks"),
-          href: "/settings/webhooks",
-          icon: Webhook,
-          show: can.manageWebhooks,
-        },
-        {
-          label: t("nav.accounting", "Accounting"),
-          href: "/settings/accounting",
-          icon: BookOpen,
-          show: can.viewPayrollRuns,
-        },
-        {
-          label: t("nav.notification_templates", "Notification Templates"),
-          href: "/settings/notification-templates",
-          icon: Mail,
-          show: can.manageSettings,
-        },
-        {
-          label: t("nav.scim", "SCIM Provisioning"),
-          href: "/settings/scim",
-          icon: UserCog,
-          show: can.manageSettings,
-        },
-      ],
-    },
-    {
-      title: t("settings.nav.compliance", "Compliance"),
-      items: [
-        {
-          label: t("nav.audit_log", "Audit Log"),
-          href: "/settings/audit-logs",
-          icon: ScrollText,
-          show: can.manageSettings,
-        },
-        {
-          label: t("nav.data_export", "Data export"),
-          href: "/settings/data-export",
-          icon: Archive,
-          show: can.manageSettings,
-        },
-      ],
-    },
-  ];
-
-  return groups
-    .map((g) => ({ ...g, items: g.items.filter((i) => i.show) }))
-    .filter((g) => g.items.length > 0);
+  return SETTINGS_GROUPS.map((group) => ({
+    title: t(group.titleKey, group.titleFallback),
+    items: group.items
+      .filter((item) => item.show(access))
+      .map((item) => ({
+        label: t(item.labelKey, item.labelFallback),
+        href: item.navHref ?? item.href,
+        icon: item.icon,
+        show: true,
+      })),
+  })).filter((g) => g.items.length > 0);
 }
 
 /** Where "Settings" should lead the caller, or null when nothing is theirs. */
 export function useSettingsLanding(): string | null {
-  const items = useSettingsNavGroups().flatMap((g) => g.items);
-  // A page inside the hub first: only /settings/* renders this navigation.
-  // Shift Rules leads to /shifts, outside it, so landing there would leave an
-  // HR admin with no way on to Leave Types, Holidays or Users (audit N98,
-  // when Attendance Rules was the page outside the hub).
-  const inHub = items.find((i) => i.href.startsWith("/settings"));
-  return (inHub ?? items[0])?.href ?? null;
+  const { can, isSuperAdmin } = usePermissions();
+  return settingsLandingFor({ can, isSuperAdmin });
 }
 
 export function SettingsNav() {

@@ -1,14 +1,25 @@
 # Data breach response
 
+| At a glance | |
+|---|---|
+| **Purpose** | Sets out what to do in the first hour, within 24 hours and within 72 hours when personal data may have been seen, changed, lost or taken. |
+| **Open it when** | Personal data in ETHR may have been seen, changed, lost or taken by someone who should not have it. |
+| **For** | Owner; platform operator on call |
+| **Organisation types** | Same for every kind as built. Whether the law treats a public body or an international organisation differently is not settled here and is a question for counsel. [`ORGANISATION-TYPES.md`](ORGANISATION-TYPES.md) |
+| **Source of truth** | Proclamation No. 1321/2024 as read for this product, which counsel has not confirmed, and the owner's adoption of the procedure; no code backs this procedure. |
+
 What to do when personal data in ETHR may have been seen, changed, lost or
 taken by someone who should not have it. Drafted 2026-10-17 for the owner to
 adopt. **The legal points below follow the Personal Data Protection
 Proclamation No. 1321/2024 as read for this product; have counsel confirm them
 before relying on them.**
 
-Related: [`ON-CALL.md`](ON-CALL.md) for outages, [`CUSTODY.md`](CUSTODY.md)
+Related: [`README.md`](README.md) for where to start on anything,
+[`ON-CALL.md`](ON-CALL.md) for outages, [`CUSTODY.md`](CUSTODY.md)
 for who holds which credential, [`IMPERSONATION.md`](IMPERSONATION.md) for the
-only sanctioned way to look inside an organisation.
+only sanctioned way to look inside an organisation, and
+[`PLATFORM-CONSOLE.md`](PLATFORM-CONSOLE.md) → *the platform audit trail*, which is where the
+scope of an incident is assessed.
 
 ## Who is responsible for what
 
@@ -88,10 +99,31 @@ what is known and follow up.
   been rehearsed on this host ([`ON-CALL.md`](ON-CALL.md), *Data is wrong or
   lost*).
 
+## Organisation types
+
+As built, this procedure is the same for every kind: the organisation is the controller of its
+employees' records and ETHR the processor, whatever kind it is. That reading does not settle
+whether a public body, a defence or police organisation, or an international organisation or
+diplomatic mission has different duties or a different authority to notify; see the last item
+under *Not yet in place*. [`ORGANISATION-TYPES.md`](ORGANISATION-TYPES.md) lists the kinds.
+
 ## Not yet in place
 
+*(Kept as one register so these are not rediscovered each time; also listed in
+[`README.md`](README.md), *What is waiting on the owner*.)*
+
+- **Adoption.** This procedure is still drafted rather than adopted, and the reading of
+  Proclamation 1321/2024 above has not been confirmed by counsel. Both are owner actions.
 - **ECA registration (Art. 33)** is an owner action, not yet done.
 - **A named contact** for breach reports: [`SECURITY.md`](../../SECURITY.md)
   deliberately publishes no address until one is monitored.
 - **Log retention** is 14 days, which can be short for an investigation that
-  starts late. Lengthening it costs disk space against the 5 GB plan.
+  starts late. *(Corrected 2026-11-13: this said lengthening it "costs disk space
+  against the 5 GB plan". The account is Linux Gold with 50 GB, 643 MB of it used
+  when it was read on 2026-11-02 — [`CUTOVER-CHECKLIST.md`](../deployment/CUTOVER-CHECKLIST.md)
+  §Quotas. Disk is no longer the reason to keep the window short, so the decision
+  is open on its merits.)*
+- **Kinds of organisation, a question for counsel.** Whether a public body, a defence or police
+  organisation, or an international organisation or diplomatic mission has different duties, or a
+  different authority to notify, than a private company. This procedure treats every kind alike
+  and asserts no rule either way.

@@ -13,9 +13,13 @@ return [
     'role_department' => 'የሥራ መደባቸው በ:department ክፍል :position ነው።',
     'role' => 'የሥራ መደባቸው :position ነው።',
     'salary' => 'መሠረታዊ ወርሃዊ ደመወዛቸው :amount ብር ነው።',
-    'purpose' => 'ይህ ደብዳቤ በጠያቂው ጥያቄ መሠረት ለ:purpose የተሰጠ ነው።',
+    'purpose' => 'ይህ ደብዳቤ በጠያቂው ጥያቄ መሠረት የተሰጠ ነው፤ ዓላማው፦ :purpose።',
     'signature' => 'የሰው ሀብት፣ :organisation',
     'issued_by' => 'የሰጡት :name',
+    'signature_line' => 'ፊርማ',
+    'stamp' => 'ማኅተም',
+    'issuer_position' => 'የሥራ መደብ',
+    'footer' => 'ቁጥር :reference፣ የተሰጠበት ቀን :date',
 
     // Notifications and refusals.
     'requested' => ':name የሥራ ማረጋገጫ ደብዳቤ ጠይቀዋል።',

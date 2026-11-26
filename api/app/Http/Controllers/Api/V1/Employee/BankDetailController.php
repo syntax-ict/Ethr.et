@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1\Employee;
 
+use App\Exceptions\ImpersonationRestricted;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Employee\StoreBankDetailRequest;
 use App\Http\Resources\BankDetailResource;
 use App\Models\AuditLog;
 use App\Models\Employee;
 use App\Models\EmployeeBankDetail;
+use App\Services\EmployeeRelatedRecords;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
@@ -24,19 +26,11 @@ class BankDetailController extends Controller
         );
     }
 
-    public function store(StoreBankDetailRequest $request, Employee $employee): JsonResponse
+    public function store(StoreBankDetailRequest $request, Employee $employee, EmployeeRelatedRecords $records): JsonResponse
     {
         $this->authorize('updateFinancial', $employee);
 
-        $data = $request->validated();
-
-        if (! empty($data['is_primary'])) {
-            $employee->bankDetails()->update(['is_primary' => false]);
-        }
-
-        $detail = $employee->bankDetails()->create($data);
-
-        AuditLog::record('employee.bank_detail.created', $employee);
+        $detail = $records->addBankDetail($employee, $request->validated());
 
         return (new BankDetailResource($detail))
             ->response()
@@ -46,6 +40,7 @@ class BankDetailController extends Controller
     public function update(StoreBankDetailRequest $request, Employee $employee, EmployeeBankDetail $bankDetail): BankDetailResource
     {
         $this->authorize('updateFinancial', $employee);
+        ImpersonationRestricted::unlessOrganisation('BankDetailController::update');
 
         $data = $request->validated();
 
@@ -53,7 +48,9 @@ class BankDetailController extends Controller
             $employee->bankDetails()->where('id', '!=', $bankDetail->id)->update(['is_primary' => false]);
         }
 
-        $bankDetail->update($data);
+        // A bank sent without a code is typed text: the code it had before
+        // belonged to the old name.
+        $bankDetail->update($data + ['bank_code' => null]);
 
         AuditLog::record('employee.bank_detail.updated', $employee);
 

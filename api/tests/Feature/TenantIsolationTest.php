@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Models\BackupDriveSetting;
 use App\Models\BackupStorageSetting;
 use App\Models\Lead;
 use App\Models\MarketingItem;
@@ -15,6 +16,7 @@ use App\Models\Plan;
 use App\Models\PlatformFeatureState;
 use App\Models\PlatformSetting;
 use App\Models\ProfileVersion;
+use App\Models\ReferenceItem;
 use App\Models\SmsGateway;
 use App\Models\SmsSend;
 use App\Models\SmsSetting;
@@ -40,6 +42,7 @@ const GLOBAL_MODELS = [
     Permission::class,           // global permission catalogue
     OrganizationTemplate::class, // global industry template catalogue
     OrganizationType::class,     // global catalogue of organisation types statutory rules are scoped by
+    ReferenceItem::class,        // global pick lists: regions, sub-cities, towns, banks; written by migration and seeder
     ProfileVersion::class,       // published batches of the law; labels platform statutory rows, no tenant data
     PersonalAccessToken::class,  // Sanctum's own table
     PlatformSetting::class,      // super-admin settings; every tenant reads the same row
@@ -51,6 +54,7 @@ const GLOBAL_MODELS = [
     SmsSend::class,              // accepted messages counted for the daily cap
     // The backup is of the whole platform, so its off-host storage is too.
     BackupStorageSetting::class, // off-host backup storage; one row, secret and key encrypted
+    BackupDriveSetting::class,   // Google Drive fallback for off-host backups; one row, secret, token and key encrypted
     // Unlike every other entry here, this one is not a catalogue tenants read.
     // A lead comes from a prospect, so there is no tenant to own the row and no
     // tenant that should ever see it: the missing tenant_id is an absent owner,

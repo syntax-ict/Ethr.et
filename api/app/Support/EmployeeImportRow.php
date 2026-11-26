@@ -5,11 +5,16 @@ declare(strict_types=1);
 namespace App\Support;
 
 use App\Enums\EmployeeStatus;
+use App\Enums\Gender;
+use App\Enums\MaritalStatus;
 use App\Enums\NationalityStatus;
+use App\Rules\Phone;
 use App\Services\Calendar\EthiopianCalendar;
 use App\Services\Identity\IdentitySignals;
+use App\Services\Migration\StagedChanges;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 /**
@@ -46,14 +51,51 @@ final class EmployeeImportRow
 {
     /** @var list<string> */
     public const COLUMNS = [
-        'name', 'name_am', 'employee_code', 'email', 'phone', 'gender', 'date_of_birth',
+        'name', 'name_am', 'employee_code', 'email', 'phone', 'sign_in', 'gender', 'date_of_birth',
         'hire_date', 'department_code', 'branch_code', 'position_code', 'salary', 'salary_cents',
         'national_id', 'tin', 'badge_number', 'nationality', 'nationality_status', 'marital_status',
         'status', 'external_id',
+        'grade', 'cost_center', 'probation_end_date', 'contract_type', 'contract_end_date',
+        'bank_name', 'bank_branch', 'bank_account',
+        'emergency_name', 'emergency_relationship', 'emergency_phone',
     ];
 
+    /**
+     * The columns that complete a new person's profile: a grade, a cost
+     * centre, a probation end, a contract, a bank account, an emergency
+     * contact. A staged list writes them for a person it creates. The file
+     * import on `/employees/import` stores none of them, and its preview says so.
+     *
+     * @var list<string>
+     */
+    public const PROFILE = [
+        'grade', 'cost_center', 'probation_end_date', 'contract_type', 'contract_end_date',
+        'bank_name', 'bank_branch', 'bank_account',
+        'emergency_name', 'emergency_relationship', 'emergency_phone',
+    ];
+
+    /**
+     * The column that says, person by person, who is invited to sign in when
+     * a staged list is added. It is kept on the staged row and read once the
+     * list is committed; it is never a field of a person, and the file import
+     * stores none of it.
+     */
+    public const SIGN_IN = 'sign_in';
+
+    /** What the column may say. Blank leaves it to the choice made on the screen. */
+    public const SIGN_IN_VALUES = ['yes', 'no'];
+
+    /**
+     * A name written in parts, as another system's export writes it. They are
+     * read only to build `name` (withName), never stored as fields of their own,
+     * and the template does not ask for them: it asks for `name`.
+     *
+     * @var list<string>
+     */
+    public const NAME_PARTS = ['first_name', 'father_name', 'grandfather_name'];
+
     /** The columns that hold a date, each of which may name its calendar: "Hire date (E.C.)". */
-    public const DATES = ['hire_date', 'date_of_birth'];
+    public const DATES = ['hire_date', 'date_of_birth', 'probation_end_date', 'contract_end_date'];
 
     /** A list with no column names is read in this order. Only the name is required. */
     public const DEFAULT_ORDER = ['name', 'email', 'phone', 'employee_code', 'hire_date', 'department_code'];
@@ -64,7 +106,10 @@ final class EmployeeImportRow
      * digits. The workbook template formats these as text, and a value that
      * arrives already rounded is refused, not stored (ROUNDED).
      */
-    public const TEXT_COLUMNS = ['employee_code', 'phone', 'national_id', 'tin', 'badge_number', 'external_id'];
+    public const TEXT_COLUMNS = ['employee_code', 'phone', 'national_id', 'tin', 'badge_number', 'external_id', 'bank_account', 'emergency_phone'];
+
+    /** Headers a file ETHR wrote carries and nothing reads: the `Problem` column of the lines to fix. */
+    private const IGNORED_HEADERS = ['problem'];
 
     /** A number a spreadsheet rounded and wrote in scientific notation: 1.23457E+15. */
     private const ROUNDED = '/^\d(\.\d+)?e\+?\d+$/i';
@@ -88,10 +133,13 @@ final class EmployeeImportRow
      * @var list<string>
      */
     public const MAPPABLE = [
-        'name', 'name_am', 'employee_code', 'email', 'phone', 'gender', 'date_of_birth',
+        'name', 'first_name', 'father_name', 'grandfather_name', 'name_am', 'employee_code', 'email', 'phone', 'sign_in', 'gender', 'date_of_birth',
         'hire_date', 'department_code', 'branch_code', 'position_code', 'salary',
         'national_id', 'tin', 'badge_number', 'nationality', 'nationality_status', 'marital_status',
         'status', 'external_id',
+        'grade', 'cost_center', 'probation_end_date', 'contract_type', 'contract_end_date',
+        'bank_name', 'bank_branch', 'bank_account',
+        'emergency_name', 'emergency_relationship', 'emergency_phone',
     ];
 
     /**
@@ -102,6 +150,15 @@ final class EmployeeImportRow
      * @var array<string, list<string>>
      */
     private const HINTS = [
+        'bank_account' => ['account', 'iban'],
+        'bank_name' => ['bank'],
+        'emergency_phone' => ['emergency_phone', 'emergency_mobile', 'emergency_tel'],
+        'emergency_relationship' => ['relationship', 'kin', 'relation'],
+        'emergency_name' => ['emergency', 'next_of_kin'],
+        'probation_end_date' => ['probation'],
+        'contract_end_date' => ['contract_end', 'contract_expiry'],
+        'contract_type' => ['contract'],
+        'grade' => ['grade', 'scale'],
         'external_id' => ['legacy', 'old_id', 'system_id', 'source_id', 'record_id', 'person_id'],
         'name_am' => ['amharic', 'አማርኛ'],
         'email' => ['mail'],
@@ -121,6 +178,12 @@ final class EmployeeImportRow
         'status' => ['status'],
         'name' => ['name', 'nm', 'ስም'],
         'employee_code' => ['code', 'number', 'no', 'id'],
+        // Last, so no header that already has a suggestion changes it:
+        // "Login email" is the email, "Role" the position. A login is often a
+        // username or a date, so they are not hints at all; these only suggest
+        // and are never read unasked. "መግቢያ" is an exact alias, not a hint: as
+        // a substring it would match a date column such as "የመግቢያ ቀን".
+        'sign_in' => ['invite', 'invitation', 'ግብዣ'],
     ];
 
     /**
@@ -130,10 +193,28 @@ final class EmployeeImportRow
      * @var list<string>
      */
     public const TEMPLATE = [
-        'name', 'name_am', 'employee_code', 'email', 'phone', 'gender', 'date_of_birth',
+        'name', 'name_am', 'employee_code', 'email', 'phone', 'sign_in', 'gender', 'date_of_birth',
         'hire_date', 'department', 'branch', 'position', 'salary',
         'national_id', 'tin', 'badge_number', 'nationality', 'nationality_status', 'marital_status',
         'status', 'external_id',
+        'grade', 'cost_center', 'probation_end_date', 'contract_type', 'contract_end_date',
+        'bank_name', 'bank_branch', 'bank_account',
+        'emergency_name', 'emergency_relationship', 'emergency_phone',
+    ];
+
+    /**
+     * How the template's columns are grouped, for a screen that lists them.
+     * Every TEMPLATE header is in exactly one group.
+     *
+     * @var array<string, list<string>>
+     */
+    public const GROUPS = [
+        'core' => ['name', 'employee_code', 'gender', 'hire_date', 'department', 'position', 'status'],
+        'person' => ['name_am', 'date_of_birth', 'marital_status', 'nationality', 'nationality_status', 'national_id'],
+        'contact' => ['email', 'phone', 'sign_in', 'emergency_name', 'emergency_relationship', 'emergency_phone'],
+        'job' => ['branch', 'badge_number', 'grade', 'cost_center', 'probation_end_date', 'contract_type', 'contract_end_date'],
+        'pay' => ['salary', 'tin', 'bank_name', 'bank_branch', 'bank_account'],
+        'source' => ['external_id'],
     ];
 
     /** Other spellings of a column, after key() has lower-cased it and joined its words with `_`. */
@@ -203,6 +284,69 @@ final class EmployeeImportRow
         'legacy_id' => 'external_id',
         'old_id' => 'external_id',
         'source_id' => 'external_id',
+        'job_grade' => 'grade',
+        'grade_name' => 'grade',
+        'cost_centre' => 'cost_center',
+        'costcenter' => 'cost_center',
+        'probation_end' => 'probation_end_date',
+        'probation_ends' => 'probation_end_date',
+        'contract' => 'contract_type',
+        'contract_expiry' => 'contract_end_date',
+        'contract_end' => 'contract_end_date',
+        'bank' => 'bank_name',
+        'bank_branch_name' => 'bank_branch',
+        'account_number' => 'bank_account',
+        'bank_account_number' => 'bank_account',
+        'emergency_contact' => 'emergency_name',
+        'emergency_contact_name' => 'emergency_name',
+        'emergency_contact_relationship' => 'emergency_relationship',
+        'emergency_contact_phone' => 'emergency_phone',
+    ];
+
+    /**
+     * Spellings of the name parts, after key(). Kept apart from ALIASES so the
+     * file import, which reads none of them, reads its headers as it always did.
+     * A bare "Name" and "ስም" are the full name and are not here.
+     */
+    private const PART_ALIASES = [
+        'given_name' => 'first_name',
+        'middle_name' => 'father_name',
+        'father_s_name' => 'father_name',
+        'የአባት_ስም' => 'father_name',
+        'last_name' => 'grandfather_name',
+        'surname' => 'grandfather_name',
+        'family_name' => 'grandfather_name',
+        'grandfather_s_name' => 'grandfather_name',
+        'የአያት_ስም' => 'grandfather_name',
+    ];
+
+    /**
+     * Other spellings of the sign-in column, after key(). Kept apart from
+     * ALIASES so the file import, which does not read it, reads its headers as
+     * it always did. A bare "Login" is not here: a legacy export's login is a
+     * username, and reading it as yes or no would refuse every line.
+     */
+    private const SIGN_IN_ALIASES = [
+        'signin' => 'sign_in',
+        'invite' => 'sign_in',
+        'invited' => 'sign_in',
+        'invitation' => 'sign_in',
+        'ግብዣ' => 'sign_in',
+        'መግቢያ' => 'sign_in',
+    ];
+
+    /**
+     * What a cell of the sign-in column may say, after key(): the English
+     * words, and the Amharic and Afaan Oromoo ones. Anything else is left as
+     * written and the rule refuses it.
+     */
+    private const SIGN_IN_WORDS = [
+        'yes' => 'yes', 'y' => 'yes', 'true' => 'yes', '1' => 'yes', 'invite' => 'yes',
+        'አዎ' => 'yes', 'አዎን' => 'yes',
+        'eeyyee' => 'yes', 'eeyyeen' => 'yes', 'eyyee' => 'yes',
+        'no' => 'no', 'n' => 'no', 'false' => 'no', '0' => 'no',
+        'አይ' => 'no', 'አይደለም' => 'no',
+        'lakki' => 'no', 'miti' => 'no',
     ];
 
     /** What a column name, or a date itself, may end with to say which calendar it is in. */
@@ -226,35 +370,99 @@ final class EmployeeImportRow
         'new' => 'hired',
     ];
 
+    /**
+     * What each column of the template is, in the template's order: the list a
+     * screen shows, a workbook is built from, and a new column is added to.
+     *
+     * @return list<array{key: string, column: string, group: 'core'|'person'|'contact'|'job'|'pay'|'source', kind: 'date'|'list'|'id'|'number'|'text', required: bool, pay: bool, masked: bool}>
+     */
+    public static function columnMeta(): array
+    {
+        $groupOf = [];
+        foreach (self::GROUPS as $group => $headers) {
+            foreach ($headers as $header) {
+                $groupOf[$header] = $group;
+            }
+        }
+
+        $lists = array_keys(EmployeeImportChoices::forTenant(null));
+
+        $meta = [];
+        foreach (self::TEMPLATE as $key) {
+            $column = self::header($key);
+            // A salary is staged as cents; the other columns keep their name.
+            $staged = $column === 'salary' ? 'salary_cents' : $column;
+
+            $kind = match (true) {
+                in_array($column, self::DATES, true) => 'date',
+                in_array($key, $lists, true) => 'list',
+                in_array($column, self::TEXT_COLUMNS, true) => 'id',
+                $column === 'salary' => 'number',
+                default => 'text',
+            };
+
+            $meta[] = [
+                'key' => $key,
+                'column' => $column,
+                'group' => $groupOf[$key],
+                'kind' => $kind,
+                'required' => $key === 'name',
+                'pay' => in_array($staged, StagedChanges::PAY, true),
+                'masked' => in_array($staged, StagedChanges::MASKED, true),
+            ];
+        }
+
+        return $meta;
+    }
+
     /** A header cell as the key it names: "Employee Code" and "employee-code" are `employee_code`. */
     public static function header(string $cell): string
     {
-        return self::column($cell)[0];
+        return self::column($cell, parts: false)[0];
+    }
+
+    /** Whether a list's column of this key is read: a column of a person, or a part of the name. */
+    public static function reads(string $key): bool
+    {
+        return in_array($key, self::COLUMNS, true) || in_array($key, self::NAME_PARTS, true);
     }
 
     /**
      * A header cell as the key it names, and the calendar it says its dates
      * are in, when it says: "Hire date (E.C.)" is `hire_date`, Ethiopian.
      *
+     * @param  bool  $parts  whether a name in parts ("First name") is read as such; the file import does not
      * @return array{0: string, 1: 'gregorian'|'ethiopian'|null}
      */
-    public static function column(string $cell): array
+    public static function column(string $cell, bool $parts = true): array
     {
         $key = self::key($cell);
+        $match = self::fold($key);
+        $partAliases = self::folded('parts');
+        $signInAliases = self::folded('sign_in');
+        $aliases = self::folded('aliases');
 
-        if (isset(self::ALIASES[$key]) || in_array($key, self::COLUMNS, true)) {
-            return [self::ALIASES[$key] ?? $key, null];
+        if ($parts && (isset($partAliases[$match]) || in_array($key, self::NAME_PARTS, true))) {
+            return [$partAliases[$match] ?? $key, null];
         }
 
-        foreach (self::CALENDAR_MARKS as $mark => $calendar) {
-            if (! str_ends_with($key, '_'.$mark)) {
+        if ($parts && isset($signInAliases[$match])) {
+            return [$signInAliases[$match], null];
+        }
+
+        if (isset($aliases[$match]) || in_array($key, self::COLUMNS, true)) {
+            return [$aliases[$match] ?? $key, null];
+        }
+
+        foreach (array_keys(self::folded('marks')) as $mark) {
+            if (! str_ends_with($match, '_'.$mark)) {
                 continue;
             }
 
-            $named = substr($key, 0, -strlen('_'.$mark));
-            $field = self::ALIASES[$named] ?? $named;
+            $named = substr($match, 0, -strlen('_'.$mark));
+            $field = $aliases[$named] ?? $named;
             if (in_array($field, self::DATES, true)) {
-                return [$field, $calendar];
+                return [$field, self::markOf($mark)];
             }
         }
 
@@ -265,6 +473,92 @@ final class EmployeeImportRow
     private static function key(string $value): string
     {
         return trim((string) preg_replace('/[^\p{L}\p{N}]+/u', '_', mb_strtolower(trim($value))), '_');
+    }
+
+    /** A column name as it is compared: key(), with Amharic letters that sound alike read as one (fold()). */
+    private static function matchKey(string $value): string
+    {
+        return self::fold(self::key($value));
+    }
+
+    /**
+     * Amharic writes several sounds with more than one letter, and a file may
+     * use either: "የሠራተኛ ቁጥር" and "የሰራተኛ ቁጥር" are the same column. Each
+     * of these families is read as one, in every vowel order: ሐ and ኀ as ሀ,
+     * ሠ as ሰ, ዐ as አ, ፀ as ጸ. The fourth order of ሀ and of አ stands for the
+     * first as often as not (ሃላፊ, ሀላፊ), so it is read as the first too.
+     * Only column names are compared this way; what a cell holds is kept as
+     * written.
+     */
+    private static function fold(string $key): string
+    {
+        return strtr($key, self::$foldMap ??= self::foldMap());
+    }
+
+    /** @var array<string, string>|null */
+    private static ?array $foldMap = null;
+
+    /** @var array<string, array<string, string>> */
+    private static array $folded = [];
+
+    /** @return array<string, string> */
+    private static function foldMap(): array
+    {
+        $map = [];
+        // The first letter of a family written either way, the first letter
+        // it is read as, and how many vowel orders the family has.
+        foreach ([[0x1210, 0x1200, 8], [0x1280, 0x1200, 8], [0x1220, 0x1230, 8], [0x12D0, 0x12A0, 7], [0x1340, 0x1338, 8]] as [$from, $to, $orders]) {
+            for ($order = 0; $order < $orders; $order++) {
+                $read = $order === 3 && ($to === 0x1200 || $to === 0x12A0) ? $to : $to + $order;
+                $map[(string) mb_chr($from + $order, 'UTF-8')] = (string) mb_chr($read, 'UTF-8');
+            }
+        }
+        $map[(string) mb_chr(0x1203, 'UTF-8')] = (string) mb_chr(0x1200, 'UTF-8');
+        $map[(string) mb_chr(0x12A3, 'UTF-8')] = (string) mb_chr(0x12A0, 'UTF-8');
+
+        return $map;
+    }
+
+    /**
+     * One of the spelling tables with its keys as matchKey() compares them.
+     * Two spellings that fold to one keep the first one's column.
+     *
+     * @param  'aliases'|'parts'|'sign_in'|'marks'  $table
+     * @return array<string, string>
+     */
+    private static function folded(string $table): array
+    {
+        if (isset(self::$folded[$table])) {
+            return self::$folded[$table];
+        }
+
+        $source = match ($table) {
+            'aliases' => self::ALIASES,
+            'parts' => self::PART_ALIASES,
+            'sign_in' => self::SIGN_IN_ALIASES,
+            'marks' => self::CALENDAR_MARKS,
+        };
+
+        $folded = [];
+        foreach ($source as $spelling => $column) {
+            $folded[self::fold($spelling)] ??= $column;
+        }
+
+        return self::$folded[$table] = $folded;
+    }
+
+    /**
+     * The calendar a folded mark names, or null for one that is not a mark.
+     *
+     * @return 'gregorian'|'ethiopian'|null
+     */
+    private static function markOf(string $mark): ?string
+    {
+        return match (self::folded('marks')[$mark] ?? null) {
+            'ethiopian' => 'ethiopian',
+            'gregorian' => 'gregorian',
+            default => null,
+        };
     }
 
     /**
@@ -289,7 +583,7 @@ final class EmployeeImportRow
      */
     public static function headerKey(string $cell): string
     {
-        return self::key($cell);
+        return self::matchKey($cell);
     }
 
     /**
@@ -300,11 +594,11 @@ final class EmployeeImportRow
      */
     public static function calendarMark(string $cell): ?string
     {
-        $key = self::key($cell);
+        $key = self::matchKey($cell);
 
-        foreach (self::CALENDAR_MARKS as $mark => $calendar) {
+        foreach (array_keys(self::folded('marks')) as $mark) {
             if (str_ends_with($key, '_'.$mark)) {
-                return $calendar;
+                return self::markOf($mark);
             }
         }
 
@@ -315,10 +609,13 @@ final class EmployeeImportRow
      * What a column ETHR does not know might be, from the words in its name.
      * Null when nothing in it is a hint. The reader decides; this only saves
      * them choosing the obvious ones.
+     *
+     * A name with no hint in it may still be a known word misspelled
+     * ("Departmnet", "Telephon"), and is suggested as that word's column.
      */
     public static function suggest(string $cell): ?string
     {
-        $key = self::key($cell);
+        $key = self::matchKey($cell);
         if ($key === '') {
             return null;
         }
@@ -326,6 +623,7 @@ final class EmployeeImportRow
         $words = explode('_', $key);
         foreach (self::HINTS as $column => $hints) {
             foreach ($hints as $hint) {
+                $hint = self::fold($hint);
                 // A short hint is a whole word ("no", "id", "nm"); a longer
                 // one may be part of one ("depart" in "department").
                 $found = mb_strlen($hint) <= 3 || str_contains($hint, '_')
@@ -337,7 +635,78 @@ final class EmployeeImportRow
             }
         }
 
-        return null;
+        return self::misspelled($words);
+    }
+
+    /**
+     * The column of the known word a word of a column name is closest to,
+     * when it is one or two letters out: one letter for a word of five to
+     * seven letters, two for a longer one. Words of Latin letters only, since
+     * the distance is counted in bytes, and shorter words are left alone:
+     * "tel" is one letter from "tin". The closest word wins; on a tie, the
+     * one listed first.
+     *
+     * @param  list<string>  $words
+     */
+    private static function misspelled(array $words): ?string
+    {
+        $best = null;
+        $closest = PHP_INT_MAX;
+        foreach ($words as $word) {
+            $length = strlen($word);
+            if ($length < 5 || preg_match('/^[a-z]+$/', $word) !== 1) {
+                continue;
+            }
+
+            $allowed = $length <= 7 ? 1 : 2;
+            foreach (self::knownWords() as [$known, $column]) {
+                if (abs(strlen($known) - $length) > $allowed) {
+                    continue;
+                }
+
+                $distance = levenshtein($word, $known);
+                if ($distance <= $allowed && $distance < $closest) {
+                    [$best, $closest] = [$column, $distance];
+                }
+            }
+        }
+
+        return $best;
+    }
+
+    /** @var list<array{0: string, 1: string}>|null */
+    private static ?array $knownWords = null;
+
+    /**
+     * Whole Latin words of five letters or more that name a column: the
+     * one-word spellings, then the columns. Not the hints: many are stems
+     * ("depart", "national") that a different word is one letter from.
+     *
+     * @return list<array{0: string, 1: string}>
+     */
+    private static function knownWords(): array
+    {
+        if (self::$knownWords !== null) {
+            return self::$knownWords;
+        }
+
+        $words = [];
+        $seen = [];
+        $add = function (string $word, string $column) use (&$words, &$seen): void {
+            if (strlen($word) >= 5 && preg_match('/^[a-z]+$/', $word) === 1 && ! isset($seen[$word])) {
+                $seen[$word] = true;
+                $words[] = [$word, $column];
+            }
+        };
+
+        foreach (self::ALIASES as $spelling => $column) {
+            $add($spelling, $column);
+        }
+        foreach (self::COLUMNS as $column) {
+            $add($column, $column);
+        }
+
+        return self::$knownWords = $words;
     }
 
     /**
@@ -352,12 +721,12 @@ final class EmployeeImportRow
             'name' => ['required', 'string', 'max:255'],
             'name_am' => ['nullable', 'string', 'max:255'],
             'email' => ['nullable', 'email', 'max:255'],
-            'phone' => ['nullable', 'string', 'max:20', 'regex:/^\+?[0-9 ()-]{6,20}$/'],
+            'phone' => ['nullable', 'string', 'max:20', Phone::any()],
             'employee_code' => ['nullable', 'string', 'max:30'],
             'national_id' => ['nullable', 'string', 'max:50'],
             'tin' => ['nullable', 'string', 'max:20'],
             'badge_number' => ['nullable', 'string', 'max:32', 'regex:/^[A-Za-z0-9-]+$/'],
-            'gender' => ['nullable', 'string', 'in:male,female'],
+            'gender' => ['nullable', 'string', 'in:'.implode(',', Gender::values())],
             'date_of_birth' => ['nullable', 'date', 'before:today'],
             'hire_date' => ['required', 'date'],
             'department_code' => ['nullable', 'string', 'max:255'],
@@ -367,13 +736,18 @@ final class EmployeeImportRow
             'salary_cents' => ['nullable', 'integer', 'min:0'],
             'nationality' => ['nullable', 'string', 'max:100'],
             'nationality_status' => ['nullable', 'string', 'in:'.implode(',', NationalityStatus::values())],
-            'marital_status' => ['nullable', 'string', 'in:single,married,divorced,widowed'],
+            'marital_status' => ['nullable', 'string', 'in:'.implode(',', MaritalStatus::values())],
             'status' => ['nullable', 'string', 'in:'.implode(',', self::STATUSES)],
             'external_id' => ['nullable', 'string', 'max:100'],
         ];
 
+        // Only the columns this method states: the file import's rules are
+        // frozen, and a rule added for a column it does not read would
+        // validate it alone.
         foreach (self::TEXT_COLUMNS as $column) {
-            $rules[$column][] = 'not_regex:'.self::ROUNDED;
+            if (isset($rules[$column])) {
+                $rules[$column][] = 'not_regex:'.self::ROUNDED;
+            }
         }
 
         $prefixed = [];
@@ -397,8 +771,41 @@ final class EmployeeImportRow
         $rules = self::rules($prefix);
         $rules[$prefix.'name'] = [$nameRequired ? 'required' : 'nullable', 'string', 'max:255'];
         $rules[$prefix.'hire_date'] = ['nullable', 'date'];
+        $rules[$prefix.self::SIGN_IN] = ['nullable', 'string', 'in:'.implode(',', self::SIGN_IN_VALUES)];
+
+        foreach (EmployeeImportProfile::rules($prefix) as $field => $fieldRules) {
+            if (in_array(substr($field, strlen($prefix)), self::TEXT_COLUMNS, true)) {
+                $fieldRules[] = 'not_regex:'.self::ROUNDED;
+            }
+            $rules[$field] = $fieldRules;
+        }
 
         return $rules;
+    }
+
+    /**
+     * The row with its name built from the parts of it, and the parts taken
+     * out. A row that has a name keeps it; one with a first name and no name
+     * gets the parts that are there, in order, one space apart.
+     *
+     * @param  array<string, mixed>  $row
+     * @return array<string, mixed>
+     */
+    public static function withName(array $row): array
+    {
+        $name = trim((string) ($row['name'] ?? ''));
+        if ($name === '' && trim((string) ($row['first_name'] ?? '')) !== '') {
+            $parts = [];
+            foreach (self::NAME_PARTS as $part) {
+                $value = trim((string) ($row[$part] ?? ''));
+                if ($value !== '') {
+                    $parts[] = $value;
+                }
+            }
+            $row['name'] = implode(' ', $parts);
+        }
+
+        return array_diff_key($row, array_flip(self::NAME_PARTS));
     }
 
     /**
@@ -452,12 +859,7 @@ final class EmployeeImportRow
         }
 
         if (is_string($row['gender'] ?? null)) {
-            $gender = mb_strtolower($row['gender']);
-            $row['gender'] = match ($gender) {
-                'm' => 'male',
-                'f' => 'female',
-                default => $gender,
-            };
+            $row['gender'] = Gender::fromInput($row['gender'])->value ?? mb_strtolower($row['gender']);
         }
 
         if (is_string($row['marital_status'] ?? null)) {
@@ -480,6 +882,17 @@ final class EmployeeImportRow
         if (is_string($row['status'] ?? null)) {
             $status = self::key($row['status']);
             $row['status'] = self::STATUS_ALIASES[$status] ?? $status;
+        }
+
+        // "Y", "Invite" and "አዎ" are `yes`; a word it does not know stays as
+        // written, so the rule refuses it.
+        if (is_string($row[self::SIGN_IN] ?? null)) {
+            $row[self::SIGN_IN] = self::SIGN_IN_WORDS[self::key($row[self::SIGN_IN])] ?? $row[self::SIGN_IN];
+        }
+
+        // "Fixed term" and "fixed-term" are `fixed_term`.
+        if (is_string($row['contract_type'] ?? null)) {
+            $row['contract_type'] = self::key($row['contract_type']);
         }
 
         foreach (self::DATES as $field) {
@@ -640,9 +1053,61 @@ final class EmployeeImportRow
      */
     public static function messages(array $row, array $rules): array
     {
-        return array_values(Validator::make($row, $rules, [
+        return array_column(self::problems($row, $rules), 'message');
+    }
+
+    /**
+     * The same, each with the template column it is about and a code: the
+     * failed rule as the validator names it, lower-cased (`date`, `in`,
+     * `required_with`). The messages and their order are messages()'s.
+     *
+     * @param  array<string, mixed>  $row
+     * @param  array<string, list<string>>  $rules
+     * @return list<array{column: string, code: string, message: string}>
+     */
+    public static function problems(array $row, array $rules): array
+    {
+        $validator = Validator::make($row, $rules, [
             'not_regex' => __('employee.import_excel_rounded'),
-        ])->errors()->all());
+        ]);
+
+        $messages = $validator->errors()->messages();
+        $failed = $validator->failed();
+        $found = [];
+
+        foreach ($messages as $attribute => $list) {
+            $names = array_keys($failed[$attribute] ?? []);
+            foreach (array_values($list) as $index => $message) {
+                $found[] = [
+                    'column' => self::templateColumn((string) $attribute),
+                    'code' => isset($names[$index]) ? Str::snake(class_basename((string) $names[$index])) : 'invalid',
+                    'message' => $message,
+                ];
+            }
+        }
+
+        return $found;
+    }
+
+    /** The column as the template spells it: `department_code` is `department`, `salary_cents` is `salary`. */
+    public static function templateColumn(string $key): string
+    {
+        return match ($key) {
+            'department_code' => 'department',
+            'branch_code' => 'branch',
+            'position_code' => 'position',
+            'salary_cents' => 'salary',
+            default => $key,
+        };
+    }
+
+    /**
+     * A column of a file ETHR itself wrote and the reader may have left in:
+     * what is in it changes nothing, and it is not reported as unread.
+     */
+    public static function isIgnoredHeader(string $cell): bool
+    {
+        return in_array(self::key($cell), self::IGNORED_HEADERS, true);
     }
 
     /**
@@ -667,25 +1132,17 @@ final class EmployeeImportRow
     {
         $written = $value;
 
-        if (preg_match('/^\d{5}$/', $value) === 1 && (int) $value >= self::SERIAL_DAYS[0] && (int) $value <= self::SERIAL_DAYS[1]) {
+        if (self::isSerialDay($value)) {
             return Carbon::create(1899, 12, 30)->addDays((int) $value)->toDateString();
         }
 
-        if (preg_match('/^(.*\d)\s*\(?([\p{L}.]+)\)?$/u', $value, $m) === 1) {
-            $named = self::CALENDAR_MARKS[self::key($m[2])] ?? null;
-            if ($named === null) {
-                return $written;
-            }
-            [$value, $calendar] = [trim($m[1]), $named];
-        }
-
-        if (preg_match('#^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$#', $value, $m) === 1) {
-            [$year, $month, $day] = [(int) $m[1], (int) $m[2], (int) $m[3]];
-        } elseif (preg_match('#^(\d{1,2})[/.](\d{1,2})[/.](\d{4})$#', $value, $m) === 1) {
-            [$day, $month, $year] = [(int) $m[1], (int) $m[2], (int) $m[3]];
-        } else {
+        $parts = self::dateParts($value);
+        if ($parts === null) {
             return $written;
         }
+
+        [$year, $month, $day, $named] = $parts;
+        $calendar = $named ?? $calendar;
 
         if ($calendar === 'ethiopian') {
             $ethiopian = app(EthiopianCalendar::class);
@@ -699,5 +1156,41 @@ final class EmployeeImportRow
         return checkdate($month, $day, $year)
             ? sprintf('%04d-%02d-%02d', $year, $month, $day)
             : $written;
+    }
+
+    /** A bare five-digit number in the range Excel keeps a date as (see date()). */
+    public static function isSerialDay(string $value): bool
+    {
+        return preg_match('/^\d{5}$/', $value) === 1 && (int) $value >= self::SERIAL_DAYS[0] && (int) $value <= self::SERIAL_DAYS[1];
+    }
+
+    /**
+     * A written date as its year, month and day, in the two orders date()
+     * reads, and the calendar the date names itself when it does ("2011-10-30
+     * E.C."). Null for anything else, a mark ETHR does not know included.
+     * Whether the day exists in a calendar is not checked here.
+     *
+     * @return array{0: int, 1: int, 2: int, 3: 'gregorian'|'ethiopian'|null}|null
+     */
+    public static function dateParts(string $value): ?array
+    {
+        $named = null;
+        if (preg_match('/^(.*\d)\s*\(?([\p{L}.]+)\)?$/u', $value, $m) === 1) {
+            $named = self::markOf(self::matchKey($m[2]));
+            if ($named === null) {
+                return null;
+            }
+            $value = trim($m[1]);
+        }
+
+        if (preg_match('#^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$#', $value, $m) === 1) {
+            return [(int) $m[1], (int) $m[2], (int) $m[3], $named];
+        }
+
+        if (preg_match('#^(\d{1,2})[/.](\d{1,2})[/.](\d{4})$#', $value, $m) === 1) {
+            return [(int) $m[3], (int) $m[2], (int) $m[1], $named];
+        }
+
+        return null;
     }
 }

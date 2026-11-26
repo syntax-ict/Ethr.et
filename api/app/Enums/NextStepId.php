@@ -55,6 +55,7 @@ enum NextStepId: string
     case CompleteProfile = 'complete_profile';
     case RecordsMissingEmergencyContact = 'records_missing_emergency_contact';
     case RecordsMissingPhone = 'records_missing_phone';
+    case RecordsCannotSignIn = 'records_cannot_sign_in';
     case UnmatchedBadges = 'unmatched_badges';
     case TeamAbsent = 'team_absent';
     case SetupDeviceLinked = 'setup_device_linked';
@@ -70,6 +71,7 @@ enum NextStepId: string
             self::RecordsMissingBank,
             self::RecordsMissingEmergencyContact,
             self::RecordsMissingPhone,
+            self::RecordsCannotSignIn,
             self::NationalityReview => NextStepGroup::Records,
             self::AttendanceBlockers,
             self::SetupWizard,
@@ -114,6 +116,7 @@ enum NextStepId: string
             self::CompleteProfile,
             self::RecordsMissingEmergencyContact,
             self::RecordsMissingPhone,
+            self::RecordsCannotSignIn,
             self::UnmatchedBadges,
             self::TeamAbsent,
             self::SetupDeviceLinked,

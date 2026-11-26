@@ -13,6 +13,9 @@
 // removes the copies v4 already kept. Later the same day, stored API answers
 // gained a one-week limit (API_MAX_AGE_MS); copies without a stamp count as
 // expired, so no version change was needed to retire them.
+// Also v5, from 2026-11-21, with no version change (that would empty the offline
+// shell on every phone): /_next/static copies are stamped, and the ones no
+// stored page names and nobody has used for 30 days are pruned (pruneStatic).
 const CACHE_VERSION = 'ethr-v5';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const API_CACHE = `${CACHE_VERSION}-api`;
@@ -45,6 +48,14 @@ const API_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const STORED_AT_HEADER = 'X-ETHR-Stored-At';
 const SWEEP_EVERY_MS = 60 * 60 * 1000;
 let lastSweep = 0;
+
+// Every release adds hashed chunks under /_next/static and nothing removed the
+// old ones, so a phone's storage grew with each release. A chunk is deleted only
+// when no stored page or page payload names it and it has gone unused this long.
+// A use older than a day is stamped again, so a chunk in use never looks idle.
+const ASSET_MAX_IDLE_MS = 30 * 24 * 60 * 60 * 1000;
+const ASSET_TOUCH_MS = 24 * 60 * 60 * 1000;
+const STATIC_ASSET_PATTERN = /\/_next\/static\/[^"'\s\\)]+/g;
 
 function neverCached(pathname) {
   if (OFFLINE_PAY_API.some(path => pathname === path)) return false;
@@ -82,7 +93,7 @@ self.addEventListener('activate', (event) => {
           .filter(k => k.startsWith('ethr-') && k !== STATIC_CACHE && k !== API_CACHE)
           .map(k => caches.delete(k))
       )
-    ).then(() => self.clients.claim())
+    ).then(() => pruneStatic().catch(() => {})).then(() => self.clients.claim())
   );
 });
 
@@ -114,7 +125,7 @@ self.addEventListener('fetch', (event) => {
 
   // Next.js _next/static: cache-first (immutable)
   if (url.pathname.startsWith('/_next/static/')) {
-    event.respondWith(cacheFirst(request, STATIC_CACHE));
+    event.respondWith(cacheFirst(request, STATIC_CACHE, event));
     return;
   }
 
@@ -180,9 +191,12 @@ async function storePage(cache, key, response) {
   if (!response.ok || response.redirected) return;
 
   const html = await response.clone().text();
-  const assets = [...new Set(html.match(/\/_next\/static\/[^"'\s\\)]+/g) || [])];
+  const assets = [...new Set(html.match(STATIC_ASSET_PATTERN) || [])];
   const stored = await Promise.allSettled(assets.map(async (asset) => {
-    if (!(await cache.match(asset))) await cache.add(asset);
+    if (await cache.match(asset)) return;
+    const fetched = await fetch(asset);
+    if (!fetched.ok) throw new Error('asset not stored: ' + asset);
+    await cache.put(asset, await stamped(fetched));
   }));
 
   if (stored.every(result => result.status === 'fulfilled')) {
@@ -219,6 +233,91 @@ async function refreshShellIfStale() {
   const cachedAt = stamp ? Number(await stamp.text()) : 0;
   if (Date.now() - cachedAt < SHELL_REFRESH_MS) return;
   await cacheShell();
+  // After the shell, so the pages just stored already name the chunks they use.
+  await pruneStatic();
+}
+
+// Deletes the /_next/static copies that no stored page names and nobody has
+// used for ASSET_MAX_IDLE_MS. A copy with no stamp was stored before stamps
+// existed, so its age is unknown and it may belong to the current release's
+// lazy chunks: it is stamped now and given the full period instead.
+async function pruneStatic() {
+  try {
+    const cache = await caches.open(STATIC_CACHE);
+    const requests = await cache.keys();
+    const isAsset = (request) => new URL(request.url).pathname.startsWith('/_next/static/');
+
+    // Every chunk a stored page or page payload still asks for.
+    const named = new Set();
+    for (const request of requests) {
+      const pathname = new URL(request.url).pathname;
+      if (isAsset(request) || pathname === SHELL_STAMP) continue;
+      const response = await cache.match(request);
+      if (!response) continue;
+      for (const asset of (await response.text()).match(STATIC_ASSET_PATTERN) || []) named.add(asset);
+    }
+
+    for (const request of requests) {
+      if (!isAsset(request)) continue;
+      const response = await cache.match(request);
+      if (!response) continue;
+      const storedAt = Number(response.headers.get(STORED_AT_HEADER));
+      if (!storedAt) {
+        await cache.put(request, await stamped(response));
+      } else if (!named.has(new URL(request.url).pathname) && Date.now() - storedAt > ASSET_MAX_IDLE_MS) {
+        await cache.delete(request);
+      }
+    }
+  } catch {
+    // Cache Storage refused; the next refresh tries again.
+  }
+}
+
+// ── Keep what a first visit had already loaded ────────────────────────────────
+// On a first visit the page's files arrive before this worker controls it, so
+// the fetch handler above never sees them. The shell pages name most of them
+// and cacheShell stores those. A file loaded on demand is named nowhere the
+// worker reads: the Afaan Oromoo dictionary is a chunk of its own (English is
+// the built-in text and Amharic is inlined), so on a first visit in that
+// language the offline page came up in English until the app had been opened
+// a second time (measured on production, 2026-11-24). The page now sends the
+// list once this worker takes control (useServiceWorker), and whatever is
+// missing is fetched again, from the browser's own cache as a rule.
+//
+// Only this origin's /_next/static files are accepted, the same ones the fetch
+// handler keeps, so a page cannot make the worker store anything else.
+const KEEP_ASSETS_MAX = 200;
+
+self.addEventListener('message', (event) => {
+  const data = event.data;
+  if (!data || data.type !== 'KEEP_ASSETS' || !Array.isArray(data.urls)) return;
+  event.waitUntil(keepAssets(data.urls).catch(() => {}));
+});
+
+async function keepAssets(urls) {
+  const origin = self.location.origin;
+  const paths = new Set();
+  for (const value of urls) {
+    if (typeof value !== 'string') continue;
+    let url;
+    try {
+      url = new URL(value, origin);
+    } catch {
+      continue;
+    }
+    if (url.origin !== origin || !url.pathname.startsWith('/_next/static/')) continue;
+    paths.add(url.pathname);
+    if (paths.size >= KEEP_ASSETS_MAX) break;
+  }
+  if (paths.size === 0) return;
+
+  const cache = await caches.open(STATIC_CACHE);
+  await Promise.allSettled([...paths].map(async (path) => {
+    if (await cache.match(path)) return;
+    const fetched = await fetch(path);
+    if (!fetched.ok) return;
+    await cache.put(path, await stamped(fetched));
+  }));
 }
 
 // ── Background Sync: flush offline attendance queue ───────────────────────────
@@ -297,6 +396,132 @@ async function xsrfToken() {
   }
 }
 
+// The two limits below must equal SYNC_BATCH_RECORDS and SYNC_BATCH_CHARS in
+// src/src/lib/offline-batch.ts, which the app uses for the same queue. A worker
+// cannot import it; src/src/test/offline-batch.test.ts reads this file and
+// fails if they differ. The request allows 100 records and the host refuses a
+// body over 8 MB, and a selfie is about 2 MB as text.
+const SYNC_BATCH_RECORDS = 20;
+const SYNC_BATCH_CHARS = 4000000;
+
+// One punch as the sync endpoint takes it (mirrors toSyncPayload).
+function syncPayload(r, clientTime) {
+  return {
+    employee_public_id: r.employee_public_id,
+    type: r.type,
+    timestamp: r.captured_at,
+    idempotency_key: r.idempotency_key,
+    offline_token: r.offline_token,
+    latitude: r.latitude,
+    longitude: r.longitude,
+    accuracy: r.accuracy ?? null,
+    photo: r.photo ?? null,
+    altitude: r.altitude,
+    speed: r.speed,
+    heading: r.heading,
+    fix_age_ms: r.fix_age_ms,
+    device_id: r.device_id,
+    webdriver: r.webdriver,
+    liveness: r.liveness ?? null,
+    device_proof: r.device_proof ?? null,
+    // When the batch is sent, so the server can see the phone's clock.
+    client_time: clientTime,
+  };
+}
+
+// In order: a check-in must reach the server before its check-out. A record
+// larger than the budget goes alone (mirrors splitIntoBatches).
+function splitBatches(records) {
+  const clock = new Date().toISOString();
+  const batches = [];
+  let current = [];
+  let chars = 0;
+  for (const r of records) {
+    const size = JSON.stringify(syncPayload(r, clock)).length;
+    if (current.length > 0 && (current.length >= SYNC_BATCH_RECORDS || chars + size > SYNC_BATCH_CHARS)) {
+      batches.push(current);
+      current = [];
+      chars = 0;
+    }
+    current.push(r);
+    chars += size;
+  }
+  if (current.length > 0) batches.push(current);
+  return batches;
+}
+
+// Sends one batch. Returns how many punches the server took, or throws to end
+// the run (the browser then retries the whole sync later).
+async function sendBatch(db, headers, batch) {
+  const clock = new Date().toISOString();
+  let response;
+  try {
+    response = await fetch('/api/v1/attendance/sync', {
+      method: 'POST',
+      credentials: 'include',
+      headers,
+      body: JSON.stringify({ records: batch.map((r) => syncPayload(r, clock)) }),
+    });
+  } catch (e) {
+    // No answer at all: keep them, and let the browser retry.
+    await markBatchError(db, batch, 'Network error');
+    throw e;
+  }
+
+  if (response.status === 413 || response.status === 422) {
+    // Too large or not valid as a group: one at a time finds the one at fault.
+    if (batch.length > 1) {
+      let sent = 0;
+      for (const r of batch) sent += await sendBatch(db, headers, [r]);
+      return sent;
+    }
+    // Alone and still refused: it can never be sent.
+    if (batch[0].id) {
+      await updatePunch(db, batch[0].id, { synced: 2, sync_error: null, refused_locally: true, photo: null });
+    }
+    return 0;
+  }
+
+  // Signed out, expired token, rate limited, server down: leave the queue for
+  // the app. A server fault throws so the browser retries this sync later.
+  if (!response.ok) {
+    await markBatchError(db, batch, 'sync failed: ' + response.status);
+    if (response.status >= 500) throw new Error('sync failed: ' + response.status);
+    throw new StopSync();
+  }
+
+  const data = await response.json();
+  let sent = 0;
+  for (const result of data.results || []) {
+    const record = batch.find((r) => r.idempotency_key === result.idempotency_key);
+    if (!record || !record.id) continue;
+    if (result.status === 'created' || result.status === 'duplicate') {
+      await updatePunch(db, record.id, { synced: 1, sync_error: null });
+      sent++;
+    } else if (result.final === true) {
+      // Will never be accepted: out of the waiting list, shown to the person.
+      await updatePunch(db, record.id, {
+        synced: 2,
+        sync_error: result.detail || null,
+        refused_locally: !result.detail,
+        photo: null,
+      });
+    } else {
+      await updatePunch(db, record.id, { sync_error: result.detail || 'Sync failed' });
+    }
+  }
+  return sent;
+}
+
+async function markBatchError(db, batch, message) {
+  for (const r of batch) {
+    if (r.id) await updatePunch(db, r.id, { sync_error: message });
+  }
+}
+
+// Ends a run quietly, without making the browser retry.
+class StopSync extends Error {}
+
 async function flushQueue() {
   const db = await openQueue();
   const pending = await pendingPunches(db);
@@ -305,7 +530,10 @@ async function flushQueue() {
   const token = await xsrfToken();
   if (!token) return; // the app sends them when next opened
 
-  // One request per tenant header, as the app would have sent each.
+  // One request group per tenant header, as the app would have sent each. The
+  // worker cannot know who is signed in, so it sends every person's punches;
+  // the server answers a punch that is not the caller's own as not final, and
+  // it stays for its owner.
   const groups = new Map();
   for (const r of pending) {
     const key = r.tenant || '';
@@ -313,66 +541,28 @@ async function flushQueue() {
     groups.get(key).push(r);
   }
 
-  for (const [tenant, records] of groups) {
-    const headers = {
-      Accept: 'application/json',
-      'Content-Type': 'application/json',
-      'X-Requested-With': 'XMLHttpRequest',
-      'X-XSRF-TOKEN': token,
-    };
-    if (tenant) headers['X-Tenant'] = tenant;
+  let sentCount = 0;
+  try {
+    for (const [tenant, records] of groups) {
+      const headers = {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-XSRF-TOKEN': token,
+      };
+      if (tenant) headers['X-Tenant'] = tenant;
 
-    const response = await fetch('/api/v1/attendance/sync', {
-      method: 'POST',
-      credentials: 'include',
-      headers,
-      body: JSON.stringify({
-        records: records.map((r) => ({
-          employee_public_id: r.employee_public_id,
-          type: r.type,
-          timestamp: r.captured_at,
-          idempotency_key: r.idempotency_key,
-          offline_token: r.offline_token,
-          latitude: r.latitude,
-          longitude: r.longitude,
-          accuracy: r.accuracy ?? null,
-          photo: r.photo ?? null,
-          altitude: r.altitude,
-          speed: r.speed,
-          heading: r.heading,
-          fix_age_ms: r.fix_age_ms,
-          device_id: r.device_id,
-          webdriver: r.webdriver,
-          liveness: r.liveness ?? null,
-          device_proof: r.device_proof ?? null,
-          // When the batch is sent, so the server can see the phone's clock.
-          client_time: new Date().toISOString(),
-        })),
-      }),
-    });
-
-    // Signed out, expired token, server down: leave the queue for the app.
-    // Throwing tells the browser to retry this sync later.
-    if (!response.ok) {
-      if (response.status >= 500) throw new Error('sync failed: ' + response.status);
-      return;
-    }
-
-    const data = await response.json();
-    for (const result of data.results || []) {
-      const record = records.find((r) => r.idempotency_key === result.idempotency_key);
-      if (!record || !record.id) continue;
-      if (result.status === 'created' || result.status === 'duplicate') {
-        await updatePunch(db, record.id, { synced: 1, sync_error: null });
-      } else {
-        await updatePunch(db, record.id, { sync_error: result.detail || 'Sync failed' });
+      for (const batch of splitBatches(records)) {
+        sentCount += await sendBatch(db, headers, batch);
       }
     }
+  } catch (e) {
+    if (!(e instanceof StopSync)) throw e;
   }
 
   // Only with permission already given: showNotification rejects without it,
   // and a rejection here would make the browser retry a sync that worked.
-  if (self.Notification && self.Notification.permission === 'granted') {
+  if (sentCount > 0 && self.Notification && self.Notification.permission === 'granted') {
     const amharic = pending.some((r) => r.locale === 'am');
     try {
       await self.registration.showNotification('ETHR', {
@@ -401,15 +591,36 @@ self.addEventListener('push', (event) => {
     payload = { title: 'ETHR', body: event.data.text() };
   }
 
+  const tag = payload.tag ?? 'ethr-notification';
+
+  // Open windows are told a push arrived, so a page that is already in view
+  // reads what it shows again (a presence check) instead of waiting for its
+  // next refresh. A failure to tell them never stops the notification.
+  const tellWindows = Promise.resolve()
+    .then(() => self.clients.matchAll({ type: 'window', includeUncontrolled: true }))
+    .then((windows) =>
+      windows.forEach((client) => {
+        try {
+          client.postMessage({ type: 'ethr-push', tag });
+        } catch {
+          // One window that cannot be told does not stop the others.
+        }
+      })
+    )
+    .catch(() => {});
+
   event.waitUntil(
-    self.registration.showNotification(payload.title ?? 'ETHR', {
-      body: payload.body ?? '',
-      icon: '/app-icons/icon-192.png',
-      badge: '/app-icons/badge-72.png',
-      tag: payload.tag ?? 'ethr-notification',
-      data: payload.data ?? {},
-      requireInteraction: payload.requireInteraction ?? false,
-    })
+    Promise.all([
+      self.registration.showNotification(payload.title ?? 'ETHR', {
+        body: payload.body ?? '',
+        icon: '/app-icons/icon-192.png',
+        badge: '/app-icons/badge-72.png',
+        tag,
+        data: payload.data ?? {},
+        requireInteraction: payload.requireInteraction ?? false,
+      }),
+      tellWindows,
+    ])
   );
 });
 
@@ -481,11 +692,29 @@ async function sweepExpired(cache) {
   }
 }
 
-async function cacheFirst(request, cacheName) {
+async function cacheFirst(request, cacheName, event) {
   const cached = await caches.match(request);
-  if (cached) return cached;
+  if (cached) {
+    // The copy is served as it is; recording the use happens beside it and
+    // never delays or breaks the answer.
+    const touch = touchAsset(request, cacheName, cached.clone()).catch(() => {});
+    if (event && event.waitUntil) event.waitUntil(touch);
+    return cached;
+  }
   const cache = await caches.open(cacheName);
   const response = await fetch(request);
-  if (response.ok) cache.put(request, response.clone());
+  if (response.ok) {
+    // Stamped beside the answer, so the first load does not wait for the copy.
+    const keep = stamped(response.clone()).then(copy => cache.put(request, copy)).catch(() => {});
+    if (event && event.waitUntil) event.waitUntil(keep);
+  }
   return response;
+}
+
+// Stamps a copy again when its stamp is more than a day old, or missing.
+async function touchAsset(request, cacheName, cached) {
+  const storedAt = Number(cached.headers.get(STORED_AT_HEADER));
+  if (storedAt && Date.now() - storedAt < ASSET_TOUCH_MS) return;
+  const cache = await caches.open(cacheName);
+  await cache.put(request, await stamped(cached));
 }

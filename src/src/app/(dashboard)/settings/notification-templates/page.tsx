@@ -27,34 +27,36 @@ import {
 } from "@/features/settings/api";
 import { toast } from "sonner";
 import { fieldErrors, toastError, type FieldErrors } from "@/lib/errors";
+import { useSaveStatus } from "@/components/shared/save-status";
+import { useUnsavedChangesWarning } from "@/lib/hooks/useUnsavedChangesWarning";
 import { useT } from "@/lib/i18n/useT";
+import { useNotificationTypeLabel } from "@/lib/options/notification-type";
 
-type TemplateField = "subject_en" | "subject_am" | "body_en" | "body_am";
+type TemplateField =
+  | "subject_en"
+  | "subject_am"
+  | "subject_om"
+  | "body_en"
+  | "body_am"
+  | "body_om";
 
 /**
- * Template type → label. Five reuse the notification-preference labels.
+ * Template type → label. A key that is also a notification type reads the one
+ * list of those labels; `missing_punch` and `trial_expiring` are templates
+ * only, so they keep their own.
  */
 function useTypeLabel() {
   const { t } = useT();
+  const typeLabel = useNotificationTypeLabel();
 
   return (type: NotificationTemplate["type"]): string => {
     switch (type) {
-      case "leave_requested":
-        return t("notification_prefs_page.type_leave_requested");
-      case "leave_approved":
-        return t("notification_prefs_page.type_leave_approved");
-      case "leave_rejected":
-        return t("notification_prefs_page.type_leave_rejected");
-      case "leave_changed":
-        return t("notification_prefs_page.type_leave_changed");
-      case "payslip_available":
-        return t("notification_prefs_page.type_payslip_available");
       case "missing_punch":
         return t("settings.template_type_missing_punch", "Missing punch");
       case "trial_expiring":
         return t("settings.template_type_trial_expiring", "Trial expiring");
       default:
-        return type;
+        return typeLabel(type);
     }
   };
 }
@@ -80,21 +82,35 @@ export default function NotificationTemplatesPage() {
   const [form, setForm] = useState<Record<TemplateField, string>>({
     subject_en: "",
     subject_am: "",
+    subject_om: "",
     body_en: "",
     body_am: "",
+    body_om: "",
   });
   const [errors, setErrors] = useState<FieldErrors>({});
 
   const templatesQuery = useNotificationTemplates();
   const update = useUpdateNotificationTemplate();
   const typeLabel = useTypeLabel();
+  const { announceSaved, announceError } = useSaveStatus();
+
+  // The dialog is the form: dirty when a field differs from the template it
+  // was opened on. Saving or cancelling closes it, which clears the warning.
+  useUnsavedChangesWarning(
+    editing !== null &&
+      (Object.keys(form) as TemplateField[]).some(
+        (field) => form[field] !== editing[field],
+      ),
+  );
 
   function openEdit(template: NotificationTemplate) {
     setForm({
       subject_en: template.subject_en,
       subject_am: template.subject_am,
+      subject_om: template.subject_om,
       body_en: template.body_en,
       body_am: template.body_am,
+      body_om: template.body_om,
     });
     setErrors({});
     setEditing(template);
@@ -112,11 +128,19 @@ export default function NotificationTemplatesPage() {
         onSuccess: () => {
           setEditing(null);
           toast.success(t("settings.template_updated", "Template updated"));
+          announceSaved(t("settings.template_updated", "Template updated"));
         },
         onError: (err) => {
           // An unknown {placeholder} comes back as a 422 on the field that
           // carries it; show it there rather than in a toast that vanishes.
           setErrors(fieldErrors(err));
+          announceError(
+            err,
+            t(
+              "settings.template_update_failed",
+              "The template could not be saved.",
+            ),
+          );
           toastError(
             err,
             t(
@@ -130,7 +154,7 @@ export default function NotificationTemplatesPage() {
     );
   }
 
-  /** Label, input and server error for one of the four fields. */
+  /** Label, input and server error for one of the six fields. */
   function field(name: TemplateField, label: string, multiline: boolean) {
     const id = `template-${name.replace("_", "-")}`;
     const error = errors[name];
@@ -230,9 +254,9 @@ export default function NotificationTemplatesPage() {
                           Amharic reader saw the English subject even when an
                           Amharic one was set. */}
                       <p className="mt-1 text-sm text-muted-foreground truncate">
-                        {locale === "am" && template.subject_am
-                          ? template.subject_am
-                          : template.subject_en}
+                        {(locale === "am" && template.subject_am) ||
+                          (locale === "om" && template.subject_om) ||
+                          template.subject_en}
                       </p>
                       {template.variables.length > 0 && (
                         <div className="mt-2">
@@ -259,7 +283,7 @@ export default function NotificationTemplatesPage() {
         </QueryBoundary>
 
         <Dialog open={!!editing} onOpenChange={() => setEditing(null)}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
                 {t("common.edit")}: {editing ? typeLabel(editing.type) : ""}
@@ -286,6 +310,11 @@ export default function NotificationTemplatesPage() {
                   t("settings.template_subject_am", "Subject (Amharic)"),
                   false,
                 )}
+                {field(
+                  "subject_om",
+                  t("settings.template_subject_om", "Subject (Afaan Oromoo)"),
+                  false,
+                )}
               </div>
               {field(
                 "body_en",
@@ -295,6 +324,11 @@ export default function NotificationTemplatesPage() {
               {field(
                 "body_am",
                 t("settings.template_body_am", "Body (Amharic)"),
+                true,
+              )}
+              {field(
+                "body_om",
+                t("settings.template_body_om", "Body (Afaan Oromoo)"),
                 true,
               )}
               <p className="text-xs text-muted-foreground">

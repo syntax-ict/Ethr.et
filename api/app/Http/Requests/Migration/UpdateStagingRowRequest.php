@@ -25,6 +25,7 @@ class UpdateStagingRowRequest extends FormRequest
                 MigrationStagingRow::ACTION_CREATE,
                 MigrationStagingRow::ACTION_SKIP,
                 MigrationStagingRow::ACTION_DEFER,
+                MigrationStagingRow::ACTION_RESTORE,
             ])],
             // Lets a reviewer pick which candidate an "ambiguous" row merges
             // with — resolved tenant-scoped in the controller, same as every
@@ -32,7 +33,7 @@ class UpdateStagingRowRequest extends FormRequest
             // raw validation rule does not itself see the tenant scope).
             'employee_public_id' => ['nullable', 'string', 'exists:employees,public_id'],
             'accept' => ['sometimes', 'array'],
-            'accept.*' => ['string', 'distinct', Rule::in(array_keys(StagedChanges::FIELDS))],
+            'accept.*' => ['string', 'distinct', Rule::in(StagedChanges::acceptable())],
         ];
     }
 }

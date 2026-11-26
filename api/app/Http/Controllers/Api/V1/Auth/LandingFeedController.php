@@ -11,12 +11,12 @@ use App\Models\Branch;
 use App\Models\Holiday;
 use App\Models\Vacancy;
 use App\Services\CurrentTenant;
+use App\Support\PlainExcerpt;
+use App\Support\Story;
 use App\Support\TenantLanding;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Str;
 
 /**
  * The public side of an organisation's sign-in page (ethr.et/{slug}): what it
@@ -42,11 +42,9 @@ class LandingFeedController extends Controller
 
     private const BRANCHES = 12;
 
-    private const NEWS_PER_PAGE = 9;
-
     private const RELATED = 3;
 
-    // The feed and the news list are cached briefly in the browser: the
+    // The feed, the news list and an article are cached briefly in the browser: the
     // portal is read far more often than news is published. Private, because
     // the stateful API can set cookies on these responses and a shared cache
     // must not keep those; Vary still separates one tenant's feed from
@@ -85,10 +83,10 @@ class LandingFeedController extends Controller
             : null;
 
         $announcements = $sections['announcements']
-            ? self::newsOrder(Announcement::query()->publiclyListed())
+            ? Announcement::query()->publiclyListed()->newsOrder()
                 ->limit(self::ANNOUNCEMENTS)
                 ->get()
-                ->map(fn (Announcement $a): array => self::newsSummary($a, (string) $currentTenant->publicId()))
+                ->map(fn (Announcement $a): array => Story::summary($a, (string) $currentTenant->publicId()))
                 ->all()
             : [];
 
@@ -139,7 +137,7 @@ class LandingFeedController extends Controller
     public function news(LandingNewsRequest $request, CurrentTenant $currentTenant): JsonResponse
     {
         $tenant = $currentTenant->get();
-        if ($tenant === null || ! TenantLanding::publicSections($tenant)['announcements']) {
+        if ($tenant === null || ! TenantLanding::showsNews($tenant)) {
             throw (new ModelNotFoundException)->setModel(Announcement::class);
         }
 
@@ -166,10 +164,10 @@ class LandingFeedController extends Controller
             ->pluck('category')
             ->all();
 
-        $page = self::newsOrder($query)->paginate(self::NEWS_PER_PAGE);
+        $page = $query->newsOrder()->paginate(Announcement::NEWS_PER_PAGE);
 
         return response()->json([
-            'data' => collect($page->items())->map(fn (Announcement $a): array => self::newsSummary($a, (string) $currentTenant->publicId()))->all(),
+            'data' => collect($page->items())->map(fn (Announcement $a): array => Story::summary($a, (string) $currentTenant->publicId()))->all(),
             'meta' => [
                 'current_page' => $page->currentPage(),
                 'last_page' => $page->lastPage(),
@@ -190,7 +188,7 @@ class LandingFeedController extends Controller
     public function announcement(CurrentTenant $currentTenant, string $announcement): JsonResponse
     {
         $tenant = $currentTenant->get();
-        $model = $tenant === null || ! TenantLanding::publicSections($tenant)['announcements']
+        $model = $tenant === null || ! TenantLanding::showsNews($tenant)
             ? null
             : Announcement::query()
                 ->publiclyListed()
@@ -201,58 +199,23 @@ class LandingFeedController extends Controller
             throw (new ModelNotFoundException)->setModel(Announcement::class, [$announcement]);
         }
 
-        $related = self::newsOrder(
-            Announcement::query()
-                ->publiclyListed()
-                ->whereKeyNot($model->getKey())
-                ->when(
-                    $model->category !== null,
-                    fn ($q) => $q->orderByRaw('CASE WHEN category = ? THEN 0 ELSE 1 END', [$model->category]),
-                ),
-        )
+        $related = Announcement::query()
+            ->publiclyListed()
+            ->whereKeyNot($model->getKey())
+            ->when(
+                $model->category !== null,
+                fn ($q) => $q->orderByRaw('CASE WHEN category = ? THEN 0 ELSE 1 END', [$model->category]),
+            )
+            ->newsOrder()
             ->limit(self::RELATED)
             ->get()
-            ->map(fn (Announcement $a): array => self::newsSummary($a, (string) $currentTenant->publicId()))
+            ->map(fn (Announcement $a): array => Story::summary($a, (string) $currentTenant->publicId()))
             ->all();
 
         return response()->json([
-            ...self::newsSummary($model, $tenant->public_id),
-            'body' => self::excerpt($model->body, 10000),
-            'attachments' => $model->attachmentsPresented($tenant->public_id),
+            ...Story::article($model, $tenant->public_id),
             'related' => $related,
-        ]);
-    }
-
-    /**
-     * Featured first, then urgent and important, then newest.
-     *
-     * @param  Builder<Announcement>  $query
-     * @return Builder<Announcement>
-     */
-    private static function newsOrder(Builder $query): Builder
-    {
-        return $query
-            ->orderByDesc('featured')
-            ->orderByRaw("CASE priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 ELSE 3 END")
-            ->orderByDesc('published_at')
-            ->orderByDesc('id');
-    }
-
-    /**
-     * @return array{public_id: string, title: string, excerpt: string, category: string|null, featured: bool, priority: string, published_at: string|null, cover: array{url: string, srcset: string, width: int, height: int}|null}
-     */
-    private static function newsSummary(Announcement $a, string $tenantPublicId): array
-    {
-        return [
-            'public_id' => $a->public_id,
-            'title' => Str::limit($a->title, 150),
-            'excerpt' => self::excerpt($a->body, 280),
-            'category' => $a->category,
-            'featured' => (bool) $a->featured,
-            'priority' => $a->priority,
-            'published_at' => Carbon::make($a->published_at)?->toIso8601String(),
-            'cover' => $a->coverPresented($tenantPublicId),
-        ];
+        ])->withHeaders(['Cache-Control' => self::CACHE, 'Vary' => 'Host, X-Tenant']);
     }
 
     /**
@@ -276,8 +239,8 @@ class LandingFeedController extends Controller
 
         return response()->json([
             ...self::vacancySummary($model),
-            'description' => self::excerpt($model->description, 5000),
-            'requirements' => $model->requirements === null ? null : self::excerpt($model->requirements, 5000),
+            'description' => PlainExcerpt::of($model->description, 5000),
+            'requirements' => $model->requirements === null ? null : PlainExcerpt::of($model->requirements, 5000),
         ]);
     }
 
@@ -301,13 +264,5 @@ class LandingFeedController extends Controller
                 : null,
             'apply_url' => TenantLanding::httpsUrl($v->apply_url),
         ];
-    }
-
-    /** Plain text only: whatever markup a body holds never reaches the page. */
-    private static function excerpt(string $text, int $max): string
-    {
-        $plain = trim((string) preg_replace('/[ \t]+/', ' ', strip_tags($text)));
-
-        return Str::limit($plain, $max);
     }
 }

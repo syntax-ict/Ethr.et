@@ -9,6 +9,8 @@ use App\Models\PayrollRun;
 use App\Models\StatutoryLayout;
 use App\Models\Tenant;
 use App\Support\Csv;
+use App\Support\Letterhead;
+use App\Support\PdfPages;
 use App\Support\ReaderDates;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\CarbonInterface;
@@ -71,7 +73,7 @@ final class StatutorySchedules
      */
     public function build(PayrollRun $run, string $schedule): array
     {
-        $register = $this->register->register($run);
+        $register = $this->register->register($run, checks: false);
         $employees = Employee::withTrashed()
             ->whereIn('public_id', array_filter(array_column($register['rows'], 'employee_public_id')))
             ->get()
@@ -173,11 +175,13 @@ final class StatutorySchedules
         );
         $data['total_cells'] = $this->totalsRow($data, false);
 
+        $data['letterhead'] = Letterhead::for(Tenant::query()->find($run->tenant_id), 'en', withTin: false);
+
         $pdf = Pdf::loadView('payroll.statutory-schedule', $data);
         $pdf->setPaper('a4', 'landscape');
         $pdf->setOption('isFontSubsettingEnabled', true);
 
-        return $pdf->output();
+        return PdfPages::render($pdf);
     }
 
     /**

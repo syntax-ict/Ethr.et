@@ -18,11 +18,11 @@ class AttendancePatternScanCommand extends Command
 {
     protected $signature = 'attendance:pattern-scan';
 
-    protected $description = 'File attendance patterns no single punch shows (shared phones, arrivals on the grace edge)';
+    protected $description = 'File attendance patterns no single punch shows (shared phones, arrivals on the grace edge, unanswered presence checks)';
 
     public function handle(CurrentTenant $currentTenant, AttendancePatternScan $scan): int
     {
-        $totals = ['buddy' => 0, 'grace_edge' => 0];
+        $totals = ['buddy' => 0, 'grace_edge' => 0, 'presence_pattern' => 0];
 
         Tenant::operational()->each(function (Tenant $tenant) use ($currentTenant, $scan, &$totals): void {
             $currentTenant->set($tenant);
@@ -37,7 +37,7 @@ class AttendancePatternScanCommand extends Command
             }
         });
 
-        $this->info("Pattern scan: {$totals['buddy']} shared-phone, {$totals['grace_edge']} grace-edge finding(s).");
+        $this->info("Pattern scan: {$totals['buddy']} shared-phone, {$totals['grace_edge']} grace-edge, {$totals['presence_pattern']} presence finding(s).");
 
         return self::SUCCESS;
     }

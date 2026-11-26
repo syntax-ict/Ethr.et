@@ -79,7 +79,7 @@ export function SolutionPage({ id }: { id: SolutionId }) {
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <Button size="lg" className="h-12 px-8 shadow-sm" asChild>
-                <Link href="/register">
+                <Link href="/register" prefetch={false}>
                   {t("marketing.hero.cta", "Start Free Trial")}
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
@@ -158,7 +158,7 @@ export function SolutionPage({ id }: { id: SolutionId }) {
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <Button size="lg" className="h-12 px-8 shadow-sm" asChild>
-                <Link href="/register">
+                <Link href="/register" prefetch={false}>
                   {t("marketing.hero.cta", "Start Free Trial")}
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>

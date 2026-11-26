@@ -42,6 +42,22 @@ final class HikvisionEvent
         return $badge === '' ? null : $badge;
     }
 
+    /** The name the terminal holds for the enrolled person, cleaned and capped at 100 characters, or null when it sends none. */
+    public static function personName(array $event): ?string
+    {
+        $name = $event['name'] ?? null;
+
+        if (! is_scalar($name) || is_bool($name)) {
+            return null;
+        }
+
+        $name = preg_replace('/[\p{Cc}\p{Cf}]+/u', ' ', (string) $name) ?? '';
+        $name = trim(preg_replace('/\s+/u', ' ', $name) ?? '');
+        $name = mb_substr($name, 0, 100);
+
+        return $name === '' ? null : $name;
+    }
+
     /** `check_in`, `check_out`, `break_out`, `break_in`, or `auto` when the terminal does not say. */
     public static function direction(array $event): string
     {
@@ -70,15 +86,7 @@ final class HikvisionEvent
      */
     public static function fromNotification(array $payload): ?array
     {
-        foreach (['event_log', 'AccessControllerEvent', 'eventLog'] as $field) {
-            if (is_string($payload[$field] ?? null)) {
-                $decoded = json_decode($payload[$field], true);
-                if (is_array($decoded)) {
-                    $payload = $decoded;
-                    break;
-                }
-            }
-        }
+        $payload = self::envelope($payload);
 
         $event = $payload['AccessControllerEvent'] ?? null;
         if (! is_array($event)) {
@@ -88,5 +96,50 @@ final class HikvisionEvent
         $event['time'] ??= $payload['dateTime'] ?? $event['dateTime'] ?? null;
 
         return $event;
+    }
+
+    /**
+     * The notification itself: JSON ones are the body, multipart ones carry
+     * the same JSON as a form field, usually `event_log`.
+     *
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    public static function envelope(array $payload): array
+    {
+        foreach (['event_log', 'AccessControllerEvent', 'eventLog'] as $field) {
+            if (is_string($payload[$field] ?? null)) {
+                $decoded = json_decode($payload[$field], true);
+                if (is_array($decoded)) {
+                    return $decoded;
+                }
+            }
+        }
+
+        return $payload;
+    }
+
+    /**
+     * What a keep-alive says of the terminal's own clock: its envelope's
+     * `dateTime`, which a heartbeat stamps with the moment it is sent. Null
+     * for a notification that is not a heartbeat (a door event may be
+     * buffered and sent late, so its time says nothing of the clock), and
+     * `['time' => null]` for a heartbeat that carries no time.
+     *
+     * @param  array<string, mixed>  $payload
+     * @return array{time: string|null}|null
+     */
+    public static function heartbeat(array $payload): ?array
+    {
+        $envelope = self::envelope($payload);
+
+        $type = $envelope['eventType'] ?? null;
+        if (is_string($type) && strtolower($type) !== 'heartbeat') {
+            return null;
+        }
+
+        $time = $envelope['dateTime'] ?? null;
+
+        return ['time' => is_string($time) && trim($time) !== '' ? trim($time) : null];
     }
 }

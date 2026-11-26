@@ -28,6 +28,10 @@ return [
     'import_field_email' => 'ኢሜይል',
     'import_field_badge_number' => 'የባጅ ቁጥር',
     'import_field_external_id' => 'በሌላው ሲስተም ያለ መለያ',
+    'import_field_grade' => 'ደረጃ',
+    'import_field_cost_center' => 'የወጪ ማዕከል',
+    'import_row' => 'ረድፍ :row፦ :message',
+    'import_not_stored' => 'እነዚህ ዓምዶች በዚህ መንገድ አይቀመጡም፦ :columns። ለማስገባት የማስመጫ ገጹን ይጠቀሙ።',
     'import_excel_rounded' => 'ስፕሬድሺቱ :attribute ቁጥሩን አጠጋግቶታል። አምዱን እንደ ጽሑፍ (Text) ያድርጉት እና ሙሉ ቁጥሩን ይጻፉ።',
     'number_format_invalid' => 'አንድ {SEQ:n} ምልክት ይጠቀሙ (n ከ1 እስከ 8)፣ ዙሪያውን ፊደላት፣ ቁጥሮች፣ - _ . ወይም / ብቻ። ለምሳሌ EMP-{SEQ:4}።',
     'cannot_change_own_pay' => 'የራስዎን ደመወዝ ወይም የባንክ መረጃ በድርጅትዎ ውስጥ ሌላ ሰው መቀየር አለበት።',
@@ -37,4 +41,6 @@ return [
     'cannot_review_filed_profile' => 'ይህን ለውጥ ያቀረቡት እርስዎ ስለሆኑ ሌላ ሰው መገምገም አለበት።',
     'invalid_transition' => 'ሁኔታን ከ:from ወደ :to መቀየር አይቻልም።',
     'bulk_update_failed' => 'ይህን ሰራተኛ ማዘመን አልተቻለም። እንደገና ይሞክሩ፣ ወይም ከመገለጫው ይቀይሩ።',
+    'bulk_archive_failed' => 'ይህን ሰው በማህደር ማስቀመጥ አልተቻለም። እንደገና ይሞክሩ።',
+    'bulk_restore_failed' => 'ይህን ሰው ከማህደር መመለስ አልተቻለም። እንደገና ይሞክሩ።',
 ];

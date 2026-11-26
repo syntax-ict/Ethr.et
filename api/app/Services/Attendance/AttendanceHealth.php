@@ -8,20 +8,27 @@ use App\Enums\AttendanceMode;
 use App\Enums\AttendanceStatus;
 use App\Enums\EmployeeStatus;
 use App\Models\AttendanceRecord;
+use App\Models\AttendanceSetting;
 use App\Models\AttendanceSite;
 use App\Models\Branch;
 use App\Models\BranchAttendanceOverride;
+use App\Models\Department;
 use App\Models\Device;
 use App\Models\Employee;
 use App\Models\Holiday;
 use App\Models\KioskSession;
+use App\Models\PushSubscription;
 use App\Models\Shift;
 use App\Models\ShiftAssignment;
 use App\Models\ShiftRotation;
 use App\Models\Tenant;
+use App\Models\User;
+use App\Services\Device\AdmsDeviceResolver;
+use App\Services\Device\DeviceManager;
 use App\Support\TenantTime;
 use App\Support\WorkingWeek;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 
 /**
  * What is keeping attendance from working, for the current organisation, as
@@ -100,12 +107,27 @@ final class AttendanceHealth
 
         // Fingerprint terminals switched on with none registered, or silent.
         if ($organisation->isMethodEnabled('biometric')) {
-            $devices = Device::query()->count();
-            $silent = Device::query()
-                ->where(fn ($q) => $q->whereNull('last_sync_at')->orWhere('last_sync_at', '<', Carbon::now()->subDay()))
-                ->count();
-            if ($devices > 0 && $silent > 0) {
+            // Silent: heard from once and quiet for a day, or a device ETHR
+            // pulls that has never once synced a day after it was registered
+            // (every pull has failed). A terminal that sends to ETHR and has
+            // never sent anything is not silent but not set up yet: its own
+            // check, whose advice is the setup on the terminal. Which kind a
+            // device is lives in its encrypted config, so it is read in PHP.
+            $dayAgo = Carbon::now()->subDay();
+            $quiet = Device::query()->where('last_sync_at', '<', $dayAgo)->count();
+            [$waitingForTerminal, $neverPulled] = Device::query()
+                ->whereNull('last_sync_at')
+                ->get(['id', 'adapter_type', 'connection_config', 'created_at'])
+                ->partition(fn (Device $d): bool => $d->adapter_type === AdmsDeviceResolver::ADAPTER || DeviceManager::receivesOnly($d));
+
+            $silent = (int) ($quiet + $neverPulled->filter(fn (Device $d): bool => $d->created_at !== null && $d->created_at->lessThan($dayAgo))->count());
+            if ($silent > 0) {
                 $checks[] = $this->check('devices_silent', 'warning', $silent, '/devices');
+            }
+
+            $notSetUp = (int) $waitingForTerminal->count();
+            if ($notSetUp > 0) {
+                $checks[] = $this->check('devices_never_heard', 'info', $notSetUp, '/devices');
             }
         }
 
@@ -154,7 +176,79 @@ final class AttendanceHealth
             $checks[] = $this->check('kiosk_none', 'info', 1, '/attendance/kiosks');
         }
 
+        // Presence checks switched on for people they cannot reach.
+        $unreachable = $this->presenceUnreachable($organisation, $branches);
+        if ($unreachable > 0) {
+            $checks[] = $this->check('presence_unreachable', 'warning', $unreachable, '/settings/attendance');
+        }
+
         return $checks;
+    }
+
+    /**
+     * Active office staff whose rules ask for presence checks and who cannot
+     * be checked: no phone subscribed on an active account, or no place to be
+     * measured against. Worked out in memory from a handful of queries,
+     * however many people there are.
+     *
+     * @param  Collection<int, Branch>  $branches
+     */
+    private function presenceUnreachable(AttendanceSetting $organisation, Collection $branches): int
+    {
+        $branchOn = [];
+        foreach ($branches as $branch) {
+            $branchOn[$branch->id] = (int) $this->policy->forBranch($branch->id, $organisation)->presence_checks_per_shift > 0;
+        }
+        $orgOn = (int) $organisation->presence_checks_per_shift > 0;
+        if (! $orgOn && ! in_array(true, $branchOn, true)) {
+            return 0;
+        }
+
+        $people = Employee::query()
+            ->whereNotIn('status', [EmployeeStatus::RESIGNED, EmployeeStatus::TERMINATED, EmployeeStatus::RETIRED])
+            ->where(fn ($q) => $q->whereNull('attendance_mode')->orWhere('attendance_mode', AttendanceMode::OFFICE->value))
+            ->get(['id', 'branch_id', 'department_id'])
+            ->filter(fn (Employee $e): bool => $e->branch_id === null || ! array_key_exists($e->branch_id, $branchOn)
+                ? $orgOn
+                : $branchOn[$e->branch_id]);
+        if ($people->isEmpty()) {
+            return 0;
+        }
+
+        $reachable = User::query()
+            ->where('status', 'active')
+            ->whereIn('id', PushSubscription::query()->select('user_id'))
+            ->whereNotNull('employee_id')
+            ->pluck('employee_id')
+            ->flip();
+
+        $placedBranches = $branches
+            ->filter(fn (Branch $b): bool => $b->latitude !== null && $b->longitude !== null && (int) $b->geofence_radius_meters > 0)
+            ->pluck('id')
+            ->flip();
+        $siteBranches = [];
+        $siteEmployees = [];
+        $siteDepartments = [];
+        foreach (AttendanceSite::query()->where('is_active', true)->with('assignments')->get() as $site) {
+            if ($site->branch_id !== null) {
+                $siteBranches[$site->branch_id] = true;
+            }
+            foreach ($site->assignments as $assignment) {
+                if ($assignment->assignable_type === Employee::class) {
+                    $siteEmployees[$assignment->assignable_id] = true;
+                } elseif ($assignment->assignable_type === Department::class) {
+                    $siteDepartments[$assignment->assignable_id] = true;
+                }
+            }
+        }
+
+        return $people->filter(function (Employee $e) use ($reachable, $placedBranches, $siteBranches, $siteEmployees, $siteDepartments): bool {
+            $placed = ($e->branch_id !== null && ($placedBranches->has($e->branch_id) || isset($siteBranches[$e->branch_id])))
+                || isset($siteEmployees[$e->id])
+                || ($e->department_id !== null && isset($siteDepartments[$e->department_id]));
+
+            return ! $reachable->has($e->id) || ! $placed;
+        })->count();
     }
 
     /** @return array{id: string, severity: string, count: int, fix_route: string} */

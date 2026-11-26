@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import {
+  act,
   render,
   screen,
   fireEvent,
@@ -7,8 +8,10 @@ import {
   within,
 } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { server } from "./msw/server";
+import { setLocale } from "@/lib/i18n/translations";
 import { IndustryConfigStep } from "@/features/onboarding/v2/components/industry-config-step";
 import { AccessStep } from "@/features/onboarding/v2/components/access-step";
 import { ReadinessStep } from "@/features/onboarding/v2/components/readiness-step";
@@ -269,6 +272,68 @@ describe("IndustryConfigStep — follows the sign-up type", () => {
   );
 });
 
+describe("IndustryConfigStep — the region", () => {
+  it("is picked from the list and sent as the English name", async () => {
+    const previewBodies: Record<string, unknown>[] = [];
+    server.use(
+      http.get("*/api/v1/onboarding/industries", () =>
+        HttpResponse.json({
+          data: [
+            {
+              key: "hospital",
+              label: "Hospital",
+              label_am: "ሆስፒታል",
+              base: "hospital",
+              icon: "x",
+              group: "healthcare",
+              profile: "continuous_24_7",
+              policy: "ethiopia_private",
+            },
+          ],
+          workforce_profiles: [],
+          policy_profiles: [],
+        }),
+      ),
+      http.get("*/api/v1/lookups", () =>
+        HttpResponse.json({
+          version: "abc123abc123",
+          items: {
+            region: [
+              {
+                code: "oromia",
+                parent_code: null,
+                name: "Oromia",
+                name_am: "ኦሮሚያ",
+                name_om: "Oromiyaa",
+                meta: {},
+              },
+            ],
+            sub_city: [],
+            town: [],
+            bank: [],
+          },
+        }),
+      ),
+      http.post(
+        "*/api/v1/onboarding/configuration/preview",
+        async ({ request }) => {
+          previewBodies.push((await request.json()) as Record<string, unknown>);
+          return HttpResponse.json({ message: "stop here" }, { status: 500 });
+        },
+      ),
+    );
+
+    renderWithClient(<IndustryConfigStep />);
+    fireEvent.click(await screen.findByText("Hospital"));
+    fireEvent.click(await screen.findByRole("combobox", { name: "Region" }));
+    fireEvent.click(await screen.findByRole("option", { name: "Oromia" }));
+    fireEvent.click(screen.getByText("Review proposal"));
+
+    await waitFor(() => expect(previewBodies).toHaveLength(1));
+    expect(previewBodies[0]).toHaveProperty("region", "Oromia");
+  });
+});
+
 describe("IndustryConfigStep — composed profiles and review", () => {
   it("shows the industry's usual profiles, sends only real choices, and holds apply until the review is read", async () => {
     const previewBodies: Record<string, unknown>[] = [];
@@ -312,8 +377,8 @@ describe("IndustryConfigStep — composed profiles and review", () => {
           policy_profiles: [
             {
               key: "ethiopia_private",
-              label: "Ethiopia — private sector",
-              label_am: "ኢትዮጵያ — የግል ዘርፍ",
+              label: "Ethiopian private sector",
+              label_am: "የኢትዮጵያ የግል ዘርፍ",
               description: "Labour Proclamation 1156/2019.",
             },
           ],
@@ -360,8 +425,8 @@ describe("IndustryConfigStep — composed profiles and review", () => {
               },
               policy: {
                 key: "ethiopia_private",
-                label: "Ethiopia — private sector",
-                label_am: "ኢትዮጵያ — የግል ዘርፍ",
+                label: "Ethiopian private sector",
+                label_am: "የኢትዮጵያ የግል ዘርፍ",
               },
             },
             review: [
@@ -391,7 +456,7 @@ describe("IndustryConfigStep — composed profiles and review", () => {
     expect(
       await screen.findByText("Round the clock (24/7)"),
     ).toBeInTheDocument();
-    expect(screen.getByText("Ethiopia — private sector")).toBeInTheDocument();
+    expect(screen.getByText("Ethiopian private sector")).toBeInTheDocument();
 
     fireEvent.click(screen.getByText("Review proposal"));
 
@@ -429,6 +494,258 @@ describe("IndustryConfigStep — composed profiles and review", () => {
       workforce_profile: "continuous_24_7",
       policy_profile: "ethiopia_private",
     });
+  });
+});
+
+describe("IndustryConfigStep — narrows the later lists to the sector", () => {
+  const kinds = [
+    [
+      "government",
+      "Federal government office",
+      "public",
+      ["government", "general"],
+      "ethiopia_public",
+    ],
+    [
+      "sole_proprietor",
+      "Sole proprietor",
+      "private",
+      ["general"],
+      "ethiopia_private",
+    ],
+    [
+      "ngo",
+      "Non-governmental organisation",
+      "non_profit",
+      ["ngo", "general"],
+      "ethiopia_private",
+    ],
+  ].map(([code, name, group, suggested_for, policy_profile]) => ({
+    code,
+    name,
+    name_am: name,
+    description: null,
+    group,
+    parent_code: null,
+    suggested_for,
+    policy_profile,
+  }));
+
+  function industry(
+    key: string,
+    base: string,
+    profile: string,
+    policy: string,
+  ) {
+    return {
+      key,
+      label: key === "ministry" ? "Ministry" : "Hospital",
+      label_am: key,
+      base,
+      icon: "x",
+      group: "g",
+      profile,
+      policy,
+    };
+  }
+
+  function stack(storedKind: string | undefined) {
+    server.use(
+      http.get("*/api/v1/organization-types", () =>
+        HttpResponse.json({ data: kinds }),
+      ),
+      http.get("*/api/v1/settings", () =>
+        HttpResponse.json({
+          organization: { organization_type: storedKind },
+          display: { calendar: "ethiopian" },
+        }),
+      ),
+      http.get("*/auth/me", () =>
+        HttpResponse.json({
+          user: { public_id: "01HZUSER", name: "Abebe", role: "tenant_admin" },
+          permissions: [],
+          tenant: {
+            public_id: "01HZTENANT",
+            name: "Acme",
+            subdomain: "acme",
+            status: "trial",
+            type: "government",
+          },
+        }),
+      ),
+      http.get("*/api/v1/onboarding/industries", () =>
+        HttpResponse.json({
+          data: [
+            industry(
+              "ministry",
+              "government",
+              "standard_office",
+              "ethiopia_public",
+            ),
+            industry(
+              "hospital",
+              "hospital",
+              "continuous_24_7",
+              "ethiopia_private",
+            ),
+            {
+              ...industry(
+                "bureau",
+                "government",
+                "standard_office",
+                "ethiopia_public",
+              ),
+              label: "Bureau",
+            },
+          ],
+          workforce_profiles: [
+            {
+              key: "standard_office",
+              label: "Standard office hours",
+              label_am: "a",
+              description: "d",
+            },
+            {
+              key: "continuous_24_7",
+              label: "Round the clock (24/7)",
+              label_am: "b",
+              description: "d",
+            },
+          ],
+          policy_profiles: [
+            {
+              key: "ethiopia_public",
+              label: "Public sector rules",
+              label_am: "c",
+              description: "d",
+            },
+            {
+              key: "ethiopia_private",
+              label: "Private sector rules",
+              label_am: "e",
+              description: "d",
+            },
+          ],
+        }),
+      ),
+    );
+  }
+
+  it("offers a government organisation the public kinds first, until it asks for every kind", async () => {
+    stack("government");
+    const user = userEvent.setup();
+    renderWithClient(<IndustryConfigStep />);
+
+    await user.click(await screen.findByRole("radio", { name: "Ministry" }));
+    await user.click(
+      await screen.findByRole("combobox", {
+        name: /kind of organisation in law/i,
+      }),
+    );
+    expect(
+      screen.getByRole("option", { name: "Federal government office" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("option", { name: "Sole proprietor" }),
+    ).not.toBeInTheDocument();
+
+    await user.keyboard("{Escape}");
+    await user.click(
+      screen.getByText("Show every kind of organisation in law"),
+    );
+    await user.click(
+      screen.getByRole("combobox", { name: /kind of organisation in law/i }),
+    );
+    expect(
+      screen.getByRole("option", { name: "Sole proprietor" }),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps the stored kind selectable even when it is outside the sector", async () => {
+    stack("sole_proprietor");
+    const user = userEvent.setup();
+    renderWithClient(<IndustryConfigStep />);
+
+    await user.click(await screen.findByRole("radio", { name: "Ministry" }));
+    const select = await screen.findByRole("combobox", {
+      name: /kind of organisation in law/i,
+    });
+    await waitFor(() => expect(select).toHaveTextContent("Sole proprietor"));
+    await user.click(select);
+    expect(
+      screen.getByRole("option", { name: "Sole proprietor" }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows a government organisation the usual workforce option and reveals the rest on request", async () => {
+    stack("government");
+    const user = userEvent.setup();
+    renderWithClient(<IndustryConfigStep />);
+
+    await user.click(await screen.findByRole("radio", { name: "Ministry" }));
+    const workforce = await screen.findByRole("combobox", {
+      name: "How your people work",
+    });
+    await user.click(workforce);
+    expect(
+      screen.getByRole("option", { name: "Standard office hours" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("option", { name: "Round the clock (24/7)" }),
+    ).not.toBeInTheDocument();
+    await user.keyboard("{Escape}");
+
+    await user.click(screen.getAllByText("Show every option")[0]);
+    await user.click(
+      screen.getByRole("combobox", { name: "How your people work" }),
+    );
+    expect(
+      screen.getByRole("option", { name: "Round the clock (24/7)" }),
+    ).toBeInTheDocument();
+  });
+
+  it("starts the policy list from the kind: a government kind with a hospital offers the public rules", async () => {
+    stack("government");
+    const user = userEvent.setup();
+    renderWithClient(<IndustryConfigStep />);
+
+    await user.click(
+      await screen.findByText("Show every type of organisation"),
+    );
+    await user.click(await screen.findByRole("radio", { name: "Hospital" }));
+    const policy = await screen.findByRole("combobox", {
+      name: "Which rules apply",
+    });
+    await user.click(policy);
+    expect(
+      screen.getByRole("option", { name: "Public sector rules" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("option", { name: "Private sector rules" }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows the rules of the legal kind as the policy default, ahead of the industry's", async () => {
+    stack("government");
+    const user = userEvent.setup();
+    renderWithClient(<IndustryConfigStep />);
+
+    await user.click(
+      await screen.findByText("Show every type of organisation"),
+    );
+    await user.click(await screen.findByRole("radio", { name: "Hospital" }));
+    const policy = await screen.findByRole("combobox", {
+      name: "Which rules apply",
+    });
+    // The hospital industry alone would say private rules; the government
+    // kind in law, which the server applies first, says public rules.
+    await waitFor(() =>
+      expect(policy).toHaveTextContent("Public sector rules"),
+    );
+    await user.click(policy);
+    expect(
+      screen.getByRole("option", { name: "Public sector rules" }),
+    ).toHaveAttribute("aria-selected", "true");
   });
 });
 
@@ -542,5 +859,295 @@ describe("ReadinessStep", () => {
     fireEvent.click(within(again).getByRole("button", { name: "Go live" }));
     await waitFor(() => expect(onLive).toHaveBeenCalled());
     expect(posts).toBe(1);
+  });
+});
+
+describe("IndustryConfigStep — catalogue text follows the locale", () => {
+  const catalogue = () =>
+    http.get("*/api/v1/onboarding/industries", () =>
+      HttpResponse.json({
+        data: [
+          {
+            key: "hospital",
+            label: "Hospital",
+            label_am: "ሆስፒታል",
+            label_om: "Hospitaala",
+            base: "hospital",
+            icon: "x",
+            group: "healthcare",
+            profile: "continuous_24_7",
+            policy: "ethiopia_private",
+          },
+          {
+            key: "bank",
+            label: "Bank",
+            label_am: "ባንክ",
+            label_om: "",
+            base: "bank",
+            icon: "x",
+            group: "financial",
+          },
+        ],
+        workforce_profiles: [
+          {
+            key: "continuous_24_7",
+            label: "Round the clock (24/7)",
+            label_am: "ሌት ተቀን (24/7)",
+            label_om: "Halkanii fi Guyyaa (24/7)",
+            description: "Four crews.",
+            description_am: "አራት ቡድኖች።",
+            description_om: "Gareewwan afur.",
+          },
+        ],
+        policy_profiles: [],
+      }),
+    );
+
+  it("shows the Afaan Oromoo industry, profile and description for om", async () => {
+    localStorage.setItem("locale", "om");
+    server.use(
+      http.get("*/api/v1/settings", () =>
+        HttpResponse.json({
+          organization: {},
+          display: { calendar: "ethiopian" },
+        }),
+      ),
+      catalogue(),
+    );
+
+    renderWithClient(<IndustryConfigStep />);
+
+    fireEvent.click(await screen.findByText("Hospitaala"));
+
+    expect(await screen.findByText("Halkanii fi Guyyaa (24/7)")).toBeVisible();
+    expect(screen.getByText("Gareewwan afur.")).toBeVisible();
+    expect(screen.queryByText("Hospital")).not.toBeInTheDocument();
+    // An empty Oromo text falls back to English, never a blank card.
+    expect(screen.getByText("Bank")).toBeVisible();
+    expect(screen.queryByText("Four crews.")).not.toBeInTheDocument();
+  });
+
+  it("shows English for en, and English where the Oromo text is empty", async () => {
+    server.use(
+      http.get("*/api/v1/settings", () =>
+        HttpResponse.json({
+          organization: {},
+          display: { calendar: "ethiopian" },
+        }),
+      ),
+      catalogue(),
+    );
+
+    renderWithClient(<IndustryConfigStep />);
+
+    fireEvent.click(await screen.findByText("Hospital"));
+
+    expect(await screen.findByText("Round the clock (24/7)")).toBeVisible();
+    expect(screen.getByText("Four crews.")).toBeVisible();
+    expect(screen.queryByText("Hospitaala")).not.toBeInTheDocument();
+  });
+});
+
+describe("IndustryConfigStep — the review notes follow the language", () => {
+  it("asks for the notes again when the language changes, and keeps what was removed", async () => {
+    const asked: (string | null)[] = [];
+    const notes: Record<string, string> = {
+      en: "Confirm the leave values.",
+      om: "Gatiiwwan boqonnaa mirkaneessaa.",
+    };
+
+    server.use(
+      http.get("*/api/v1/settings", () =>
+        HttpResponse.json({
+          organization: {},
+          display: { calendar: "ethiopian" },
+        }),
+      ),
+      http.get("*/api/v1/onboarding/industries", () =>
+        HttpResponse.json({
+          data: [
+            {
+              key: "hospital",
+              label: "Hospital",
+              label_am: "ሆስፒታል",
+              label_om: "Hospitaala",
+              base: "hospital",
+              icon: "x",
+              group: "healthcare",
+            },
+          ],
+          workforce_profiles: [],
+          policy_profiles: [],
+        }),
+      ),
+      http.post("*/api/v1/onboarding/configuration/preview", ({ request }) => {
+        const language = request.headers.get("accept-language");
+        asked.push(language);
+        return HttpResponse.json({
+          industry: { key: "hospital", label: "Hospital", base: "hospital" },
+          signals: {},
+          overall_confidence: 0.8,
+          sections: {
+            departments: {
+              source: "industry_default",
+              confidence: 0.8,
+              items: ["Nursing", "Pharmacy"],
+            },
+          },
+          plan: { departments: ["Nursing", "Pharmacy"] },
+          review: [{ code: "leave_private", message: notes[language ?? "en"] }],
+        });
+      }),
+    );
+
+    renderWithClient(<IndustryConfigStep />);
+
+    fireEvent.click(await screen.findByText("Hospital"));
+    fireEvent.click(screen.getByText("Review proposal"));
+
+    expect(await screen.findByText(notes.en)).toBeInTheDocument();
+    const removeBtn = screen.getByText("Pharmacy").querySelector("button");
+    fireEvent.click(removeBtn as HTMLButtonElement);
+    expect(screen.queryByText("Pharmacy")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("checkbox"));
+
+    act(() => setLocale("om"));
+
+    expect(await screen.findByText(notes.om)).toBeInTheDocument();
+    expect(screen.queryByText(notes.en)).not.toBeInTheDocument();
+    expect(asked).toEqual(["en", "om"]);
+    // Only the notes were taken from the second answer.
+    expect(screen.getByText("Nursing")).toBeInTheDocument();
+    expect(screen.queryByText("Pharmacy")).not.toBeInTheDocument();
+    expect(screen.getByRole("checkbox")).toBeChecked();
+  });
+
+  it("asks for nothing when the language changes with no proposal open", async () => {
+    const asked = vi.fn();
+
+    server.use(
+      http.get("*/api/v1/settings", () =>
+        HttpResponse.json({
+          organization: {},
+          display: { calendar: "ethiopian" },
+        }),
+      ),
+      http.get("*/api/v1/onboarding/industries", () =>
+        HttpResponse.json({
+          data: [
+            {
+              key: "hospital",
+              label: "Hospital",
+              label_om: "Hospitaala",
+              base: "hospital",
+              icon: "x",
+              group: "healthcare",
+            },
+          ],
+          workforce_profiles: [],
+          policy_profiles: [],
+        }),
+      ),
+      http.post("*/api/v1/onboarding/configuration/preview", () => {
+        asked();
+        return HttpResponse.json({});
+      }),
+    );
+
+    renderWithClient(<IndustryConfigStep />);
+    await screen.findByText("Hospital");
+
+    act(() => setLocale("om"));
+
+    expect(await screen.findByText("Hospitaala")).toBeInTheDocument();
+    expect(asked).not.toHaveBeenCalled();
+  });
+});
+
+describe("IndustryConfigStep — the proposal's names follow the language", () => {
+  it("shows a department, a position and a grade in the language of the screen", async () => {
+    const plan = {
+      departments: [
+        { name: "Nursing", name_am: "ነርሲንግ", name_om: "Narsummaa" },
+        // A name the glossary does not know stays in English.
+        { name: "People Ops" },
+      ],
+      positions: [
+        { title: "Head Nurse", title_am: "ዋና ነርስ", title_om: "Narsii Olaanaa" },
+      ],
+      grades: [
+        {
+          name: "Grade IV",
+          name_am: "ደረጃ IV",
+          name_om: "Sadarkaa IV",
+          min_salary_cents: 100,
+        },
+      ],
+    };
+
+    server.use(
+      http.get("*/api/v1/settings", () =>
+        HttpResponse.json({
+          organization: {},
+          display: { calendar: "ethiopian" },
+        }),
+      ),
+      http.get("*/api/v1/onboarding/industries", () =>
+        HttpResponse.json({
+          data: [
+            {
+              key: "hospital",
+              label: "Hospital",
+              label_am: "ሆስፒታል",
+              label_om: "Hospitaala",
+              base: "hospital",
+              icon: "x",
+              group: "healthcare",
+            },
+          ],
+          workforce_profiles: [],
+          policy_profiles: [],
+        }),
+      ),
+      http.post("*/api/v1/onboarding/configuration/preview", () =>
+        HttpResponse.json({
+          industry: { key: "hospital", label: "Hospital", base: "hospital" },
+          signals: {},
+          overall_confidence: 0.8,
+          sections: Object.fromEntries(
+            Object.entries(plan).map(([name, items]) => [
+              name,
+              { source: "industry_default", confidence: 0.8, items },
+            ]),
+          ),
+          plan,
+          review: [],
+        }),
+      ),
+    );
+
+    renderWithClient(<IndustryConfigStep />);
+
+    fireEvent.click(await screen.findByText("Hospital"));
+    fireEvent.click(screen.getByText("Review proposal"));
+
+    expect(await screen.findByText("Nursing")).toBeInTheDocument();
+    expect(screen.getByText("Head Nurse")).toBeInTheDocument();
+    expect(screen.getByText("Grade IV")).toBeInTheDocument();
+
+    act(() => setLocale("om"));
+
+    expect(await screen.findByText("Narsummaa")).toBeInTheDocument();
+    expect(screen.getByText("Narsii Olaanaa")).toBeInTheDocument();
+    expect(screen.getByText("Sadarkaa IV")).toBeInTheDocument();
+    expect(screen.getByText("People Ops")).toBeInTheDocument();
+    expect(screen.queryByText("Nursing")).not.toBeInTheDocument();
+
+    act(() => setLocale("am"));
+
+    expect(await screen.findByText("ነርሲንግ")).toBeInTheDocument();
+    expect(screen.getByText("ዋና ነርስ")).toBeInTheDocument();
+    expect(screen.getByText("ደረጃ IV")).toBeInTheDocument();
+    expect(screen.queryByText("Narsummaa")).not.toBeInTheDocument();
   });
 });

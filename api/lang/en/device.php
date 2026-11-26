@@ -12,7 +12,12 @@ return [
     'path_invalid' => 'The :key must be a path starting with a single slash.',
     'read_failed' => 'The device could not be read. Check that it is switched on and reachable from this server, then try again.',
     'simulator_unavailable' => 'The device simulator is only available on development servers. Choose the brand of the real device.',
+    'allowlist_full' => 'The allowlist holds 20 addresses at most. Remove one on the device\'s form first.',
+    'not_pulled' => 'This terminal sends its punches to ETHR, and ETHR never pulls from it. There is nothing to pull or import here.',
+    'held_busy' => 'These punches are already being brought in. Try again in a moment.',
     'roster' => [
+        'receives_only' => 'This terminal sends its punches to ETHR and cannot be asked who is enrolled on it. Unrecognised badges it has sent are listed under Devices, where each can be given to an employee.',
+        'too_large' => 'This terminal lists more than 1,000 people, more than ETHR reads from it in one go, so its list was not used. Bring them in from a file instead.',
         'read_directly' => 'This device is read directly, so there is nothing to ask it for. Open the list again to read it now.',
     ],
 ];

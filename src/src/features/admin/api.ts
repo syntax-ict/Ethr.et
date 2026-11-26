@@ -26,7 +26,12 @@ export interface AdminTenant {
   custom_domain: string | null;
   /** `pending` until Verify finds its DNS records; only `verified` resolves. */
   custom_domain_status: UpdateTenantDomainResult["custom_domain_status"];
+  /** The industry. */
   type: string | null;
+  /** The kind in law, which decides its statutory payroll rules. */
+  organization_type?: string | null;
+  /** The kind was guessed at sign-up and has not been confirmed. */
+  organization_type_needs_review?: boolean;
   status: string;
   employee_count: number;
   trial_ends_at: string | null;
@@ -82,6 +87,11 @@ export interface AdminTenantDetail extends Omit<AdminTenant, "employee_count"> {
   /** Whether the plan includes the `custom_domain` add-on. */
   custom_domain_allowed: boolean;
   updated_at: string;
+  /** A change of kind scheduled for a later date. */
+  organization_type_pending?: {
+    organization_type: string;
+    effective_from: string;
+  } | null;
   usage: { employees: number; devices: number } | null;
   subscription: {
     plan_name: string | null;
@@ -150,6 +160,8 @@ export function useAdminTenants(params?: {
   lifecycle?: string;
   stage?: string;
   health?: string;
+  /** A code from `GET /organization-types`. */
+  kind?: string;
   page?: number;
   per_page?: number;
 }) {
@@ -166,6 +178,7 @@ export function useAdminTenants(params?: {
         queryParams["filter[lifecycle]"] = params.lifecycle;
       if (params?.stage) queryParams["filter[stage]"] = params.stage;
       if (params?.health) queryParams["filter[health]"] = params.health;
+      if (params?.kind) queryParams["filter[organization_type]"] = params.kind;
       if (params?.page) queryParams.page = params.page;
       if (params?.per_page) queryParams.per_page = params.per_page;
 
@@ -661,6 +674,8 @@ export function useAdminAuditLog(params?: {
 export interface PlatformSettings {
   public_id: string;
   bank_name: string | null;
+  /** The bank list entry the name came from; null when it was typed. */
+  bank_code: string | null;
   bank_account_number: string | null;
   bank_account_name: string | null;
   payment_instructions: string | null;

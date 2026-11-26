@@ -22,6 +22,15 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/shared/phone-input";
+import {
+  AddressForm,
+  EMPTY_ADDRESS,
+  addressFromRecord,
+  addressToPayload,
+  useFormatAddress,
+  type AddressFields,
+} from "@/components/shared/address-fields";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -43,11 +52,13 @@ import { LifecycleTab } from "@/features/employees/components/lifecycle-tab";
 import { InfoRow } from "@/features/employees/components/info-row";
 import { useRouteId } from "@/lib/hooks/useRouteId";
 import { useT } from "@/lib/i18n/useT";
+import { useGenderLabel } from "@/lib/options/gender";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useQueryTab } from "@/lib/hooks/useQueryTab";
 import { toast } from "sonner";
 import { apiErrorMessage } from "@/lib/api/error-message";
 import { AttendanceModeCard } from "@/features/employees/components/attendance-mode-card";
+import { IdentitiesCard } from "@/features/employees/components/identities-card";
 import { KioskPinCard } from "@/features/employees/components/kiosk-pin-card";
 import { InviteToEthrButton } from "@/features/employees/components/invite-to-ethr-button";
 import { IssueActivationCodeButton } from "@/features/employees/components/issue-activation-code-button";
@@ -56,9 +67,12 @@ import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useEmployeeOptions } from "@/features/attendance/api";
 import { costCentersApi, teamsApi } from "@/features/organization/api";
 import { RelationPicker } from "@/features/employees/components/relation-picker";
+import { FrameworkExceptionField } from "@/features/employees/components/framework-exception-field";
 import { ErrorState } from "@/components/shared/error-state";
 import { EmployeeAvatar } from "@/components/shared/employee-avatar";
 import { PrintAction } from "@/components/shared/print-action";
+import { usePrintTitle } from "@/components/layouts/print-title";
+import { formatPhone } from "@/lib/phone";
 
 /** A 404 means the record is gone; anything else means the request failed. */
 function isNotFound(error: unknown): boolean {
@@ -92,6 +106,7 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
   const [tab, setTab] = useQueryTab(EMPLOYEE_TABS, "info");
   const id = useRouteId(routeId) ?? "";
   const { t } = useT();
+  const genderText = useGenderLabel();
   const { formatDate } = useDateFormatters();
   const {
     data: employee,
@@ -102,6 +117,12 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
   } = useEmployee(id);
   const nationalityLabel = useNationalityStatusLabel();
   useEntityTitle(employee?.name);
+  // The paper is named for the person, not for the page.
+  usePrintTitle(
+    employee
+      ? [employee.name, employee.employee_code].filter(Boolean).join(" · ")
+      : null,
+  );
   const canManageAttendance =
     usePermissions().hasPermission("attendance.manage");
   const [editing, setEditing] = useState(false);
@@ -111,9 +132,19 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
   const { data: teams } = teamsApi.useList();
   const { data: costCenters } = costCentersApi.useList();
   const [editForm, setEditForm] = useState<Record<string, string>>({});
+  const [editAddress, setEditAddress] = useState<AddressFields>(EMPTY_ADDRESS);
+  // Present only for someone who may update the employee (the server leaves
+  // both fields out for everyone else, and for a record loaded in part).
+  const frameworkVisible = employee?.outside_employment_framework !== undefined;
+  const [editOutside, setEditOutside] = useState(false);
+  const [editFrameworkNote, setEditFrameworkNote] = useState("");
+  const formatAddress = useFormatAddress();
 
   function startEdit() {
     if (!employee) return;
+    setEditAddress(addressFromRecord(employee));
+    setEditOutside(employee.outside_employment_framework === true);
+    setEditFrameworkNote(employee.employment_framework_note ?? "");
     setEditForm({
       name: employee.name ?? "",
       email: employee.email ?? "",
@@ -135,21 +166,45 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
     setTab("info");
   }
 
+  // The fields come only to someone who may update the employee, and are sent
+  // only when they changed: a support session is refused the whole request
+  // that names them, so an operator fixing a phone number must not carry them.
+  function exemptionChanges() {
+    if (!employee || !frameworkVisible) return {};
+    const note = editOutside ? editFrameworkNote.trim() || null : null;
+    const changed =
+      editOutside !== (employee.outside_employment_framework === true) ||
+      note !== (employee.employment_framework_note ?? null);
+    return changed
+      ? {
+          outside_employment_framework: editOutside,
+          employment_framework_note: note,
+        }
+      : {};
+  }
+
   function handleSave() {
-    updateEmployee.mutate(editForm, {
-      onSuccess: () => {
-        toast.success(t("employee.detail.updated", "Employee updated"));
-        setEditing(false);
+    updateEmployee.mutate(
+      {
+        ...editForm,
+        ...addressToPayload(editAddress),
+        ...exemptionChanges(),
       },
-      // The server's reason, so a badge already taken says so.
-      onError: (err) =>
-        toast.error(
-          apiErrorMessage(
-            err,
-            t("employee.detail.update_failed", "Failed to update employee"),
+      {
+        onSuccess: () => {
+          toast.success(t("employee.detail.updated", "Employee updated"));
+          setEditing(false);
+        },
+        // The server's reason, so a badge already taken says so.
+        onError: (err) =>
+          toast.error(
+            apiErrorMessage(
+              err,
+              t("employee.detail.update_failed", "Failed to update employee"),
+            ),
           ),
-        ),
-    });
+      },
+    );
   }
 
   if (!id || isLoading) {
@@ -336,11 +391,15 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
                       />
                     </div>
                     <div>
-                      <Label>{t("common.phone", "Phone")}</Label>
-                      <Input
+                      <Label htmlFor="edit-phone">
+                        {t("common.phone", "Phone")}
+                      </Label>
+                      <PhoneInput
+                        id="edit-phone"
+                        international
                         value={editForm.phone}
-                        onChange={(e) =>
-                          setEditForm((p) => ({ ...p, phone: e.target.value }))
+                        onChange={(v) =>
+                          setEditForm((p) => ({ ...p, phone: v }))
                         }
                         className="mt-1"
                       />
@@ -380,6 +439,16 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
                         {t("employee.nationality_status_hint")}
                       </p>
                     </div>
+                    <fieldset className="space-y-3">
+                      <legend className="text-sm font-medium">
+                        {t("address.title", "Address")}
+                      </legend>
+                      <AddressForm
+                        idPrefix="edit-address"
+                        value={editAddress}
+                        onChange={setEditAddress}
+                      />
+                    </fieldset>
                     <RelationPicker
                       id="edit-supervisor"
                       label={t("employee.supervisor", "Supervisor")}
@@ -415,6 +484,15 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
                         setEditForm((p) => ({ ...p, cost_center_id: v }))
                       }
                     />
+                    {frameworkVisible && (
+                      <FrameworkExceptionField
+                        idPrefix="edit"
+                        outside={editOutside}
+                        note={editFrameworkNote}
+                        onOutsideChange={setEditOutside}
+                        onNoteChange={setEditFrameworkNote}
+                      />
+                    )}
                   </>
                 ) : (
                   <>
@@ -426,7 +504,11 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
                     <InfoRow
                       icon={Phone}
                       label={t("common.phone", "Phone")}
-                      value={employee.phone ?? "—"}
+                      value={employee.phone ? formatPhone(employee.phone) : "—"}
+                    />
+                    <InfoRow
+                      label={t("address.title", "Address")}
+                      value={formatAddress(employee) || "—"}
                     />
                     <InfoRow
                       icon={Calendar}
@@ -455,10 +537,27 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
                         </span>
                       }
                     />
+                    {employee.outside_employment_framework && (
+                      <InfoRow
+                        label={t(
+                          "employee.detail.employment_law",
+                          "Employment law",
+                        )}
+                        value={[
+                          t(
+                            "employee.outside_framework",
+                            "Not covered by the organisation's employment law",
+                          ),
+                          employee.employment_framework_note,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      />
+                    )}
                     {employee.gender && (
                       <InfoRow
                         label={t("employee.detail.gender", "Gender")}
-                        value={employee.gender}
+                        value={genderText(employee.gender)}
                       />
                     )}
                   </>
@@ -515,7 +614,7 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
           </div>
         </TabsContent>
 
-        <TabsContent value="employment" className="mt-4">
+        <TabsContent value="employment" className="mt-4 space-y-4">
           <Card>
             <CardHeader>
               <CardTitle className="text-base">
@@ -552,6 +651,7 @@ export function EmployeeDetail({ routeId }: { routeId: string }) {
               </div>
             </CardContent>
           </Card>
+          <IdentitiesCard employeeId={id} />
         </TabsContent>
 
         <TabsContent value="documents" className="mt-4">

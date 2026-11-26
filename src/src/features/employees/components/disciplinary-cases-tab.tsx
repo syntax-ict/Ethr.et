@@ -47,6 +47,7 @@ import {
   type DisciplinaryDecision,
   type DisciplinarySanctionType,
 } from "@/features/employees/api";
+import { PaidMonthNotice } from "./paid-month-notice";
 import { toast } from "sonner";
 import { apiErrorMessage } from "@/lib/api/error-message";
 
@@ -864,6 +865,12 @@ function DecisionDialog({
                       />
                     )}
                   </FormField>
+
+                  <PaidMonthNotice
+                    employeeId={employeeId}
+                    from={watch("sanction_effective_date")}
+                    enabled={watch("sanction_type") === "termination"}
+                  />
 
                   <FormField
                     id="decision_sanction_details"

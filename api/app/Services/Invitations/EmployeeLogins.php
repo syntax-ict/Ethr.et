@@ -49,6 +49,7 @@ final class EmployeeLogins
                 employee: $employee,
                 invitedBy: $by?->id,
                 sendActivation: false,
+                followsPosition: true,
             ) ?? self::EMAIL_IN_USE;
         }
 
@@ -106,10 +107,16 @@ final class EmployeeLogins
      * The employees among these who cannot sign in yet, and how each would be
      * invited.
      *
+     * `$asked` is what a list's sign-in column said about each person, by
+     * public id (true yes, false no); someone it said nothing about is null.
+     *
      * @param  iterable<Employee>  $employees
-     * @return list<array{employee_public_id: string, name: string, email: string|null, phone: string|null, channel: string, invited: bool}>
+     * @param  array<string, bool>  $asked
+     * @return list<array{employee_public_id: string, name: string, email: string|null, phone: string|null, channel: string, invited: bool, asked: bool|null}>
+     *
+     * @scramble-return list<array{employee_public_id: string, name: string, email: string|null, phone: string|null, channel: 'email'|'sms'|'in_person', invited: bool, asked: bool|null}>
      */
-    public function pending(iterable $employees): array
+    public function pending(iterable $employees, array $asked = []): array
     {
         $pending = [];
 
@@ -126,19 +133,36 @@ final class EmployeeLogins
                 'phone' => $employee->phone,
                 'channel' => $this->channel($employee),
                 'invited' => $user !== null,
+                'asked' => isset($asked[$employee->public_id]) ? (bool) $asked[$employee->public_id] : null,
             ];
         }
 
         return $pending;
     }
 
+    /** Whether a person with only a phone is invited by text. Read once for a long list: it is a query. */
+    public function textsEnabled(): bool
+    {
+        return $this->invitations->textsEnabled();
+    }
+
     private function channel(Employee $employee): string
     {
-        if (is_string($employee->email) && trim($employee->email) !== '') {
+        return $this->channelFor($employee->email, $employee->phone);
+    }
+
+    /**
+     * How someone with this email and phone would be invited: by email, else
+     * by text while texts are on, else in person. provision() follows the
+     * same order, and a staged list asks it before anyone exists.
+     */
+    public function channelFor(mixed $email, mixed $phone, ?bool $texts = null): string
+    {
+        if (is_string($email) && trim($email) !== '') {
             return InvitationSend::EMAIL;
         }
 
-        return is_string($employee->phone) && trim($employee->phone) !== '' && $this->invitations->textsEnabled()
+        return is_string($phone) && trim($phone) !== '' && ($texts ?? $this->invitations->textsEnabled())
             ? InvitationSend::SMS
             : InvitationSend::IN_PERSON;
     }

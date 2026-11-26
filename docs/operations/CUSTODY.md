@@ -1,5 +1,13 @@
 # Custody — who holds what
 
+| At a glance | |
+|---|---|
+| **Purpose** | Records who holds each platform credential and where it lives, as names and places and never values. |
+| **Open it when** | A credential holder is unreachable, someone joins or leaves, or the quarterly review is due. |
+| **For** | Owner; platform operator |
+| **Organisation types** | Not about an organisation. These are the platform's own credentials. |
+| **Source of truth** | The owner's own records; no code backs this table. |
+
 **Names and places only. Never a value, a password, a token or an address in this file.**
 Written 2026-10-14 because every credential below sat with one person and nothing said so:
 if that person is unreachable, this table is how someone else finds out what they need and
@@ -19,7 +27,8 @@ with one holder is a single point of failure, and the review below exists to fin
 | Host `.env` — `CRON_TOKEN` | Host `.env` | _owner_, _second_ | Scheduler and queue calls (404) | With the GitHub secret and the second caller |
 | Host `.env` — `MAINTENANCE_TOKEN` | Host `.env`, **empty between releases** | _whoever releases_ | Release tasks (migrate, seed, optimize) | Set for a release, emptied after |
 | Platform super-admin accounts (with MFA) | ETHR console | _owner_, _second_ | The platform console | `ethr:reset-mfa` exists for a lost authenticator; needs a holder of the host |
-| Backups | `storage/app/backups` on the host (+ off-host copy: _fill — none yet_) | _owner_, _second_ | Recovery after data loss | Not a secret; who can reach them is |
+| Backups | `storage/app/backups` on the host (+ off-host copy: _fill — no destination chosen_) | _owner_, _second_ | Recovery after data loss | Not a secret; who can reach them is |
+| Off-host backup storage and its archive key | Set in the platform console (`/admin/backups`), **since 2026-11-01** — not `.env`. The archive key is revealed once there and must be kept off the host | _owner_, _second_ | Reading any off-host archive. Without the key no archive opens, whatever else survives | The console generates a new key; archives made under the old one then need `ethr:backup:unpack --key=` |
 | Ethio Telecom support channel | Account contact on file | _owner_, _second_ | Host incidents, certificate renewal | — |
 
 ## Review
@@ -27,9 +36,17 @@ with one holder is a single point of failure, and the review below exists to fin
 Every quarter, and whenever someone joins or leaves: read each row, confirm two named holders
 can actually use it (sign in, not just "has the password somewhere"), and write the date here.
 
+**No review has been recorded yet, and every *Holders* cell above is still a placeholder**
+(noted 2026-11-13). That is the state of this control, stated rather than left to be inferred
+from an empty table: the credentials below are real and in use, and the table that says who can
+reach them when one person is unreachable has never been filled in. Filling it is an owner
+action — this file holds names and places, and nobody else can supply them.
+
 | Date | Reviewed by | Rows with fewer than two working holders |
 |---|---|---|
 | | | |
 
-Related: [`ON-CALL.md`](ON-CALL.md) for what to do in an incident;
+Related: [`README.md`](README.md) for where to start on anything;
+[`ON-CALL.md`](ON-CALL.md) for what to do in an incident;
+[`PLATFORM-CONSOLE.md`](PLATFORM-CONSOLE.md) for what each console page can change;
 [`../ENGINEERING-ONBOARDING.md`](../ENGINEERING-ONBOARDING.md) for a new maintainer's first day.

@@ -1,7 +1,14 @@
 "use client";
 
 import { useState, type ChangeEvent } from "react";
-import { Settings2, Loader2, Save, Clock, ShieldCheck } from "lucide-react";
+import {
+  Settings2,
+  Loader2,
+  Save,
+  Clock,
+  ShieldCheck,
+  BellRing,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -22,6 +29,8 @@ import {
   useUpdateAttendanceSettings,
   type AttendanceSettings,
 } from "@/features/attendance/api";
+import { useSaveStatus } from "@/components/shared/save-status";
+import { useUnsavedChangesWarning } from "@/lib/hooks/useUnsavedChangesWarning";
 import { useT } from "@/lib/i18n/useT";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { toast } from "sonner";
@@ -30,6 +39,7 @@ import { apiErrorMessage } from "@/lib/api/error-message";
 import { ErrorState } from "@/components/shared/error-state";
 import { BranchRulesCard } from "@/features/attendance/components/branch-rules-card";
 import { WorkSitesCard } from "@/features/attendance/components/work-sites-card";
+import { DeviceSilenceSetting } from "@/features/devices/components/device-silence-setting";
 import { SetupStatusPanel } from "@/features/attendance/components/setup-status-panel";
 
 type Method = AttendanceSettings["enabled_methods"][number];
@@ -144,6 +154,7 @@ export default function AttendanceSettingsPage() {
   }
 
   const save = useUpdateAttendanceSettings();
+  const { announceSaved, announceError } = useSaveStatus();
 
   const rangeMessage = (key: NumericKey) =>
     t(
@@ -182,6 +193,7 @@ export default function AttendanceSettingsPage() {
     baseline !== null &&
     (JSON.stringify(pendingForm) !== JSON.stringify(baseline) ||
       Object.keys(drafts).length > 0);
+  useUnsavedChangesWarning(isDirty);
 
   function handleSave() {
     if (!pendingForm) return;
@@ -201,17 +213,16 @@ export default function AttendanceSettingsPage() {
         setDrafts({});
         setNetworksText(null);
         toast.success(t("attendance.settings_page.saved", "Settings saved"));
+        announceSaved(t("attendance.settings_page.saved", "Settings saved"));
       },
-      onError: (err) =>
-        toast.error(
-          apiErrorMessage(
-            err,
-            t(
-              "attendance.settings_page.save_failed",
-              "Failed to save settings",
-            ),
-          ),
-        ),
+      onError: (err) => {
+        const message = apiErrorMessage(
+          err,
+          t("attendance.settings_page.save_failed", "Failed to save settings"),
+        );
+        toast.error(message);
+        announceError(err, message);
+      },
     });
   }
 
@@ -1137,8 +1148,71 @@ export default function AttendanceSettingsPage() {
               </CardContent>
             </Card>
 
+            <Card className="lg:col-span-2">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <BellRing className="h-4 w-4" />
+                  {t("attendance.settings_page.presence", "Presence checks")}
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  {t(
+                    "attendance.settings_page.presence_desc",
+                    "During a shift, people who are checked in at a workplace get a notification at an unpredictable time: confirm you are at work. They have 15 minutes to answer. It is never sent around the middle of the shift, and only to people who allowed notifications. One missed check is not a finding; a pattern of them, or an answer from outside the workplace, goes to Integrity for a person to decide.",
+                  )}
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label htmlFor="presence-checks" className="text-sm">
+                    {t(
+                      "attendance.settings_page.presence_per_shift",
+                      "Checks during a shift",
+                    )}
+                  </Label>
+                  <Select
+                    value={String(form.presence_checks_per_shift ?? 0)}
+                    onValueChange={(v) =>
+                      setField("presence_checks_per_shift", Number(v))
+                    }
+                  >
+                    <SelectTrigger
+                      id="presence-checks"
+                      className="mt-1 w-full sm:w-80"
+                      aria-describedby="presence-checks-desc"
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="0">
+                        {t("attendance.presence_count.0", "Off")}
+                      </SelectItem>
+                      <SelectItem value="1">
+                        {t("attendance.presence_count.1", "Up to 1 a shift")}
+                      </SelectItem>
+                      <SelectItem value="2">
+                        {t("attendance.presence_count.2", "Up to 2 a shift")}
+                      </SelectItem>
+                      <SelectItem value="3">
+                        {t("attendance.presence_count.3", "Up to 3 a shift")}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p
+                    id="presence-checks-desc"
+                    className="mt-1 text-xs text-muted-foreground"
+                  >
+                    {t(
+                      "attendance.settings_page.presence_inform",
+                      "Tell your staff in writing before you switch this on.",
+                    )}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
             <WorkSitesCard />
             <BranchRulesCard />
+            <DeviceSilenceSetting />
           </div>
         )}
       </div>

@@ -63,9 +63,11 @@ export function PageTitleBar() {
     // Mobile Check-in sits under My Attendance, not under everyone's records.
     const parentMeta = getRouteMeta(meta.parent.href);
     crumbs.push({
-      label: parentMeta
-        ? routeText(meta.parent.href, parentMeta, can, t).label
-        : t(routeI18nKey(meta.parent.href, "label"), meta.parent.label),
+      label: meta.parent.labelKey
+        ? t(meta.parent.labelKey, meta.parent.label)
+        : parentMeta
+          ? routeText(meta.parent.href, parentMeta, can, t).label
+          : t(routeI18nKey(meta.parent.href, "label"), meta.parent.label),
       href: meta.parent.href,
     });
   }
@@ -89,7 +91,7 @@ export function PageTitleBar() {
           : "flex flex-col gap-3 border-b border-border bg-background px-4 py-4 sm:flex-row sm:items-end sm:justify-between md:px-6 md:py-5"
       }
     >
-      <div className="min-w-0">
+      <div className="min-w-0 print:hidden">
         {crumbs.length > 1 && (
           <nav
             aria-label={t("nav.breadcrumb", "Breadcrumb")}

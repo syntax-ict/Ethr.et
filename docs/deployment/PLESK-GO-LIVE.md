@@ -128,7 +128,7 @@ The site switches over the moment you save. It will show errors until Part 5 is 
    | `migrate` | `migrate --force` | Stops by design if the database user lacks `TRIGGER` (G0-F) |
    | `seed` | `db:seed --class=ProductionSeeder --force` | Permissions, plans, Ethiopian tax brackets and organisation templates. **Without it every role gets 403.** Idempotent; creates no accounts |
    | `create-admin` | `ethr:create-admin --email=… --password=… --force` | The platform super admin. Body `{"email": "…", "password": "…"}`, 12+ characters. Then sign in and change the password on the Security page |
-   | `optimize` | `config:cache`, `route:cache`, `view:cache` | Run last |
+   | `optimize` | `config:cache`, `route:cache`, `view:cache` | Run last on the first install, and after a `clear`. A later release no longer needs it: see *Every release after this* |
    | `backups` | — | Lists the backups on the host, newest first. Read-only |
    | `backup` | `ethr:backup --label=manual` | A backup now. Take one before a release that migrates |
    | `restore` | `ethr:restore <name> --force` | Body `{"name": "…", "confirm": "…"}`, the same backup name twice. Takes a `pre-restore` backup first, then checks `audit_log` is still append-only. See [`BACKUP-RESTORE.md`](BACKUP-RESTORE.md) |
@@ -221,6 +221,14 @@ release steps (Part 5). A release from before the check reports nothing there, w
 the script shows as unknown. *(On 2026-11-04 a release went live at 05:33Z without its
 steps; `release.json` alone read in step for five hours while the schema was behind.)*
 
+CI never drives the static export Apache serves, so the offline shell is checked here,
+against the live site, with the network cut by the browser (about three minutes, signed
+out, read-only):
+
+```bash
+cd src && npm run test:e2e:production:offline
+```
+
 Then open `https://<APP_DOMAIN>/login`, sign in, and run
 [`shared-hosting/deploy-checklist.md`](shared-hosting/deploy-checklist.md). Now do Part 1
 step 2 so the scheduler starts.
@@ -306,11 +314,21 @@ private key is a secret like `APP_KEY`; keep it out of chats and tickets.
    that could not run it is recorded as **not run**, never as passing; CI's own sweep does not
    include it.
 2. Merge to `main`, and wait for **Plesk release** to go green.
-3. Plesk Git → **Pull now → Deploy now**.
+3. Plesk Git → **Pull now**, then reload the page so the commit card is current. **Before
+   pressing Deploy**, run `scripts/release-status.sh https://<APP_DOMAIN>` from a local
+   checkout: it lists the commits Deploy would add and says whether the release adds a
+   migration. If it does, set `MAINTENANCE_TOKEN` first (step 4), so `migrate` can run the
+   moment the deploy lands. Then **Deploy now**. *(On 2026-11-23 and 2026-11-24 a release
+   went live with its migration unrun. Both had been checked when they were built, and the
+   `production` branch had moved on to a release with a migration by the time Deploy was
+   pressed. Run the script at the button, not earlier.)*
 4. Set `MAINTENANCE_TOKEN` in `.env`, then run `migrate`, `seed` (it picks up permissions a
-   release adds) and `optimize` as in Part 5 step 3 — or the Toolkit's Artisan, if it ever
-   attaches the application. Empty the token again afterwards. **Never generate the key
-   again** (the endpoint refuses; the Toolkit would not).
+   release adds), as in Part 5 step 3 — or the Toolkit's Artisan, if it ever
+   attaches the application. `optimize` is not needed: the first request after the deploy drops a
+   config or route cache older than `public/release.json`'s `built_at`, and the next scheduler tick
+   (every 5 minutes) rebuilds both. Run `optimize` only right after a `clear`, or to rebuild at once.
+   Empty the token again afterwards. **Never generate the key again** (the endpoint refuses; the
+   Toolkit would not).
 
 Rolling back is a revert on `main`, which produces a new release. A deploy does not undo
 migrations. See [`shared-hosting/rollback.md`](shared-hosting/rollback.md).

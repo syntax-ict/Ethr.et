@@ -117,8 +117,8 @@ describe("sidebar footer", () => {
     const mark = await within(footer()).findByRole("link", {
       name: /powered by ethr/i,
     });
-    expect(mark.textContent).toContain("E");
-    expect(mark.querySelector("svg")).toBeNull();
+    expect(mark.querySelector("svg circle")).not.toBeNull();
+    expect(mark.querySelector("img")).toBeNull();
   });
 
   it("uses the platform logo the public site shows, when one is set", async () => {

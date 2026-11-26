@@ -60,6 +60,14 @@ that runs, reads or edits these cases. The human version of each rule is in
 - Each group of cases says which commit must be live before it is run (S-01). What is merged, what
   is built and what is live are three different commits more often than not: read
   `scripts/release-status.sh https://www.ethr.et` rather than assuming.
+- **Check who else is covering it first.** `scripts/qa-pack-coverage.sh` reads the pack in your own
+  working tree, so cases waiting in an open pull request look uncovered to it. Read the open pull
+  requests it lists at the end before writing a case, and leave the PRs they cite to them: on
+  2026-11-12 two branches wrote a pass each over #699 to #701, and the duplication only showed up
+  when they were merged. **A feature's own pull request is the better place for its cases** than a
+  later edition of the pack: whoever built the thing knows what the screen says, and that is how
+  XLS-001 came to be right about the workbook's sheets where STG-008 was wrong. An edition's job is
+  then to audit and reconcile, not to cover it again.
 - Keep case IDs stable; add new cases at the next free number and never renumber. Name the PR in the
   case ("(#669)") and add its row to [01, section 2.3](01-TEST-PLAN.md#23-changes-since-the-first-edition),
   so `scripts/qa-pack-coverage.sh` stops listing it. Run it with `--all` as well: a pull request

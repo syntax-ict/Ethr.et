@@ -103,8 +103,8 @@ describe("Users — editing an invited account", () => {
 
     await ui.click(await screen.findByRole("button", { name: /^Edit / }));
     const dialog = await screen.findByRole("dialog");
-    // Role, then Status.
-    await ui.click(within(dialog).getAllByRole("combobox")[1]);
+    // Role, Custom role, then Status.
+    await ui.click(within(dialog).getAllByRole("combobox")[2]);
     await ui.click(await screen.findByRole("option", { name: "Suspended" }));
     await ui.click(within(dialog).getByRole("button", { name: "Save" }));
 

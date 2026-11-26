@@ -4,11 +4,16 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Settings;
 
+use App\Enums\EmploymentFramework;
 use App\Models\OrganizationType;
 use App\Services\CurrentTenant;
 use App\Services\Tenancy\OrganisationProfile;
+use App\Support\Locales;
+use App\Support\OrganisationSectors;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Enum;
 use Illuminate\Validation\Validator;
 
 class UpdateOrganizationRequest extends FormRequest
@@ -18,7 +23,7 @@ class UpdateOrganizationRequest extends FormRequest
         return true;
     }
 
-    /** @return array<string, array<int, string>> */
+    /** @return array<string, array<int, string|Enum>> */
     public function rules(): array
     {
         return [
@@ -28,7 +33,8 @@ class UpdateOrganizationRequest extends FormRequest
             'effective_from' => ['sometimes', 'nullable', 'date'],
             'cancel_pending_organization_type' => ['sometimes', 'boolean'],
             'timezone' => ['sometimes', 'string', 'max:50', 'timezone:all'],
-            'locale' => ['sometimes', 'string', 'in:en,am,om,ti,so'],
+            'locale' => ['sometimes', 'string', Locales::rule()],
+            'employment_framework' => ['sometimes', 'nullable', 'string', Rule::enum(EmploymentFramework::class)],
         ];
     }
 
@@ -46,6 +52,15 @@ class UpdateOrganizationRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $v): void {
+            // The industry must be one the catalogue knows, as at sign-up. Only a
+            // change is checked: an organisation whose stored industry is an old
+            // trade, or none, saves its other fields without it being refused.
+            $industry = $this->input('type');
+            $current = app(CurrentTenant::class)->get();
+            if (is_string($industry) && $industry !== '' && $industry !== $current?->type && app(OrganisationSectors::class)->baseOf($industry) === null) {
+                $v->errors()->add('type', __('validation.in', ['attribute' => 'industry']));
+            }
+
             $type = $this->input('organization_type');
 
             if (is_string($type) && ! in_array($type, OrganizationType::activeCodes(), true)) {
@@ -55,11 +70,11 @@ class UpdateOrganizationRequest extends FormRequest
             }
 
             $tenant = app(CurrentTenant::class)->get();
-            if (! is_string($type) || $tenant === null || $type === $tenant->organization_type) {
+            $profile = app(OrganisationProfile::class);
+            if (! is_string($type) || $tenant === null || $type === $profile->inForce($tenant)) {
                 return;
             }
 
-            $profile = app(OrganisationProfile::class);
             $earliest = $profile->earliestChange($tenant);
             if ($earliest === null) {
                 return;

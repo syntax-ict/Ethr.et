@@ -38,8 +38,14 @@ class PlatformSettingsController extends Controller
         Gate::authorize('admin.manage');
 
         $settings = PlatformSetting::current();
-        $before = $settings->only(array_keys($request->validated()));
-        $settings->update($request->validated());
+        $validated = $request->validated();
+        // A bank name saved without a code is typed text; the code beside it
+        // belonged to the name it replaces.
+        if (array_key_exists('bank_name', $validated) && ! array_key_exists('bank_code', $validated)) {
+            $validated['bank_code'] = null;
+        }
+        $before = $settings->only(array_keys($validated));
+        $settings->update($validated);
 
         // Changing where every tenant sends money is exactly the kind of action the
         // append-only audit log exists for, and it recorded who but not what

@@ -4,7 +4,12 @@ export interface RouteMeta {
   label: string;
   description?: string;
   section?: string;
-  parent?: { label: string; href: string };
+  /**
+   * `labelKey` names the parent in the breadcrumb when the parent's own page
+   * title would be the wrong word for it: `/settings` is both the hub and the
+   * General page, so under it a trail would read "General settings".
+   */
+  parent?: { label: string; href: string; labelKey?: string };
   /**
    * The registry path this metadata came from, when it is not the URL itself —
    * a record page (`/employees/<ULID>`) borrows `/employees`. Translation keys
@@ -109,7 +114,7 @@ export const ROUTE_META: Record<string, RouteMeta> = {
   "/employees": {
     section: "People",
     label: "Employees",
-    description: "Manage your organization's workforce",
+    description: "Manage your organisation's workforce",
   },
   "/employees/new": {
     section: "People",
@@ -123,9 +128,15 @@ export const ROUTE_META: Record<string, RouteMeta> = {
     label: "Import",
     description: "Bulk-import employees from a CSV file",
   },
+  "/employees/duplicates": {
+    section: "People",
+    parent: { label: "Employees", href: "/employees" },
+    label: "Possible duplicates",
+    description: "Employees who may be one person recorded twice",
+  },
   "/organization": {
     section: "People",
-    label: "Organization",
+    label: "Organisation",
     description: "Manage departments, branches, and positions",
   },
   "/directory": {
@@ -251,7 +262,7 @@ export const ROUTE_META: Record<string, RouteMeta> = {
   "/devices/dashboard": {
     section: "Operations",
     parent: { label: "Devices", href: "/devices" },
-    label: "Device Status",
+    label: "Device health",
     description: "Device status and connectivity overview",
   },
 
@@ -279,6 +290,13 @@ export const ROUTE_META: Record<string, RouteMeta> = {
     label: "Reports",
     description: "Generate and download operational reports",
   },
+  "/reports/timesheet": {
+    section: "Insights",
+    parent: { label: "Reports", href: "/reports" },
+    label: "Monthly timesheet",
+    description:
+      "Each person's day-by-day attendance for a month, with the figures payroll reads",
+  },
   "/analytics": {
     section: "Insights",
     label: "Analytics",
@@ -288,79 +306,79 @@ export const ROUTE_META: Record<string, RouteMeta> = {
   // ── Admin ────────────────────────────────────────────────────────
   "/settings": {
     section: "Admin",
-    label: "General Settings",
-    description: "Organization, branding, and workspace configuration",
+    label: "General settings",
+    description: "Organisation, branding and workspace settings",
   },
   "/settings/attendance": {
     section: "Admin",
-    parent: { label: "Settings", href: "/settings" },
+    parent: { label: "Settings", href: "/settings", labelKey: "nav.settings" },
     label: "Attendance Rules",
     description: "Configure attendance rules, grace periods, and policies",
   },
   "/settings/leave-types": {
     section: "Admin",
-    parent: { label: "Settings", href: "/settings" },
+    parent: { label: "Settings", href: "/settings", labelKey: "nav.settings" },
     label: "Leave Types",
     description: "Define leave categories, accrual rules, and balances",
   },
   "/settings/opening-balances": {
     section: "Admin",
-    parent: { label: "Settings", href: "/settings" },
+    parent: { label: "Settings", href: "/settings", labelKey: "nav.settings" },
     label: "Opening balances",
     description: "Leave and loan balances brought over from a previous system",
   },
   "/settings/approval-chains": {
     section: "Admin",
-    parent: { label: "Settings", href: "/settings" },
+    parent: { label: "Settings", href: "/settings", labelKey: "nav.settings" },
     label: "Approval chains",
     description:
       "Who approves leave, attendance corrections and profile changes, step by step",
   },
   "/settings/exit-clearance": {
     section: "Admin",
-    parent: { label: "Settings", href: "/settings" },
+    parent: { label: "Settings", href: "/settings", labelKey: "nav.settings" },
     label: "Exit checklist",
     description: "The lines every exit clearance starts with",
   },
   "/settings/holidays": {
     section: "Admin",
-    parent: { label: "Settings", href: "/settings" },
+    parent: { label: "Settings", href: "/settings", labelKey: "nav.settings" },
     label: "Holidays",
     description: "Configure public holidays and calendar exceptions",
   },
   "/settings/payroll": {
     section: "Admin",
-    parent: { label: "Settings", href: "/settings" },
+    parent: { label: "Settings", href: "/settings", labelKey: "nav.settings" },
     label: "Payroll Rules",
     description: "Allowances, income tax brackets, and overtime rates",
   },
   "/settings/roles": {
     section: "Admin",
-    parent: { label: "Settings", href: "/settings" },
+    parent: { label: "Settings", href: "/settings", labelKey: "nav.settings" },
     label: "Roles & Permissions",
     description: "Manage custom roles and permission assignments",
   },
   "/settings/users": {
     section: "Admin",
-    parent: { label: "Settings", href: "/settings" },
+    parent: { label: "Settings", href: "/settings", labelKey: "nav.settings" },
     label: "Users & Access",
     description: "Invite people and manage their access",
   },
   "/settings/data-export": {
     section: "Admin",
-    parent: { label: "Settings", href: "/settings" },
+    parent: { label: "Settings", href: "/settings", labelKey: "nav.settings" },
     label: "Data export",
     description: "Download a copy of all your organisation's data",
   },
   "/settings/scim": {
     section: "Admin",
-    parent: { label: "Settings", href: "/settings" },
+    parent: { label: "Settings", href: "/settings", labelKey: "nav.settings" },
     label: "SCIM Provisioning",
     description: "Automatic user provisioning from your identity provider",
   },
   "/settings/api-keys": {
     section: "Admin",
-    parent: { label: "Settings", href: "/settings" },
+    parent: { label: "Settings", href: "/settings", labelKey: "nav.settings" },
     label: "API Keys",
     description: "Generate and manage API keys for external integrations",
   },
@@ -373,25 +391,25 @@ export const ROUTE_META: Record<string, RouteMeta> = {
   },
   "/settings/webhooks": {
     section: "Admin",
-    parent: { label: "Settings", href: "/settings" },
+    parent: { label: "Settings", href: "/settings", labelKey: "nav.settings" },
     label: "Webhooks",
     description: "Configure outgoing webhook endpoints",
   },
   "/settings/accounting": {
     section: "Admin",
-    parent: { label: "Settings", href: "/settings" },
+    parent: { label: "Settings", href: "/settings", labelKey: "nav.settings" },
     label: "Accounting",
     description: "Chart of accounts and journal entry mappings",
   },
   "/settings/notification-templates": {
     section: "Admin",
-    parent: { label: "Settings", href: "/settings" },
+    parent: { label: "Settings", href: "/settings", labelKey: "nav.settings" },
     label: "Notification Templates",
-    description: "Customize email and notification templates",
+    description: "Customise email and notification templates",
   },
   "/settings/audit-logs": {
     section: "Admin",
-    parent: { label: "Settings", href: "/settings" },
+    parent: { label: "Settings", href: "/settings", labelKey: "nav.settings" },
     label: "Audit Log",
     description: "Immutable record of all system actions",
   },
@@ -422,7 +440,7 @@ export const ROUTE_META: Record<string, RouteMeta> = {
     section: "Admin",
     parent: { label: "Admin Console", href: "/admin" },
     label: "Tenants",
-    description: "View and manage all tenant organizations",
+    description: "View and manage all tenant organisations",
   },
   // Without these two the segment fallback took over: the heading read
   // "Platform settings" / "Audit" and both inherited /admin's description, so

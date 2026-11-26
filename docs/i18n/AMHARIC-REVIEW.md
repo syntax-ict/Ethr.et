@@ -47,6 +47,30 @@ Drafts written without a native speaker; a wrong label moves no money.
 `setup_payout_method`, `setup_employee_salaries`, `leave_below_law`,
 `setup_device_linked` and `profile_legal_review`.
 
+### Type-aware narrowing (2026-11-12)
+
+5 keys drafted in Amharic and Afaan Oromoo without a native speaker:
+`settings.org_kind_show_all`, `settings.org_kind_show_suggested`, `setup2.show_all_profiles`,
+`setup2.show_typical_profiles` and `auth.org_type_required`.
+
+The two sign-up errors, `auth.org_type_required` and `auth.org_kind_required`, read identically in Amharic and Afaan Oromoo. Each now repeats the wording of the label it sits under, so the legal-kind error carries ሕጋዊ and *seeraan* as its label does, and the industry error matches its own label; `settings.org_kind_show_all` in Afaan Oromoo now uses the label's *seeraan*. Drafted by a non-native reviewer from terms the locale already uses; a native speaker's reading is still owed.
+
+### QA defects D-2 and D-3 (2026-11-14)
+
+Drafted, not native-reviewed. The policy names in the setup wizard
+(`PolicyProfileCatalog`) lost their em dash, which house style forbids, by
+becoming one noun phrase instead of two parts:
+
+| Where | English | Amharic |
+|---|---|---|
+| `ethiopia_private.label` | Ethiopian private sector | የኢትዮጵያ የግል ዘርፍ |
+| `ethiopia_public.label` | Ethiopian public sector (civil service) | የኢትዮጵያ የመንግሥት ዘርፍ (ሲቪል ሰርቪስ) |
+| `validation.attributes.branch_public_id` | branch | ቅርንጫፍ (Afaan Oromoo: damee) |
+
+The attribute name reuses the word the branch field already shows
+(`attendance.kiosks_page.branch`). The wizard's catalogues still carry no
+Afaan Oromoo text at all; that is a wider gap than this fix.
+
 ### Dry-run payroll and future-dated kind changes (2026-11-09)
 
 24 keys drafted in Amharic and Afaan Oromoo without a native speaker:
@@ -129,6 +153,23 @@ than `diplomatic_mission` read correctly against the Commercial Code's terms but
 native speaker. In Afaan Oromoo, a setting's *value* is still *gatii*, which is also *price*
 (`admin_plans.price`); no better established word was found in `om.json`.
 
+### Nationality column help in the import guide (2026-11-15)
+
+Drafted, not native-reviewed. The employee import guide had no line for the
+`nationality` column; `employees_import_page.col_nationality` adds one. A
+native reading is owed for both languages.
+
+| Key | English | Amharic | Afaan Oromoo |
+|---|---|---|---|
+| `employees_import_page.col_nationality` | Country of citizenship, such as Ethiopian | የዜግነት አገር፣ ለምሳሌ ኢትዮጵያዊ | Biyyi lammummaa, fakkeenyaaf Itiyoophiyaa |
+
+### Employee workbook group headings, example line and note (2026-11-15)
+
+Drafted, not native-reviewed. `setup2.template_group_core`, `_person`, `_contact`, `_job`, `_pay` and
+`_source` head the column groups on the template's Instructions sheet, `setup2.template_line_example`
+points the reader to the Example sheet and the header notes, and `setup2.template_example_note` is the
+line under the Example sheet. A native reading is owed for the am and om strings.
+
 ## Frontend (92 keys)
 
 | key | English | Amharic (to review) |
@@ -193,8 +234,8 @@ native speaker. In Afaan Oromoo, a setting's *value* is still *gatii*, which is 
 | `leave_types_page.working_week` | Working week | የሥራ ሳምንት |
 | `leave_types_page.working_week_admin_only` | Only an organisation admin can change the working week. | የሥራ ሳምንቱን መቀየር የሚችለው የድርጅት አስተዳዳሪ ብቻ ነው። |
 | `leave_types_page.working_week_desc` | The days a leave request counts. Holidays are not counted. | የፈቃድ ጥያቄ የሚቆጥራቸው ቀናት። በዓላት አይቆጠሩም። |
-| `offline.page_body` | No internet connection. Check your network and try again. Attendance you record offline will sync automatically when you reconnect. | የበይነመረብ ግንኙነት የለም። አውታረ መረብዎን ይፈትሹና እንደገና ይሞክሩ። ከመስመር ውጪ የመዘገቡት መገኘት ሲገናኙ በራሱ ይመሳሰላል። |
-| `offline.page_title` | You are offline | ከመስመር ውጪ ነዎት |
+| `offline.page_body` | No internet connection. Check your network and try again. Attendance you record offline will sync automatically when you reconnect. | የኢንተርኔት ግንኙነት የለም። አውታረ መረብዎን ይፈትሹና እንደገና ይሞክሩ። ከመስመር ውጭ የመዘገቡት መገኘት ሲገናኙ በራሱ ይመሳሰላል። |
+| `offline.page_title` | You are offline | ከመስመር ውጭ ነዎት |
 | `org.field.grade_name_placeholder` | G1, Manager I, Level 5... | G1፣ ሥራ አስኪያጅ I፣ ደረጃ 5… |
 | `payroll_config.fiscal_year_start` | Fiscal year starts | የበጀት ዓመቱ የሚጀምርበት |
 | `payroll_config.fiscal_year_start_help` | Meskerem for most private organisations; Hamle for government. | ለአብዛኞቹ የግል ድርጅቶች መስከረም፤ ለመንግሥት ሐምሌ። |
@@ -225,3 +266,515 @@ native speaker. In Afaan Oromoo, a setting's *value* is still *gatii*, which is 
 | `webhooks_page.edit_webhook` | Edit webhook | ዌብሁኩን አርትዕ |
 | `webhooks_page.enabled` | Webhook enabled | ዌብሁኩ ነቅቷል |
 | `webhooks_page.updated` | Webhook updated | ዌብሁኩ ተዘምኗል |
+
+## Setup wizard catalogues in Afaan Oromoo (2026-11-14)
+
+The setup wizard shows catalogue text that comes from the backend, not from the dictionaries, and it picked Amharic with an `am` check, so an Afaan Oromoo reader saw English. Every `label_am`, `description_am` and `name_am` in the wizard catalogues now has an `_om` beside it, and the frontend picks `field_<locale>` for any shipped locale (`features/onboarding/v2/localized.ts`), falling back to English when the Oromo text is empty.
+
+**Drafted, not native-reviewed.** The text was written by a non-native reviewer from terms the product already ships in `om.json` and `api/lang/om/` (*boqonnaa* leave, *abbaltii* allowance, *damee* branch, *hojjetaa* employee, *shiftii* shift, *Fulbaana* and *Adoolessa* for Meskerem and Hamle, *Labsii Hojjetaa* for the Labour Proclamation). A native speaker's reading is still owed (O7). The names that are least certain are marked below.
+
+| Catalogue | File | `_om` strings |
+|---|---|---|
+| Industries (labels, and the allowance names in their overrides) | `api/app/Services/Onboarding/IndustryCatalog.php` | 35 labels, 4 allowance names |
+| Workforce profiles (labels, descriptions, shift and rotation names) | `api/app/Services/Onboarding/WorkforceProfileCatalog.php` | 10 labels, 10 descriptions, 21 names |
+| Policy profiles (labels, descriptions, allowance names) | `api/app/Services/Onboarding/PolicyProfileCatalog.php` | 3 labels, 3 descriptions, 6 names |
+| Leave types | `api/app/Services/Onboarding/LeaveTypeCatalog.php` | 13 names |
+| The proposed head-office branch | `api/app/Services/Onboarding/IndustryProfileResolver.php` | 1 name |
+
+`OnboardingCatalogCopyTest` fails when an `_am` text has no `_om`, an empty one, or one equal to the English or the Amharic.
+
+Terms to check first, because the English has no settled Oromo equivalent in the product yet: *Sektara Mootummaa* (government sector), *Telekoominikeeshinii*, *Boqonnaa Qorannoo* (sabbatical), *Boqonnaa Gaddaa* (bereavement), *Boqonnaa Gaa'elaa* (marriage), *Hafuu Hayyamamaa* (excused absence), *Waaree Booda* (afternoon and swing shift) and *Torban Guyyaa Jahaa* (six-day week).
+
+### Proposal names and kinds in law (2026-11-15)
+
+Drafted in Amharic and Afaan Oromoo without a native speaker, for QA observation O-2. A wrong
+name moves no money.
+
+| What | Where | Strings |
+|---|---|---|
+| Departments the wizard proposes | `api/app/Services/Onboarding/ProposalNameGlossary.php`, `DEPARTMENTS` | 167, each in Amharic and Afaan Oromoo |
+| Positions the wizard proposes | the same file, `POSITIONS` | 151, each in Amharic and Afaan Oromoo |
+| The word of a grade | the same file, `GRADE` | ደረጃ, Sadarkaa |
+| Kinds of organisation in law | `organization_types.name_om`, migration `2026_11_15_000001_add_oromo_name_to_organization_types` | 16, Afaan Oromoo only |
+
+`ProposalNameGlossaryTest` fails when a proposed department or position has no Amharic or no
+Oromo name, one equal to the English, or one in the wrong script. It does not judge the wording.
+Correct a kind's name with a new migration that updates the row, never by editing that one; a
+glossary entry is corrected where it is.
+
+What to check first:
+
+- **Loan words kept beside an Oromo gloss**, where the product has no settled term: *Underwriting*,
+  *Actuarial*, *Treasury*, *Billing*, *Catering*, *DevOps*, *Product*, *Marketing*, *Steward*.
+- **The same Amharic for two English names**, on purpose: አሠልጣኝ for Instructor and Trainer,
+  ሠራተኛ for Worker and Staff, የጽሕፈት ቤት ኃላፊ for Office Head and Head of Office.
+- **Safety and Security** are kept apart: የሥራ ደህንነት / *Nageenya Hojii* and ጥበቃ / *Eegumsa*.
+- **Department** in a zone's structure is መምሪያ / *Qajeelcha*, the civil-service word, while the
+  product's own word for a department is ክፍል / *Muummee*.
+
+### Terminal number warnings (2026-11-15)
+
+Drafted in Amharic and Afaan Oromoo without a native speaker, awaiting a native reading. A wrong word
+moves no money: the person is added either way.
+
+| What | Where | Strings |
+|---|---|---|
+| Warning that a badge number is not one a ZKTeco terminal takes | `api/lang/{am,om}/onboarding.php`, `migration.terminal_number_digits_only` | 1 |
+| Notes that a terminal's own number is too long or not a badge number | the same file, `migration.device_id_too_long`, `migration.device_id_not_badge` | 2 |
+| Heading above those warnings in the People step | `src/src/lib/i18n/locales/{am,om}.json`, `setup2.warnings_heading` | 1 |
+
+### Employee import profile columns (2026-11-16)
+
+Drafted in Amharic and Afaan Oromoo without a native speaker. They are the words for eleven new
+columns of the employee import (grade, cost centre, probation end, contract type and end date,
+bank name, branch and account, emergency contact name, relationship and phone). The English is
+final. A wrong word here misleads a person filling in a spreadsheet; it moves no money.
+
+| What | Where | Strings |
+|---|---|---|
+| Help lines under each new column | `src/src/lib/i18n/locales/{am,om}.json`, `employees_import_page.col_grade` to `col_emergency_phone` | 11 each |
+| Five new column names | the same files, `employees_import_page.label_contract_end_date`, `label_emergency_name`, `label_emergency_phone`, `label_bank_branch`, `label_bank_account` | 5 each |
+| Problems a list can have | `api/lang/{am,om}/onboarding.php`, `migration.profile_*` (one says a contract starts on the hire date, so the row needs one) | 5 each |
+| Row prefix, two field names and the "not stored" line | `api/lang/{am,om}/employee.php`, `import_row`, `import_field_grade`, `import_field_cost_center`, `import_not_stored` | 4 each |
+
+The other six column names reuse words the profile screens already have. What to check first: the
+contract type values (`probation`, `fixed_term`, `permanent`, `casual`, `consultancy`) are kept
+in Latin letters in both languages, because they are what the column takes; and *Sadarkaa* for a
+grade, which the proposal glossary already uses.
+
+### Completing people who are already here (2026-11-16)
+
+Drafted in Amharic and Afaan Oromoo without a native speaker, awaiting a native reading. The English
+is final. A wrong word here misleads a reader about what a list will do; it moves no money, and a
+difference in a person's job is shown and never written whatever the words say.
+
+| What | Where | Strings |
+|---|---|---|
+| The choice between adding people and completing those already here, the review's title and hint, "Not found in ETHR, left out", and the confirmation, progress and done lines | `src/src/lib/i18n/locales/{am,om}.json`, `setup2.mode_*`, `setup2.complete_*`, `setup2.not_found_left_out`, `setup2.left_out`, `setup2.completing`, `setup2.complete_commit`, `setup2.complete_continue`, `setup2.outcome_new_complete` ("not found", the count chip of a list that completes people) | 15 each |
+| The line under a difference that is left alone ("Left as it is. Change it with a personnel action."), the words for a bank account, emergency contact and contract a list adds, and "Adds :field: :value" | the same files, `setup2.changes_locked`, `setup2.change_bank`, `setup2.change_emergency_contact`, `setup2.change_contract`, `setup2.changes_adds` | 5 each |
+| The Download to complete button, its three messages, and the three new gaps a list can be filtered by | the same files, `employees.complete_*`, `employees.missing.department`, `employees.missing.position`, `employees.missing.gender` | 7 each |
+| Two refusals from the row endpoint: a list that completes people adds nobody, and a person's job and pay are changed with a personnel action | `api/lang/{am,om}/onboarding.php`, `migration.complete_adds_nobody`, `migration.accept_locked` | 2 each |
+
+What to check first: *personnel action* (the product's own word for a transfer, promotion or demotion
+that leaves a record) in `setup2.changes_locked` and `migration.accept_locked`, and the word for
+*left out* against the Amharic and Afaan Oromoo the import review already uses for a skipped row.
+
+### Problems by column, and the two files (2026-11-16)
+
+Drafted in Amharic and Afaan Oromoo without a native speaker, awaiting a native reading. The English
+is final. A wrong word here misleads a person correcting a spreadsheet; it moves no money and changes
+no record.
+
+| What | Where | Strings |
+|---|---|---|
+| The heading and four column headings of the table of problems ("Lines to fix", "What to fix", "Lines", "Line numbers"), and "Whole list" for a problem about the list itself | `src/src/lib/i18n/locales/{am,om}.json`, `setup2.problem_heading`, `problem_col_what`, `problem_col_count`, `problem_col_lines`, `problem_whole_list` | 5 each |
+| The button that downloads the refused lines, and the line shown when the file cannot be built | the same files, `setup2.problem_download_fix`, `problem_fix_failed` | 2 each |
+| The button that downloads what happened, the two headings of its sheet that are new ("What happened", "Note"), the words *Added*, *Filled in*, *Already here, nothing to change*, and its failure line | the same files, `setup2.result_download`, `result_what`, `result_note`, `result_added`, `result_filled`, `result_unchanged`, `result_failed` | 7 each |
+
+What to check first: *Already here, nothing to change* (`result_unchanged`), and *Filled in*
+against the Amharic and Afaan Oromoo the review already uses for a blank that was filled. The words
+for *Left out* and *Not found in ETHR, left out* in the result file are the review's own.
+
+### What a list left at the terminals (2026-11-16)
+
+Drafted in Amharic and Afaan Oromoo without a native speaker, awaiting a native reading. The English
+is final. A wrong word here misleads a person about whether someone can clock in at a terminal; it
+moves no money and changes no record.
+
+| What | Where | Strings |
+|---|---|---|
+| The section on the committed screen: its title and line, "N sent or waiting", "N not accepted by the terminal", the last answer line, "N not sent. Their number is not one this terminal takes.", and the two lines for people with no badge number or no branch | `src/src/lib/i18n/locales/{am,om}.json`, `migration_terminals.title`, `desc`, `sent_or_waiting`, `failed`, `last_error`, `not_sent`, `without_number`, `without_branch`, and the singular `_one` form of `sent_or_waiting`, `failed`, `not_sent`, `without_number` and `without_branch` | 13 each |
+| The two lines for a terminal ETHR cannot write to ("This terminal only sends" and "ETHR does not send people to this terminal"), the download button, the sheet's two headings and its failure line | the same files, `migration_terminals.receives_only`, `enrol_by_hand`, `download`, `download_aria`, `col_number`, `col_name`, `download_failed`, `employees_link`, and the singular `receives_only_one` and `enrol_by_hand_one` | 10 each |
+| The Try again button, its name for a screen reader, and its two answers | the same files, `migration_terminals.retry`, `retry_aria`, `retry_done`, `retry_failed` | 4 each |
+| Bringing a badge's held punches in, in several requests: "N brought in, M still to go", Stop, Carry on, "Stopped.", "It stopped before it finished.", and the line when one request did not replay them all on the new-employee screen | the same files, `devices_page.unmatched.progress`, `stop`, `carry_on`, `stopped`, `carry_failed`, and `employee.badge_replayed_part` | 6 each |
+| After a list: the people whose held punches can now be brought in ("N people on this list have punches waiting at a terminal"), each line, the warning that it cannot be undone here, the button, the totals, the refused line, the line for matches past the cap, and the link to Devices. Each count has a singular `_one` form | the same files, `migration_terminals.punches`, `punches_one`, `held`, `held_one`, `held_row`, `held_warning`, `held_button`, `held_done`, `held_refused`, `held_refused_one`, `held_more`, `held_more_one`, `devices_link` | 13 each |
+| The audit label for bringing held punches in when the link already existed ("Held punches brought in"), and the new-employee line for refused punches, which no longer says they are listed on the attendance | `src/src/lib/i18n/locales/{am,om}.json`, `audit.action.device.held_punches_replayed` and `employee.badge_replayed_some` (reworded) | 2 each |
+| The 409 for a badge whose punches are already being brought in by another request | `api/lang/{am,om}/device.php`, `held_busy` | 1 each |
+
+What to check first: the word for a *terminal* (the drafts use the word the Commands tab already uses
+for a device, so "terminal" and "device" read alike), and *not accepted by the terminal* against *not
+sent* (the first is a refusal by the device, the second is ETHR holding back a number the device would
+refuse).
+
+### A list that comes out of other software (2026-11-16)
+
+Drafted in Amharic and Afaan Oromoo without a native speaker, awaiting a native reading. The English
+is final. A wrong word here misleads a person about which column of their file is read as a name or
+which line holds the column names; it moves no money and changes no record.
+
+| What | Where | Strings |
+|---|---|---|
+| The three parts of a name, as columns a file's column can be matched to: "First name", "Father's name", "Grandfather's name", and what each takes | `src/src/lib/i18n/locales/{am,om}.json`, `setup2.col_first_name`, `col_father_name`, `col_grandfather_name`, and `employees_import_page.col_first_name`, `col_father_name`, `col_grandfather_name` | 6 each |
+| The line that holds the column names: "Column names are on line N.", the choice's name and label, "Line N", "There are no column names", and the button "The column names are on another line" | the same files, `setup2.header_line_found`, `header_line_pick`, `header_line_option`, `header_line_none`, `header_line_other` | 5 each |
+| A workbook with several sheets: "This workbook has N sheets. Reading: Sheet1.", and the sheet choice's name for a screen reader | the same files, `setup2.sheets_note`, `sheet_pick` | 2 each |
+| The note under a text file that was not UTF-8: "This file was read as Windows-1252 text." | the same files, `setup2.file_read_as` | 1 each |
+
+What to check first: the three part names against how a name is usually asked for on an Ethiopian
+form (the drafts use the Amharic words for the father's and the grandfather's name, and the
+column's English is "Last name" in many exports, which the server reads as the grandfather's name),
+and *Column names* against the word the matcher already uses for a file's first line.
+
+### Lists in progress (2026-11-16)
+
+Drafted in Amharic and Afaan Oromoo without a native speaker, awaiting a native reading. The English
+is final. A wrong word here misleads a person about whether a list can still be thrown away; it moves
+no money, and a list that has begun to be added cannot be discarded at all.
+
+| What | Where | Strings |
+|---|---|---|
+| The card above the list box: its title and line, the two kinds of list ("Adding people", "Completing people who are already here"), the three states ("Still being read", "Waiting for your review", "Being added"), "N lines" and "1 line", the three ways to say who started it ("Started 5 min ago by you", "by NAME", "by someone else"), Open, "Opening the list" | `src/src/lib/i18n/locales/{am,om}.json`, `migration_lists.title`, `hint`, `mode_add`, `mode_complete`, `status_staging`, `status_reviewing`, `status_committing`, `lines`, `lines_one`, `started_you`, `started_by`, `started_other`, `open`, `opening` | 14 each |
+| Discarding: the question, its two forms of "The N lines on it are removed. Nobody on it has been added.", the button, the two answers | the same files, `migration_lists.discard_title`, `discard_desc`, `discard_desc_one`, `discard`, `discarded`, `discard_failed` | 6 each |
+| The line over a list that was still being read when the page was opened, before Carry on | the same files, `setup2.staging_resumed` | 1 each |
+| The audit label "Data migration list discarded" | `src/src/lib/i18n/locales/{am,om}.json`, `audit.action.migration.discarded` | 1 each |
+| The two refusals when a list is being added or was added | `api/lang/{am,om}/onboarding.php`, `migration.discard_committing`, `discard_committed` | 2 each |
+
+What to check first: *Open* and *Discard* as verbs on a button (the drafts use the imperative; the Amharic
+for discard is "remove"), and the three
+"started" sentences, where a person's name sits inside the Amharic and Oromo word order. The Oromo for
+the second one puts the name before the verb and may need a suffix on the name.
+
+### The console shows the kind in law (2026-11-15)
+
+Four keys drafted in Amharic and Afaan Oromoo without a native speaker, in
+`src/src/lib/i18n/locales/{am,om}.json`: `admin_tenants_page.filter_by_kind`,
+`admin_tenants_page.all_kinds`, `admin_tenant_detail_page.kind_needs_review` and
+`admin_tenant_detail_page.kind_read_only`. The kind's own name and the heading "Kind of
+organisation in law" are existing strings (`settings.organization_kind`, the catalogue's
+`name_am` and `name_om`), reused as they are. A wrong label moves no money.
+
+### Sign-in step option descriptions (2026-11-16)
+
+Four keys drafted in Amharic and Afaan Oromoo without a native speaker, in
+`src/src/lib/i18n/locales/{am,om}.json`: `setup2.id_email_desc`, `setup2.id_phone_desc`,
+`setup2.id_code_desc` and `setup2.id_username_desc`. They were missing, so the Sign-in step of the
+guided setup showed English under each option. The Amharic drafts:
+
+- `setup2.id_email_desc`: የድርጅት ኢሜይል ላላቸው ሠራተኞች መደበኛ ነው።
+- `setup2.id_phone_desc`: ኢሜይል ለሌላቸው የሥራ ኃይሎች።
+- `setup2.id_code_desc`: ኢሜይል የሌላቸው ሰዎች በአካል ይነቃሉ፤ በዚህ ቁጥር ይገባሉ።
+- `setup2.id_username_desc`: ቡድናቸው ለሚመርጥ፣ በራስ የተመረጠ መጠሪያ።
+
+What to check first: the phone line ("workforces without email"), which is a short label rather than a
+sentence, and the username line, whose word order is unnatural in Amharic. "Activated in person" reuses
+the existing `activation_code.button` verb. A wrong label moves no money.
+
+### A sign-in column in the employee workbook (2026-11-16)
+
+Drafted in Amharic and Afaan Oromoo without a native speaker, awaiting a native reading. The English is
+final. A wrong word here can make HR read "yes" as "no" in a column that decides who is invited to sign
+in, so the values the column accepts matter most.
+
+| What | Where | Strings |
+|---|---|---|
+| The column's name "Sign in", what it takes, and the line on the workbook's instructions sheet | `src/src/lib/i18n/locales/{am,om}.json`, `setup2.col_sign_in`, `employees_import_page.col_sign_in`, `setup2.template_line_sign_in` | 3 each |
+| The note beside a person the list says not to invite: "this list did not ask to invite them" | the same files, `migration_logins.list_said_no` | 1 each |
+| The card on the review step: its title, the four lines of counts (the title says they are for the people the list adds), the warning that people no invitation can reach cannot sign in by employee number here, and the link | the same files, `migration_ready.title`, `invited`, `afterwards`, `code`, `marked_no`, `warn_title`, `warn_desc`, `warn_link` | 8 each |
+| The refusal of a value that is not yes or no: "Sign in must be yes or no, or left empty." | `api/lang/{am,om}/validation.php`, `custom.sign_in.in` | 1 each |
+
+The words the import reads as yes and no are in `EmployeeImportRow::SIGN_IN_WORDS`: Amharic አዎ, አዎን and
+አይ, አይደለም; Afaan Oromoo eeyyee, eeyyeen, eyyee and lakki, miti. Add the spellings a native reader says an
+Ethiopian office actually types.
+
+What to check first: those yes and no words, then *Sign in* as the name of a column (the drafts use
+መግቢያ, "entrance", and Seensa, "entry"), and the sentence about a printed code, where "in person" must read
+as handing a paper over, not as visiting.
+
+### Who cannot sign in yet: the list, the bulk action and Next Steps (2026-11-16)
+
+Drafted in Amharic and Afaan Oromoo without a native speaker, awaiting a native reading. The English is
+final. A wrong word here can make HR think a person is invited when they are not, so the two states on
+a row and the sentence that says what the bulk action does matter most.
+
+| What | Where | Strings |
+|---|---|---|
+| The two notes beside a person on the Employees list: "No sign-in" and "Invited, not activated" | `src/src/lib/i18n/locales/{am,om}.json`, `employees.sign_in.none`, `employees.sign_in.invited` | 2 each |
+| The filter label "a way to sign in" and the banner "Showing current employees who cannot sign in yet." | the same files, `employees.missing.sign_in`, `employees.missing_banner_sign_in` | 2 each |
+| The bulk action: its button and title, the sentence on what happens to each kind of person, the count, the result sentence, the partial failure, the printed-code line, "Send the rest", "Nobody in the selection needs a way to sign in." and the left-out sentence | the same files, `employees.bulk.sign_in.*` | 10 each |
+| The Next Steps row: title, one-person title, reason and "See who" | the same files, `next_steps.step.records_cannot_sign_in.*` | 4 each |
+
+The Amharic drafts:
+
+- `employees.sign_in.none`: መግቢያ የለም
+- `employees.sign_in.invited`: ተጋብዟል፣ ገና አልነቃም (the existing `migration_logins.invited` wording)
+- `employees.missing.sign_in`: የመግቢያ መንገድ
+- `employees.missing_banner_sign_in`: ገና መግባት የማይችሉ የአሁን ሠራተኞችን በማሳየት ላይ።
+- `employees.bulk.sign_in.button` and `title`: የመግቢያ መንገድ ይስጡ
+- `employees.bulk.sign_in.description`: ኢሜይል ያላቸው ሰዎች በኢሜይል ግብዣ ይደርሳቸዋል፣ ስልክ ብቻ ያላቸው ደግሞ የጽሑፍ መልእክት ከበራ በጽሑፍ መልእክት ይጋበዛሉ። ሁለቱም የሌላቸው ለታተመ ኮድ ይዘረዘራሉ፣ አስቀድመው መግባት የሚችሉት እንዳሉ ይተዋሉ።
+- `employees.bulk.sign_in.count`: ይህ የተመረጡ :count ሰዎችን ይመለከታል።
+- `employees.bulk.sign_in.partial`: ከ:total ውስጥ :sent ተልኳል። :left ገና አልተላከም። :reason
+- `employees.bulk.sign_in.result`: የተፈጠሩ መግቢያዎች፦ :created። ለመላክ የተሰለፉ ግብዣዎች፦ :queued። አስቀድመው መግባት የሚችሉ፦ :active። በአካል ኮድ የሚያስፈልጋቸው፦ :in_person። በሌላ መግቢያ ጥቅም ላይ የዋለ ኢሜይል፦ :email_in_use።
+- `employees.bulk.sign_in.in_person`: አንዳንድ ሰዎች ኢሜይልም ስልክም የላቸውም። የታተመ ኮድ ይስጧቸው፣ ወይም የመነሻ የይለፍ ቃል ይስጧቸው።
+- `employees.bulk.sign_in.retry`: የቀሩትን ላክ
+- `employees.bulk.sign_in.nobody`: ከተመረጡት መካከል የመግቢያ መንገድ የሚያስፈልገው የለም።
+- `employees.bulk.sign_in.left_out`: ከተመረጡት ውስጥ :count ሰዎች አስቀድመው መግባት ይችላሉ ወይም ከእንግዲህ እዚህ አይሠሩም፣ ስለዚህ አይካተቱም።
+- `next_steps.step.records_cannot_sign_in.title`: :count ሰዎች ገና መግባት አይችሉም
+- `next_steps.step.records_cannot_sign_in.title_one`: 1 ሰው ገና መግባት አይችልም
+- `next_steps.step.records_cannot_sign_in.reason`: በ ETHR ውስጥ አሉ፣ ነገር ግን ማንም አልጋበዛቸውም፣ ወይም ምዝገባቸውን አልጨረሱም። የመገኘት መሣሪያዎችና የደመወዝ ሥራ ያለዚህ ይሠራሉ።
+- `next_steps.step.records_cannot_sign_in.cta`: ማን እንደሆኑ እይ
+
+The Afaan Oromoo drafts:
+
+- `employees.sign_in.none`: Seensi hin jiru
+- `employees.sign_in.invited`: Affeerame, ammallee hin jalqabsiifne
+- `employees.missing.sign_in`: karaa itti seenan
+- `employees.missing_banner_sign_in`: Hojjettoota ammaa ammaaf seenuu hin dandeenye agarsiisaa jira.
+- `employees.bulk.sign_in.button` and `title`: Karaa itti seenan kenniif
+- `employees.bulk.sign_in.description`: Namoonni imeelii qaban affeerraa imeeliin argatu, namoonni bilbila qofa qaban immoo yoo ergaan barreeffamaa banamee jiraate ergaadhaan affeeramu. Kan lamaanuu hin qabne koodii maxxanfameef tarreeffamu, kan duraanuu seenuu danda'an immoo akkuma jiranitti hafu.
+- `employees.bulk.sign_in.count`: Kun namoota filataman :count ilaallata.
+- `employees.bulk.sign_in.partial`: :total keessaa :sent ergameera. :left ammallee hin ergamne. :reason
+- `employees.bulk.sign_in.result`: Seensonni uumaman: :created. Affeerraawwan tarreeffaman: :queued. Duraanuu seenuu kan danda'an: :active. Koodii qaamaan kan barbaadan: :in_person. Imeeliin seensa biraatiin duraanuu qabame: :email_in_use.
+- `employees.bulk.sign_in.in_person`: Namoonni tokko tokko imeelii fi bilbila hin qaban. Koodii maxxanfame kenniif, yookaan jecha icciitii jalqabaa kenniif.
+- `employees.bulk.sign_in.retry`: Kan hafe ergi
+- `employees.bulk.sign_in.nobody`: Namoota filataman keessaa kan karaa itti seenan barbaadu hin jiru.
+- `employees.bulk.sign_in.left_out`: Namoota filataman keessaa :count duraanuu seenuu ni danda'u yookaan amma as hin hojjetan, kanaaf hin ramadaman.
+- `next_steps.step.records_cannot_sign_in.title`: :count namoonni ammaaf seenuu hin danda'an
+- `next_steps.step.records_cannot_sign_in.title_one`: Namni 1 ammaaf seenuu hin danda'u
+- `next_steps.step.records_cannot_sign_in.reason`: ETHR keessa jiru, garuu eenyullee hin affeerre, yookaan galmee isaanii hin xumurre. Meeshaaleen sa'aatii fi hojiin kaffaltii kana malee ni hojjetu.
+- `next_steps.step.records_cannot_sign_in.cta`: Eenyu akka ta'e ilaali
+
+What to check first: whether "መግቢያ የለም" and "Seensi hin jiru" read as "has no way to sign in" and not as
+"no entrance", the sentence about a printed code (the Amharic keeps the existing "ኮድ" and "የመነሻ የይለፍ ቃል"
+wording), and `ammaaf` ("for now") in the Afaan Oromoo, which is meant to say "yet". A wrong label moves no money.
+
+### The name a terminal sends for a held badge (2026-11-17)
+
+Drafted in Amharic and Afaan Oromoo without a native speaker, awaiting a native reading. The English is
+final. The two strings sit on the Unrecognised badges card: the first says what the terminal calls a
+held number, the second explains why a person is offered. Neither assigns anything.
+
+| What | Where | Strings |
+|---|---|---|
+| "The terminal calls this person :name" and "same name on the terminal" | `src/src/lib/i18n/locales/{am,om}.json`, `devices_page.unmatched.name_on_device`, `devices_page.unmatched.same_name` | 2 each |
+
+The Amharic drafts:
+
+- `devices_page.unmatched.name_on_device`: ተርሚናሉ ይህን ሰው :name ብሎ ይጠራዋል
+- `devices_page.unmatched.same_name`: በተርሚናሉ ላይ ያለው ስም ተመሳሳይ ነው
+
+What to check first: that "ተርሚናል" is the word people at the office already use for the fingerprint or face
+device, and that the second line reads as a reason to look, not as a verdict.
+
+### The sync interval hint, and "At most every" (2026-11-17)
+
+Drafted in Amharic and Afaan Oromoo without a native speaker, awaiting a native reading. The English is
+final. The hint sits under the Sync Interval select and says the interval is a ceiling: ETHR pulls when its
+scheduler runs, and a late pull loses nothing. `:action` is replaced by the pull button's own label, so the
+hint follows the language of the button ("ፑል" in Amharic).
+
+| What | Where | Strings |
+|---|---|---|
+| Hint under the Sync Interval select | `src/src/lib/i18n/locales/{am,om}.json`, `device_detail_page.sync_interval_hint` | 1 each |
+| "At most every :count min" (was "Every :count min") | `devices_page.every_minutes` | 1 each |
+| "Every 1 minute" option removed | `device_detail_page.every_1_min` | removed |
+
+The Amharic drafts:
+
+- `device_detail_page.sync_interval_hint`: ETHR ከዚህ መሣሪያ ፑል የሚያደርገው መርሐ ግብሩ ሲሠራ ነው፣ ከዚህ በበለጠ ቶሎ አይደለም፣ አንዳንዴም ዘግይቶ ይሆናል። ዘግይቶ ፑል ማድረግ ምንም አያጠፋም፤ እያንዳንዱ ምዝገባ የተፈጸመበትን ጊዜ ይይዛል። ወዲያውኑ ሲፈልጉ :action ይጠቀሙ።
+- `devices_page.every_minutes`: ቢበዛ በየ:count ደቂቃ
+
+What to check first: that "ቢበዛ" ("at most") reads as a ceiling on a card, and that "ፑል" is still the word the
+button uses.
+
+### Welcome back, and the audit line for a reopened day (2026-11-18)
+
+Drafted in Amharic and Afaan Oromoo without a native speaker, awaiting a native reading. The English is
+final. A person who checks in again after a lunch break, the same day and before the shift ends, now continues
+the day's one record instead of starting a second session, and every punch screen (phone, web, QR, kiosk) says
+"Welcome back". The audit log names the action.
+
+| What | Where | Strings |
+|---|---|---|
+| Punch answer for a return from a break | `src/src/lib/i18n/locales/{am,om}.json`, `attendance.outcome.resumed` | 1 each |
+| Audit action: the day was reopened after a break | `audit.action.attendance.day_rejoined` | 1 each |
+
+The Amharic drafts:
+
+- `attendance.outcome.resumed`: እንኳን ደህና ተመለሱ
+- `audit.action.attendance.day_rejoined`: ከእረፍት በኋላ የቀኑ መዝገብ እንደገና ተከፈተ
+
+What to check first: that "እንኳን ደህና ተመለሱ" is what a person is told on coming back from lunch (it is the
+greeting for someone returning), and that "የቀኑ መዝገብ" ("the day's record") matches the word the audit log
+already uses for an attendance record.
+
+### Joining a day that was recorded as two records (2026-11-18)
+
+Drafted in Amharic and Afaan Oromoo without a native speaker, awaiting a native reading. The English is
+final. On Attendance → Conflicts, HR can tick conflicts and join the days that a lunch break had split into two
+records, or join all of one person's. A resolve dialog for such a pair calls the "merged" decision "Join into one
+day". The audit log names the action.
+
+| What | Where | Strings |
+|---|---|---|
+| Conflicts page: select, join, progress, result | `src/src/lib/i18n/locales/{am,om}.json`, `attendance.conflicts.select_all`, `select_row`, `join_selected`, `join_person`, `join_into_one`, `join_into_one_desc`, `join_progress`, `join_stop`, `join_carry_on`, `join_stopped`, `join_failed`, `join_result` | 12 each |
+| Audit action: a split day was joined | `audit.action.attendance.split_day_joined` | 1 each |
+
+The Amharic drafts:
+
+- `attendance.conflicts.select_all`: በዚህ ገጽ ያሉትን ግጭቶች ሁሉ ምረጥ
+- `attendance.conflicts.select_row`: የ:name ግጭትን ምረጥ
+- `attendance.conflicts.join_selected`: የተከፈሉ ቀኖችን አዋህድ (:count)
+- `attendance.conflicts.join_person`: የዚህን ሰው የተከፈሉ ቀኖች ሁሉ አዋህድ
+- `attendance.conflicts.join_into_one`: ወደ አንድ ቀን አዋህድ
+- `attendance.conflicts.join_into_one_desc`: ሁለቱ መዝገቦች አንድ ቀን ይሆናሉ፤ በመካከላቸው ያለው ክፍተት እንደ እረፍት ይቀመጣል።
+- `attendance.conflicts.join_progress`: :joined ተዋህደዋል፣ :remaining ሊታዩ ይቀራሉ
+- `attendance.conflicts.join_stop`: አቁም
+- `attendance.conflicts.join_carry_on`: ቀጥል
+- `attendance.conflicts.join_stopped`: ቆሟል።
+- `attendance.conflicts.join_failed`: ሳይጨርስ ቆሟል።
+- `attendance.conflicts.join_result`: :joined ቀኖች ተዋህደዋል። :left እንደነበሩ ቀርተዋል።
+- `audit.action.attendance.split_day_joined`: በሁለት ክፍል የተመዘገበ ቀን ወደ አንድ ተዋሐደ
+
+What to check first: that "የተከፈሉ ቀኖች" ("split days") is understood as one working day recorded in two parts,
+that "አዋህድ" ("join") matches the verb the Conflicts page already uses for a merged record (`ተዋህዷል`), and that
+"ሊታዩ ይቀራሉ" ("still to look at") reads naturally in the progress line.
+
+### Archive and restore people (2026-11-24)
+
+Drafts written without a native speaker; the wording reuses the Undo dialog's "ወደ ማህደር ውሰድ" for "archive".
+
+- `employees.bulk.archive`: ወደ ማህደር ውሰድ
+- `employees.filter_archived`: ወደ ማህደር የተወሰዱ
+- `employees.archive.desc`: ወደ ማህደር መውሰድ በስህተት ለተጨመሩ መዝገቦች ነው፤ ለምሳሌ ሁለት ጊዜ ለተጨመረ ሰው። ድርጅቱን የለቀቀ ሰው መዝገቡ እንዲቀር በምትኩ የመልቀቅ ሁኔታ ሊሰጠው ይገባል። ወደ ማህደር የተወሰደ መዝገብ «ወደ ማህደር የተወሰዱ» ከሚለው እይታ መመለስ ይችላል።
+- `employees.archive.keep_hint`: ታሪክ ስላላቸው በምትኩ በሁኔታ ለውጥ ይለቃሉ።
+- `employees.archive.reason_self`: ይህ የራስዎ መዝገብ ነው
+- `employees.restore.button`: መልስ; `employees.restore.desc`: የተመለሰ ሰው ከመዝገቡና ከታሪኩ ጋር ይመለሳል፤ በእቅድዎ ውስጥ አንድ መቀመጫም ይይዛል። ወደ ማህደር ሲወሰድ የተዘጋ መግቢያ እንደተዘጋ ይቀራል።
+- The other `employees.archive.*` and `employees.restore.*` lines, `audit.action.employee.bulk_archived` and `audit.action.employee.restored`; backend `employee.bulk_archive_failed` and `employee.bulk_restore_failed`.
+
+What to check first: that "መቀመጫ" ("seat") is how a plan's employee limit is said, and that "በምትኩ የመልቀቅ ሁኔታ" ("a leaving status instead") reads as the status an employee is given when they leave, not as a place.
+
+### Add employee form: grade, probation end, pay line, leaving, inline checks (2026-11-24)
+
+Drafted in Amharic and Afaan Oromoo without a native speaker, awaiting a native reading. The English is final.
+On the Add employee form: a Grade picker and a Probation end date field in the Job card, one line that takes
+the place of Salary and TIN for someone who may not set pay, a question before a link drops an unsaved form, and
+four messages shown under a field that breaks a rule the API also checks.
+
+| What | Where | Strings |
+|---|---|---|
+| Form labels, pay line, leave question | `src/src/lib/i18n/locales/{am,om}.json`, `employee.grade`, `employee.probation_end_date`, `employee.pay_added_by_pay_manager`, `employee.leave_unsaved_title`, `_desc`, `_leave`, `_stay` | 7 each |
+| Messages under a field | `validation.badge_format`, `validation.dob_future`, `validation.dob_minimum_age`, `validation.hire_date_too_far` | 4 each |
+
+The Amharic drafts:
+
+- `employee.grade`: ደረጃ
+- `employee.probation_end_date`: የሙከራ ጊዜ ማብቂያ ቀን
+- `employee.pay_added_by_pay_manager`: ደመወዝና የግብር ከፋይ መለያ ቁጥር (TIN) የሚጨመሩት ክፍያን በሚያስተዳድር ሰው ነው።
+- `employee.leave_unsaved_title`: ሳያስቀምጡ ይውጡ?
+- `employee.leave_unsaved_desc`: ይህ ሠራተኛ አልተቀመጠም። ያስገቡት መረጃ ይጠፋል።
+- `employee.leave_unsaved_leave`: ውጣ
+- `employee.leave_unsaved_stay`: አርትዖቱን ቀጥል
+- `validation.badge_format`: ፊደላትን፣ ቁጥሮችንና ሰረዝን ብቻ ይጠቀሙ
+- `validation.dob_future`: የትውልድ ቀን ያለፈ ቀን መሆን አለበት
+- `validation.dob_minimum_age`: ሰው በቅጥር ቀኑ ቢያንስ 15 ዓመት መሆን አለበት
+- `validation.hire_date_too_far`: የቅጥር ቀን ከአንድ ዓመት በላይ ወደፊት መሆን አይችልም
+
+What to check first: that "ክፍያን በሚያስተዳድር ሰው" ("someone who manages pay") names the role HR and finance
+staff recognise, and that "የሙከራ ጊዜ" matches the probation wording used on the employee profile.
+
+### Probation end hint on the Add employee form (2026-11-24)
+
+Drafted in Amharic and Afaan Oromoo without a native speaker, awaiting a native reading. The English is final.
+One line under Probation end date: with a date that has not passed, the person starts on probation and HR is
+reminded before it ends.
+
+- `employee.probation_end_hint`: ቀኑ ገና ካላለፈ ሰውየው በሙከራ ጊዜ ይጀምራል፤ ሙከራው ከመጠናቀቁ በፊት የሰው ሀብት ክፍሉ ማሳሰቢያ ይደርሰዋል።
+
+What to check first: that "የሰው ሀብት ክፍሉ" ("the human resources unit") is the term HR staff use for themselves.
+
+### Accept differences for many people (2026-11-24)
+
+| What | Where | Strings |
+|---|---|---|
+| Review screen: accept differences dialog | `src/src/lib/i18n/locales/{am,om}.json`, `accept_differences.button`, `title`, `desc`, `people_one`, `people`, `sensitive`, `held_one`, `held`, `confirm`, `running`, `result`, `result_pay`, `failed` | 13 each |
+| Row warning: may be someone else | `api/lang/{am,om}/onboarding.php`, `migration.maybe_other_person` | 1 each |
+
+The Amharic drafts:
+
+- `accept_differences.button`: ልዩነቶችን ተቀበል
+- `accept_differences.title`: ለብዙ ሰዎች ልዩነቶችን ተቀበል
+- `accept_differences.desc`: ከዚህ ዝርዝር ጋር ለተመሳሰሉ ሁሉ የሚወሰዱትን ዝርዝሮች ይምረጡ። ዝርዝሩ እስኪጨመር ድረስ ለማንም ምንም አይጻፍም።
+- `accept_differences.sensitive`: መጀመሪያ ላይ አልተመረጠም። በአንድ መስመር የተሸጋገረ ቁጥር የአንድን ሰው ዝርዝር በሌላ ሰው ላይ ያደርጋል።
+- `accept_differences.held_one`: 1 መስመር ሌላ ሰው ሊሆን ይችላል። በራሱ መስመር ላይ እንዲወስኑ ተትቷል።
+- `accept_differences.result`: ለ:accepted ሰዎች ተቀብሏል። :out_of_reach ሰዎችን ማስተካከል አይችሉም። :held መስመሮች ለእርስዎ ተትተዋል።
+- `accept_differences.result_pay`: ለ:accepted ሰዎች ተቀብሏል። :out_of_reach ሰዎችን ማስተካከል አይችሉም። :held መስመሮች ለእርስዎ ተትተዋል። ደመወዝና TIN ለ:pay_refused ሰዎች ተትተዋል፤ ክፍያ መቀየር አይችሉም።
+- `migration.maybe_other_person` (changed 2026-11-24: the row now waits for the reviewer): በዚህ መስመር ያለው ስም በቁጥር ከተመሳሰለው ሰው ስም ጋር አንድም ቃል አይጋራም፤ ስለዚህ ይህ መስመር እርስዎን እየጠበቀ ነው፣ ለዚያ ሰው ምንም አይጻፍም። ያረጋግጡ፣ እሱ ከሆነ አዋህድን ይምረጡ።
+
+What to check first: that "ተቀበል" ("accept") is the verb the list screens already use for taking a value from the list, that "ተሸጋገረ" ("shifted") reads as a number moved down by one line, and that "ተትቷል" ("left") reads as left for the reviewer rather than abandoned. The Afaan Oromoo lines are drafts and unread.
+
+### Bulk job title, supervisor, team and cost centre; select all matching (2026-11-24)
+
+Drafts written without a native speaker. The action names reuse the labels the employee form already carries ("የስራ መደብ", "ተቆጣጣሪ", "ቡድን", "የወጪ ማዕከል") and the verb of the existing "ክፍል ቀይር".
+
+- `employees.bulk.change_position`: የስራ መደብ ቀይር
+- `employees.bulk.change_supervisor`: ተቆጣጣሪ ቀይር
+- `employees.bulk.change_team`: ቡድን ቀይር
+- `employees.bulk.change_cost_center`: የወጪ ማዕከል ቀይር
+- `employees.bulk.page_all_selected`: በዚህ ገጽ ላይ ያሉ ሁሉም :count ሰዎች ተመርጠዋል።
+- `employees.bulk.select_all_matching`: ከዚህ ማጣሪያ ጋር የሚዛመዱ ሁሉንም :total ሰዎች ምረጥ
+- `employees.bulk.all_matching_selected`: ከዚህ ማጣሪያ ጋር የሚዛመዱ ሁሉም :count ሰዎች ተመርጠዋል።
+- `employees.bulk.all_matching_capped`: ከዚህ ማጣሪያ ጋር ከሚዛመዱ :total ሰዎች መካከል የመጀመሪያዎቹ :cap ብቻ ተመርጠዋል። የቀሩትን ለመድረስ ማጣሪያውን ያጥብቡ።
+- `employees.bulk.clear_all_matching`: ይህን ገጽ ብቻ ያዝ
+- `employees.bulk.select_all_failed`: የሰዎቹን ዝርዝር መጫን አልተቻለም።
+- `employees.bulk.position_rules`: የስራ መደብ የሰውየውን መግቢያ ሌላ ሚና ሊሰጠው ይችላል። በተጠቃሚዎች ገጽ ላይ በእጅ መስጠት የሚችሉትን ሚና ብቻ ይሰጣሉ፤ የቀሩት እዚያ ይጠብቃሉ።
+- `employees.bulk.supervisor_rules`: ሰው የራሱ ተቆጣጣሪ መሆን ወይም ለሚቆጣጠረው ሰው መታዘዝ አይችልም። ይህ የሚነካው ሰው አሁን ያለውን ተቆጣጣሪ ይዞ ይቆያል።
+- `employees.bulk.partial_unsent`: :updated ሰራተኞች ተዘምነዋል። ጥያቄው ስለወደቀ :count አልተላኩም።
+- `employees.bulk.result.title`: የሆነው
+- `employees.bulk.result.summary`: :updated ተቀይረዋል፣ :unchanged አስቀድመው እንደተጠየቀው ነበሩ፣ :failed አልተቀየሩም።
+- `employees.bulk.result.failed`: አልተቀየረም
+- `employees.bulk.result.unchanged`: አስቀድሞ እንደተጠየቀው ነው
+- `employees.bulk.result.access_held`: ተቀይሯል። የመግቢያ ሚናቸው በተጠቃሚዎች ገጽ ላይ ይጠብቃል።
+- `employees.bulk.result.unsent`: ጥያቄው ስለወደቀ :count ሰዎች አልተቀየሩም። ምርጫው ጸድቷል። በዝርዝሩ ውስጥ ያግኟቸው እና እርምጃውን እንደገና ያካሂዱ።
+
+What to check first: that "ለሚቆጣጠረው ሰው መታዘዝ" ("report to the person they supervise") reads as a reporting line and not as obedience, and that "ማጣሪያውን ያጥብቡ" ("narrow the filter") is how a list filter is narrowed in the screens already shipped.
+
+### Bringing archived people back from a list (2026-11-24)
+
+| What | Where | Strings |
+|---|---|---|
+| Review screen: the action, the note and the reason | `src/src/lib/i18n/locales/{am,om}.json`, `setup2.action_restore`, `setup2.restore_note`, `setup2.restore_blocked`, `setup2.migration_done_restored` | 4 each |
+| Row warnings: why someone was not brought back | `api/lang/{am,om}/onboarding.php`, `migration.maybe_other_person_archived`, `migration.restore_refused_gone`, `_not_archived`, `_in_use`, `_no_permission`, `_no_seat`, `_number_taken`, `_failed` | 8 each |
+
+The Amharic drafts:
+
+- `setup2.action_restore`: መልስ
+- `setup2.restore_note`: ወደ ማህደር ተወስዷል። ዝርዝሩ ሲጨመር በዚህ መስመር ዝርዝሮች ይመለሳል።
+- `setup2.restore_blocked`: ከዝርዝር ሊመለስ አይችልም፦ :reasons። ሊመለስ ከሆነ ወደ ማህደር ከተወሰዱት እይታ ይመልሱት።
+- `setup2.migration_done_restored`: ፍልሰት ተጠናቅቋል፦ :created ተፈጥረዋል፣ :restored ተመልሰዋል፣ :merged ተዋህደዋል፣ :updated ተስተካክለዋል
+- `migration.maybe_other_person_archived`: በዚህ መስመር ያለው ስም በቁጥር ከተመሳሰለው ወደ ማህደር የተወሰደ ሰው ስም ጋር አንድም ቃል አይጋራም፤ ስለዚህ ይህ መስመር እርስዎን እየጠበቀ ነው፣ ማንም አይመለስም። ያረጋግጡ፣ እሱ ከሆነ መልስን ይምረጡ።
+- `migration.restore_refused_not_archived`: ይህ ሰው ወደ ማህደር አልተወሰደም፤ ስለዚህ የሚመለስ ሰው የለም። መዝገቡን ለመሙላት አዋህድን ይምረጡ።
+- `migration.restore_refused_in_use`: ይህ ሰው ከጨመረው ዝርዝር በኋላ ጥቅም ላይ ውሏል፤ ስለዚህ ከዝርዝር ሊመለስ አይችልም። ሊመለስ ከሆነ ወደ ማህደር ከተወሰዱት እይታ ይመልሱት።
+- `migration.restore_refused_no_seat`: በእቅድዎ ውስጥ መቀመጫ ስለሌለ ይህ ሰው አልተመለሰም። መቀመጫ ያስለቅቁ ወይም እቅዱን ይቀይሩ፣ ከዚያ ይህን ዝርዝር እንደገና ይጨምሩ።
+- `migration.restore_refused_number_taken`: በዚህ መስመር ያለው የሰራተኛ ቁጥር አሁን የሌላ መዝገብ ስለሆነ ይህ ሰው አልተመለሰም።
+- The other `migration.restore_refused_*` lines (`gone`, `no_permission`, `failed`).
+- `migration.restore_refused_in_use` is also the note on a row whose archived person has been used and whose name shares nothing with the line (it replaces "choose restore if it is them" there). No new string.
+
+What to check first: that "መልስ" ("restore") is the verb the Archived view already uses on its button, and that "ከጨመረው ዝርዝር በኋላ ጥቅም ላይ ውሏል" ("has been used since the list that added them") reads as work done for the person, not as a thing used up. The Afaan Oromoo lines are drafts and unread.
+
+### Reach from the lists card: a corrected file and one way in from Employees (2026-11-25)
+
+| What | Where | Strings |
+|---|---|---|
+| "Add a corrected file" on a list whose additions were undone | `src/src/lib/i18n/locales/{am,om}.json`, `migration_lists.add_corrected` | 1 each |
+| Add-employee menu item that opens the import page at the lists card | `src/src/lib/i18n/locales/{am,om}.json`, `employees.add_menu.recent_lists` | 1 each |
+
+The Amharic drafts:
+
+- `migration_lists.add_corrected`: የተስተካከለ ፋይል ያክሉ
+- `employees.add_menu.recent_lists`: በቅርቡ የጨመሯቸው ዝርዝሮች
+
+What to check first: that "የተስተካከለ ፋይል" ("a corrected file") reads as the file after fixing, not as a file that was edited by the system, and that "ያክሉ" matches the verb already used on the import screen for adding a list. The Afaan Oromoo lines are drafts and unread.
+
+### One word for an archived person on the import review screen (2026-11-26)
+
+| What | Where | Strings |
+|---|---|---|
+| The match line for a person who was archived earlier, which said "deleted" beside a sentence that said "archived" | `src/src/lib/i18n/locales/{am,om}.json`, `setup2.outcome_archived` | 1 each |
+
+The drafts:
+
+- `setup2.outcome_archived` (am): ቀደም ብሎ ወደ ማህደር የተወሰደ (was ቀደም ብሎ የተሰረዘ)
+- `setup2.outcome_archived` (om): duraan kuufame (was duraan haqame)
+
+Both come from the existing archive vocabulary (`employees.archive.col_archived`, `employees.archive.done_one`).
+
+What to check first: that "ወደ ማህደር የተወሰደ" reads as "moved to the archive, can be brought back", not as removed for good, and that "kuufame" is the word the Archived view already uses. The Afaan Oromoo line is a draft and unread.

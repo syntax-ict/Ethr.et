@@ -46,6 +46,7 @@ class AccountActivationCode extends Model
         'purpose',
         'code_hash',
         'issued_by',
+        'issued_batch',
         'document_type',
         'note',
         'failed_attempts',

@@ -25,6 +25,12 @@
     ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji",
     "Segoe UI Emoji";
+  /* Manrope for headings and dashboard figures. It has no Ethiopic glyphs, so
+     Amharic headings fall through per glyph to the Ethiopic face. */
+  --font-display:
+    var(--font-manrope), var(--font-inter), var(--font-noto-ethiopic),
+    "Noto Sans Ethiopic", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-mono:
     "JetBrains Mono", ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono",
     Menlo, Consolas, "Liberation Mono", monospace;
@@ -108,6 +114,7 @@
   --color-surface-secondary: var(--surface-secondary);
   --color-surface-elevated: var(--surface-elevated);
   --color-surface-sidebar: var(--surface-sidebar);
+  --color-surface-paper: var(--surface-paper);
   --color-text-primary: var(--text-primary);
   --color-text-secondary: var(--text-secondary);
   --color-text-inverse: var(--text-inverse);
@@ -118,7 +125,7 @@
   --color-interactive-hover: var(--interactive-hover);
   --color-interactive-focus: var(--interactive-focus);
   --color-brand-accent: var(--brand-accent);
-  /* Ethiopian Gold is a *light* colour in every theme, so anything set on it
+  /* Sunrise is a *light* colour in every theme, so anything set on it
      must be dark ink — `bg-brand-accent text-foreground` measured 1.52:1 in
      dark mode, effectively invisible. Pairing the fill with its own foreground
      token makes the correct combination the easy one. */
@@ -210,7 +217,7 @@
 
 /* ============================================================================
    LIGHT (default)
-   ETHR brand palette — Deep Teal Blue primary, Ethiopian Gold accent.
+   ETHR brand palette — ETHR Blue primary, Sunrise accent.
    ========================================================================= */
 
 /* Page padding steps down on phones; `p-page` reads this. */
@@ -247,22 +254,29 @@
   --surface-primary: #ffffff;
   --surface-secondary: #f8fafc;
   --surface-elevated: #ffffff;
-  --surface-sidebar: #0a2e4a;
-  --text-primary: #0f172a;
-  --text-secondary: #64748b;
+  /* Paper, the warm ground for the marketing site only; data screens stay white. */
+  --surface-paper: #f7f5f0;
+  --surface-sidebar: #0a2540;
+  --text-primary: #0a2540;
+  --text-secondary: #475569;
   --text-inverse: #ffffff;
   --text-on-sidebar: #e2e8f0;
   --border-default: #e2e8f0;
   --border-strong: #cbd5e1;
   --interactive-primary: #0f4c75;
-  --interactive-hover: #3282b8;
+  --interactive-hover: #0a2540;
   --interactive-focus: #0f4c75;
 
-  /* Ethiopian Gold. Decorative and fill only — at 2.08:1 on white it can never
+  /* Sunrise. Decorative and fill only — at 2.08:1 on white it can never
      carry body text. Text that needs to read as "brand" uses --brand-on-soft
      (#7c5306, 6.30:1), the same split the high-contrast theme makes below. */
   --brand-accent: #e8a838;
-  --brand-accent-foreground: #0f172a; /* 8.58:1 */
+  --brand-accent-foreground: #0a2540; /* 7.46:1 */
+  /* The ETHR mark never changes with the theme: the same blue tile, white e
+     and Sunrise dot in light, dark and high contrast. Drawn by EthrSymbol. */
+  --brand-mark-tile: #0f4c75;
+  --brand-mark-glyph: #ffffff;
+  --brand-mark-dot: #e8a838;
 
   /* Status colours double as text (`text-status-success`, 120 call sites) and
      as fills with white text. The original 500-level shades failed WCAG AA as
@@ -334,9 +348,9 @@
   --ring: var(--interactive-focus);
   --sidebar: var(--surface-sidebar);
   --sidebar-foreground: var(--text-on-sidebar);
-  --sidebar-accent: #123f63;
+  --sidebar-accent: #0f4c75;
   --sidebar-accent-foreground: var(--text-on-sidebar);
-  --sidebar-border: #153555;
+  --sidebar-border: #173a5e;
 
   /* Override Tailwind v4 color tokens directly (the @theme var() chain
      is broken by Tailwind's own HSL defaults for --primary etc.) */
@@ -373,6 +387,7 @@
   --surface-secondary: #1e293b;
   --surface-elevated: #1e293b;
   --surface-sidebar: #020617;
+  --surface-paper: var(--surface-primary);
   --text-primary: #f1f5f9;
   --text-secondary: #94a3b8;
   --text-inverse: #0f172a;
@@ -391,6 +406,11 @@
   --interactive-focus: #4a9fd8;
   --brand-accent: #fbbf24;
   --brand-accent-foreground: #0f172a; /* 10.69:1 */
+  /* The ETHR mark never changes with the theme: the same blue tile, white e
+     and Sunrise dot in light, dark and high contrast. Drawn by EthrSymbol. */
+  --brand-mark-tile: #0f4c75;
+  --brand-mark-glyph: #ffffff;
+  --brand-mark-dot: #e8a838;
   --status-success: #34d399;
   --status-warning: #fbbf24;
   --status-error: #f87171;
@@ -480,6 +500,7 @@
   --surface-secondary: #f5f5f5;
   --surface-elevated: #ffffff;
   --surface-sidebar: #ffffff;
+  --surface-paper: var(--surface-primary);
   --text-primary: #000000;
   --text-secondary: #1a1a1a;
   --text-inverse: #ffffff;
@@ -491,6 +512,11 @@
   --interactive-focus: #003366;
   --brand-accent: #b8860b;
   --brand-accent-foreground: #000000; /* 6.45:1 */
+  /* The ETHR mark never changes with the theme: the same blue tile, white e
+     and Sunrise dot in light, dark and high contrast. Drawn by EthrSymbol. */
+  --brand-mark-tile: #0f4c75;
+  --brand-mark-glyph: #ffffff;
+  --brand-mark-dot: #e8a838;
   --status-success: #006400;
   --status-warning: #8b4513;
   --status-error: #8b0000;
@@ -612,6 +638,23 @@
     font-variation-settings: normal;
   }
 
+  /* Display face for headings. Inter's cv11/ss01 on body are Inter's own
+     alternates and mean nothing to Manrope. */
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    font-feature-settings: normal;
+  }
+
+  /* The marketing site sits on Paper. Both names are set because Tailwind
+     resolves --color-background at :root, so overriding --background alone
+     would not repaint `bg-background` below this element. */
+  .ground-paper {
+    --background: var(--surface-paper);
+    --color-background: var(--surface-paper);
+  }
+
   /* Tabular, aligned figures for tables, currency, and metrics. */
   th,
   td,
@@ -693,8 +736,9 @@
     --surface-primary: #ffffff;
     --surface-secondary: #f8fafc;
     --surface-elevated: #ffffff;
-    --text-primary: #0f172a;
-    --text-secondary: #64748b;
+    --surface-paper: #ffffff;
+    --text-primary: #0a2540;
+    --text-secondary: #475569;
     --border-default: #e2e8f0;
     --border-strong: #cbd5e1;
     /* Kept in step with the light theme's AA-compliant values above — print is
@@ -785,20 +829,82 @@
     padding: 0 !important;
   }
 
-  /* The organisation, the page and the date, once at the top of the paper. */
+  /* The frame at the top of the paper: the organisation (with its logo) and
+     the page's title on the left; when it was printed and by whom on the
+     right. See PrintHeader. */
   .print-header {
     display: flex !important;
     justify-content: space-between;
-    align-items: baseline;
+    align-items: flex-end;
     gap: 1rem;
-    margin: 0 0 0.75rem;
+    margin: 0 0 0.5rem;
     padding: 0 0 0.5rem;
-    border-bottom: 1px solid #0f172a;
-    font-size: 11pt;
+    border-bottom: 1.5px solid #0f172a;
+    break-after: avoid;
   }
 
-  .print-header strong {
+  .print-header-id {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    min-width: 0;
+  }
+
+  .print-header-logo {
+    height: 11mm;
+    width: auto;
+    max-width: 30mm;
+    object-fit: contain;
+  }
+
+  .print-header-org {
+    font-size: 9.5pt;
     font-weight: 600;
+    color: #475569;
+  }
+
+  .print-header-title {
+    font-size: 16pt;
+    font-weight: 700;
+    line-height: 1.2;
+    color: #0a2540;
+  }
+
+  .print-header-meta {
+    flex-shrink: 0;
+    text-align: right;
+    font-size: 8.5pt;
+    line-height: 1.4;
+    color: #475569;
+  }
+
+  /* What the list is a list of: the filters and dates applied on screen. */
+  .print-scope {
+    display: block !important;
+    margin: 0 0 0.75rem;
+    font-size: 9pt;
+    color: #334155;
+  }
+
+  .print-scope-label {
+    font-weight: 600;
+  }
+
+  /* The pager's "Showing 1 to 25 of 313" is part of the record; its buttons
+     are hidden with every other button. */
+  nav.print-keep {
+    display: flex !important;
+    border: 0;
+  }
+
+  /* Page numbers, bottom right: "2 / 5". Numbers only, so no translation.
+     Chrome 131 and later draw page margin boxes; others print without. */
+  @page {
+    @bottom-right {
+      content: counter(page) " / " counter(pages);
+      font-size: 8pt;
+      color: #64748b;
+    }
   }
 
   /* Side-by-side columns are for a screen; paper reads top to bottom. */
@@ -808,6 +914,19 @@
 
   .grid > * + * {
     margin-top: 0.75rem;
+  }
+
+  /* A row of figures stays a row on paper. Opt-in, because most grids are
+     screen layout that reads better stacked. --print-cols says how many. */
+  .print-grid {
+    display: grid !important;
+    grid-template-columns: repeat(var(--print-cols, 4), minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  .print-grid > * {
+    margin-top: 0 !important;
+    break-inside: avoid;
   }
 
   /* Tables carry across pages with their header on each, and a row is never
@@ -837,6 +956,13 @@
   h2,
   h3 {
     break-after: avoid;
+  }
+
+  /* A card that holds a table is as long as the table. Keeping it whole
+     pushed a long list to a page of its own and left the first one blank. */
+  .rounded-xl:has(table),
+  .rounded-lg:has(table) {
+    break-inside: auto;
   }
 
   th,
@@ -870,6 +996,76 @@
   .max-h-56 {
     max-height: none !important;
     overflow: visible !important;
+  }
+
+  /* A table that bounds its own height with an inline style (a generated
+     report's results) prints whole: an inline max-height only yields to an
+     !important rule. */
+  .print-expand [style*="max-height"] {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  /* Buttons are hidden, but a few of them carry words the paper needs. They
+     come after the blanket rule and are more specific, so they win. */
+
+  /* A sortable column header is a button around its name. */
+  th button {
+    display: contents !important;
+    font: inherit;
+    color: inherit;
+  }
+
+  th button svg {
+    display: none !important;
+  }
+
+  /* Of a page's tabs, only the one that was open is printed, as plain text:
+     the paper says which view it is. */
+  [role="tablist"] {
+    display: block !important;
+    margin: 0 0 0.5rem;
+    padding: 0 !important;
+    border: 0 !important;
+    background: none !important;
+    mask-image: none !important;
+    overflow: visible !important;
+  }
+
+  [role="tablist"] [role="tab"]:not([data-state="active"]) {
+    display: none !important;
+  }
+
+  [role="tablist"] [role="tab"][data-state="active"] {
+    display: inline !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: none !important;
+    font-size: 12pt;
+    font-weight: 600;
+    color: #0a2540;
+  }
+
+  [role="tablist"] [role="tab"][data-state="active"] svg {
+    display: none !important;
+  }
+
+  /* A status pill keeps its tint where the browser prints backgrounds and,
+     where it does not, still reads as a pill: an outline in the text's own
+     colour carries the boundary. */
+  .print-badge {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+    border: 1px solid currentColor !important;
+  }
+
+  /* Hiding wins over layout. `.grid { display: block !important }` above
+     has the same weight as `.no-print` and comes later, so a navigation
+     bar or a card that is also a grid stayed on the paper. The pager is the
+     one navigation that prints (see .print-keep). */
+  .no-print,
+  nav:not(.print-keep) {
+    display: none !important;
   }
 }
 
@@ -1359,6 +1555,147 @@
   }
 }
 
+/* The phone punch button's ring (features/attendance/components/mobile/
+   punch-button.tsx). transform and opacity only. Under reduced motion the
+   global block snaps each animation to its last frame: the sweep ends at a full
+   turn, which is where it began, so a waiting button still shows its quarter
+   arc; the ready pulse ends invisible, which is its resting state. */
+@keyframes ethr-punch-sweep {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes ethr-punch-ready {
+  from {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.12);
+  }
+}
+
+.ethr-punch-sweep {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: ethr-punch-sweep 1.1s linear infinite;
+}
+
+.ethr-punch-ready {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: ethr-punch-ready 450ms var(--ease-out-quart) 1 forwards;
+}
+
+/* The punch that has just been made. Both end in the resting picture: the dot
+   at full size and opacity on the rail, the check fully drawn. The check draws
+   by stroke-dashoffset (its one allowed non-transform property) along a path
+   whose pathLength is 1. */
+@keyframes ethr-punch-land {
+  from {
+    opacity: 0;
+    transform: scale(2.4);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes ethr-punch-check {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.ethr-punch-land {
+  animation: ethr-punch-land 500ms ease-out 1 both;
+}
+
+.ethr-punch-check {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+  animation: ethr-punch-check 450ms ease-out 150ms 1 both;
+}
+
+/* The selfie shutter: a flash over the camera frame, once per capture. It ends
+   invisible, which is also the picture under reduced motion. */
+@keyframes ethr-punch-flash {
+  from {
+    opacity: 0.9;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.ethr-punch-flash {
+  opacity: 0;
+  animation: ethr-punch-flash 200ms ease-out 1 both;
+}
+
+/* A tap on a button that cannot punch yet: the reason line shakes once, and the
+   row that fixes it flashes once. Both end at rest (no offset, invisible). */
+@keyframes ethr-punch-nudge {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-6px);
+  }
+  45% {
+    transform: translateX(5px);
+  }
+  70% {
+    transform: translateX(-3px);
+  }
+  88% {
+    transform: translateX(2px);
+  }
+}
+
+@keyframes ethr-punch-attn {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  30% {
+    opacity: 0.5;
+  }
+}
+
+.ethr-punch-nudge {
+  animation: ethr-punch-nudge 320ms ease-out 1 both;
+}
+
+.ethr-punch-attn {
+  opacity: 0;
+  animation: ethr-punch-attn 900ms ease-out 1 both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ethr-punch-check {
+    animation-delay: 0ms !important;
+  }
+  /* No movement: the line stays where it is, and the row still flashes (an
+     opacity change only). */
+  .ethr-punch-nudge {
+    animation: none !important;
+  }
+  .ethr-punch-attn {
+    animation-duration: 900ms !important;
+  }
+}
+
 /* ============================================================================
    Landing page: the animated stories, the problems ledger's six and the
    hero's one (components/marketing/landing/problem-stories.tsx,
@@ -1587,22 +1924,48 @@
   }
 }
 
-/* A vacancy or announcement opened on the portal prints as the page's only
-   content, so a position can be pinned on a notice board. The dialog is
-   portalled to the end of <body>, which is why this hides by visibility
-   rather than display: the dialog's ancestors must keep their boxes. */
+/* A vacancy, an announcement or a sheet of activation codes opened in a dialog
+   prints as the page's only content, so it can be pinned on a notice board or
+   handed out. The dialog is portalled into a wrapper that is a direct child of
+   <body>. Every other child is taken out of the flow with display: none: hiding
+   it by visibility alone leaves its full height behind, and the dialog then
+   starts several blank pages down. Inside the wrapper the overlay and any other
+   sibling stay hidden by visibility, which keeps the dialog's own ancestors
+   boxed. The dialog is .fixed and carries Tailwind's translate-x/y, which are
+   the CSS `translate` property, not `transform`; the general print block above
+   forces .fixed to static, so position, translate and scale are all reset here
+   with !important or the sheet sits half off the left edge of the paper. */
 @media print {
+  body:has(.print-surface) > :not(:has(.print-surface)) {
+    display: none !important;
+  }
   body:has(.print-surface) *:not(.print-surface, .print-surface *) {
     visibility: hidden;
   }
   body:has(.print-surface) .print-surface {
     visibility: visible;
-    position: absolute;
-    inset: 0;
-    max-height: none;
-    overflow: visible;
-    transform: none;
+    position: static !important;
+    inset: auto !important;
+    width: auto !important;
+    max-width: none !important;
+    max-height: none !important;
+    overflow: visible !important;
+    transform: none !important;
+    translate: none !important;
+    scale: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
     border: 0;
     box-shadow: none;
+  }
+  /* The general print rule flattens every .grid into one column; the slips stay
+     two to a row on paper so a sheet of 30 uses three pages, not twelve. */
+  .print-surface .print-slips {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 3mm;
+  }
+  .print-surface .print-slips > * {
+    margin-top: 0 !important;
   }
 }

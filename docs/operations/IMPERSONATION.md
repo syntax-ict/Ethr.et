@@ -1,5 +1,13 @@
 # Impersonation — how a platform operator acts as a tenant admin
 
+| At a glance | |
+|---|---|
+| **Purpose** | Explains how a platform super admin acts as an organisation's administrator, what that refuses and how it ends. |
+| **Open it when** | You need to look inside an organisation as it sees itself. |
+| **For** | Platform operator (super admin) |
+| **Organisation types** | Same for every kind. Impersonation refuses a change of the organisation's kind and of its pension scheme and other statutory settings, and still lets you fix its name, timezone or language. [`ORGANISATION-TYPES.md`](ORGANISATION-TYPES.md) |
+| **Source of truth** | `api/app/Http/Middleware/BlockImpersonatedActions.php` and `AdminTenantController.php`; the code outranks this page. |
+
 **Written 2026-10-01 from the code** (audit item D14). Every claim cites the file and line it
 was read from. Nothing here was run against a live host.
 
@@ -85,7 +93,43 @@ answered `403 Action Restricted`:
 - changing the plan (`BillingController@changePlan`);
 - renaming the organisation's address or changing its custom domain
   (`SettingsController@updateSubdomain`, `@updateAddress`). Added 2026-11-09 for K-39: the
-  address is where the organisation's people sign in.
+  address is where the organisation's people sign in;
+- **a save that carries the organisation's kind in law**, refused by what the request carries
+  and not by the action: `PUT /settings/organization` with `organization_type`,
+  `effective_from` or `cancel_pending_organization_type` in the body (`blockedFields()` in the
+  same file). The kind decides which statutory rules apply, so an operator may not choose it,
+  schedule a change of it, withdraw a scheduled change, or confirm it. Added 2026-11-15;
+- **a save that carries a statutory setting**: `PUT /settings` with any of
+  `settings.pension_scheme`, `settings.fiscal_year_start_month`,
+  `settings.pagumen_proration_strategy` or `settings.working_days_per_month`, the four keys
+  `StatutorySettingsBridge::SETTINGS` writes through to the organisation's statutory
+  parameters. The whole request is refused, so a permitted key sent beside one is not saved
+  either. The settings screens send these keys only when the person changed them;
+- **the setup wizard's apply**, which writes the same two things by another route:
+  `POST /onboarding/configuration/apply` (`Onboarding\ConfigurationController@apply`) with
+  `organization_type`, or with any of the four statutory keys under `plan.settings`
+  (`plan.settings.pension_scheme` and the rest). The wizard's screen always sends the kind, so
+  **an operator cannot apply the wizard while impersonating**. That is intended: the
+  organisation's own administrator applies it. The wizard's preview
+  (`POST /onboarding/configuration/preview`) records no choice and stays open.
+
+The kind and the statutory keys are refused whatever value the request gives, including the
+value already stored. The refusal is the same `403 Action Restricted` problem response as any
+other (`type` `https://ethr.et/errors/impersonation-restricted`).
+
+**Not blocked, and worth knowing:** the rest of `PUT /settings/organization`, so an operator can
+still correct the organisation's name, industry, timezone or language for a customer who asks,
+and the rest of `PUT /settings` (the payroll run day, for one).
+
+**Not blocked, and left to the owner:** `POST /payroll/statutory-rules/use-law`
+(`StatutoryRuleController@useLaw`). It ends the organisation's own tax ladder bands and pension
+rules, saved before both became the law's alone, so payroll applies the law's from today
+(`OwnStatutoryRates::end()`), and it audits `statutory_parameter.own_rates_ended`. So an
+operator can change how an organisation's pay is worked out with it, but only for an
+organisation that still has such rows. It cannot create them: `PUT /tax-brackets` and
+`POST /pension-rules` answer 422, and for every other organisation it ends nothing. The
+`DELETE` beside it is refused by its method; this one is a `POST`. Whether to refuse it too
+is the owner's decision.
 
 Everything else the impersonated tenant admin could do, the operator can do — including
 approving payroll and leave. The protection there is the audit tag, not a block. The middleware
@@ -129,6 +173,26 @@ nothing was restored (`src/src/components/shared/impersonation-banner.tsx:25-59`
 If nobody exits, the token simply expires at 30 minutes. The tenant origin's `impersonating`
 flag then outlives it until the banner's exit button is pressed (which answers 401/403 and
 lands on `/login`, clearing it) — harmless, but a banner can show over an expired session.
+
+## Organisation types
+
+- The kind decides which statutory rules apply: the pension scheme, and with it the agency the
+  pension schedule is addressed to.
+- **Impersonation refuses it** (2026-11-15). A save that carries the kind, a date for a change of
+  it, the withdrawal of a scheduled change, or a statutory setting such as the pension scheme,
+  answers `403 Action Restricted` and writes nothing: no `tenant_profile_assignments` row and no
+  `settings.organization_updated` entry. Before that date it was not refused, and the rule here
+  was only "read the kind, never save it".
+- **Read it, do not save it.** The card shows the kind to an operator as it does to the
+  administrator. A change of kind is the organisation's own decision, and its own administrator
+  makes it: close the session and tell the administrator what and why.
+- The setup wizard's apply is refused too, since it writes the kind and `plan.settings` by
+  another route. An operator cannot apply the wizard while impersonating; the organisation's own
+  administrator does.
+- **What you can still fix** while impersonating is the organisation's name, industry, timezone
+  and language, when a customer asks.
+- The test is `tests/Feature/ImpersonationTest.php`, the cases whose names mention the kind and
+  the statutory setting.
 
 ## Findings from reading the code — fixed 2026-10-02 (audit N19)
 
@@ -179,15 +243,27 @@ platform audit view shows it, the tenant's own view does not. The claim and the 
 recorded on the tenant host and filed under the tenant, tagged `impersonated_by`. That split is
 unchanged by N19; it is stated here because it is not obvious.
 
-**Still only provable on the real host** — none of this has run outside the test suite:
+**Still only provable on the real host.** *(Narrowed 2026-11-13 against the host work recorded
+in [`CUTOVER-CHECKLIST.md`](../deployment/CUTOVER-CHECKLIST.md), 2026-10-11: `admin.ethr.et` was
+pointed at `ethr/api/public`, a wildcard `*.ethr.et` site was created with the same root, the
+main certificate was reissued to cover it, and `{slug}.ethr.et` was measured presenting that
+certificate and resolving the organisation by hostname. One item below is answered by that and
+is struck; two are narrowed to the half it does not reach. Nothing here was converted on the
+strength of a session's recollection — `AGENTS.md` forbids turning `NOT VERIFIED` into verified
+without a measurement, and the measurement is the checklist entry.)*
 
-- that `{tenant}.ethr.et/impersonate/claim` is served by the static export's rewrite rules, and
-  `/sanctum/csrf-cookie` and `/api/*` reach Laravel on every tenant host;
-- that the `access_token` cookie set by the claim response is accepted by the browser on the
-  tenant host (it is `Secure` in production, so this needs the real certificate);
-- that `admin.ethr.et/admin` is where the console is served, since `return_url` names it;
+- ~~that `admin.ethr.et/admin` is where the console is served, since `return_url` names it~~ —
+  **answered.** `admin.ethr.et` serves `ethr/api/public` and the console answers there.
+- that `{tenant}.ethr.et/impersonate/claim` is served by the **static export's rewrite rules**.
+  The API half is answered: a tenant host resolves the organisation by hostname, so `/api/*` and
+  `/sanctum/csrf-cookie` reach Laravel. Whether the claim **page** is served there by the
+  export's rewrites has not been exercised.
+- that the `access_token` cookie set by the claim response is **accepted by the browser** on the
+  tenant host. Its precondition is answered — the wildcard certificate is served, so a `Secure`
+  cookie is possible — but no browser has been through the handoff on the host.
 - that `SANCTUM_STATEFUL_DOMAINS` on the host really includes `*.ethr.et` — without it the
-  claim answers 200 and sets **no** cookie, silently.
+  claim answers 200 and sets **no** cookie, silently. Unmeasured, and the quietest of the four.
 
-Until then, treat production impersonation as **built and tested, not verified on the host**.
-The 30-minute expiry still bounds every session.
+So treat production impersonation as **built, tested, and partly verified on the host**: the
+hosts and the certificate are real and measured, the browser handoff across them is not. The
+30-minute expiry still bounds every session.

@@ -48,7 +48,7 @@ import {
   localisedServices,
   mapsUrl,
 } from "@/lib/auth/landing-text";
-import { paragraphs, segments } from "@/features/news/news-format";
+import { PlainText } from "@/features/news/components/plain-text";
 import type { LandingFeed } from "@/features/auth/landing-feed";
 import { SupportContacts } from "@/app/(auth)/auth-layout-client";
 import { VacancyMeta } from "./vacancy-dialog";
@@ -57,6 +57,7 @@ import {
   publicCalendar,
   publicDate,
 } from "@/lib/calendar/public-calendar";
+import { formatPhone, telHref } from "@/lib/phone";
 
 export interface PortalViewProps {
   name: string | null;
@@ -418,9 +419,9 @@ function PortalSections({
                   ) : null
                 }
               >
-                <div className="grid gap-4 @sm:grid-cols-2 @lg:grid-cols-3">
+                <ul className="grid gap-4 @sm:grid-cols-2 @lg:grid-cols-3">
                   {announcements.map((a) => (
-                    <div
+                    <li
                       key={a.public_id}
                       className={cn(
                         "flex min-w-0",
@@ -431,12 +432,13 @@ function PortalSections({
                     >
                       <NewsCard
                         item={a}
-                        size={a === lead ? "feature" : "card"}
+                        density={a === lead ? "feature" : "card"}
+                        headingLevel={3}
                         href={links ? links.article(a.public_id) : null}
                       />
-                    </div>
+                    </li>
                   ))}
-                </div>
+                </ul>
               </PortalSectionFrame>
             );
           case "vacancies":
@@ -655,7 +657,7 @@ function FaqSection({
 }: {
   landing: TenantLanding | null | undefined;
 }) {
-  const { t, locale } = useT();
+  const { locale } = useT();
   const faqs = localisedFaqs(landing, locale);
 
   return (
@@ -669,31 +671,10 @@ function FaqSection({
               aria-hidden="true"
             />
           </summary>
-          <div className="space-y-3 px-5 pb-5 text-sm leading-relaxed text-muted-foreground">
-            {paragraphs(faq.answer).map((paragraph, j) => (
-              <p key={j} className="whitespace-pre-line">
-                {segments(paragraph).map((segment, k) =>
-                  segment.kind === "link" ? (
-                    <a
-                      key={k}
-                      href={segment.href}
-                      target="_blank"
-                      rel="noopener noreferrer nofollow ugc"
-                      className="break-words text-primary underline underline-offset-4 hover:no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    >
-                      {segment.href}
-                      <span className="sr-only">
-                        {" "}
-                        {t("news.opens_new_tab", "(opens in a new tab)")}
-                      </span>
-                    </a>
-                  ) : (
-                    <span key={k}>{segment.text}</span>
-                  ),
-                )}
-              </p>
-            ))}
-          </div>
+          <PlainText
+            text={faq.answer}
+            className="space-y-3 px-5 pb-5 text-sm leading-relaxed text-muted-foreground"
+          />
         </details>
       ))}
     </div>
@@ -820,8 +801,8 @@ function ContactSection({
         {phone && (
           <li className={row}>
             <Phone className={icon} aria-hidden="true" />
-            <a href={`tel:${phone.replace(/[^0-9+]/g, "")}`} className={link}>
-              {phone}
+            <a href={telHref(phone)} className={link}>
+              {formatPhone(phone)}
             </a>
           </li>
         )}
@@ -871,10 +852,10 @@ function ContactSection({
                   <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs">
                     {b.phone && (
                       <a
-                        href={`tel:${b.phone.replace(/[^0-9+]/g, "")}`}
+                        href={telHref(b.phone)}
                         className={cn(link, "text-foreground")}
                       >
-                        {b.phone}
+                        {formatPhone(b.phone)}
                       </a>
                     )}
                     {place && (

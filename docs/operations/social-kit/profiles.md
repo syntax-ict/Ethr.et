@@ -66,7 +66,7 @@ What to put in each channel's profile. Bios are measured against each platform's
 
 **Description (255):**
 
-> ለኢትዮጵያ ድርጅቶች የተሠራ የመገኘት፣ የደመወዝና የሰው ሀብት መድረክ። ከመስመር ውጭ ይሰራል። የ6 ወር ነጻ ሙከራ · ክሬዲት ካርድ አያስፈልግም።
+> ለኢትዮጵያ ድርጅቶች የተሠራ የመገኘት፣ የደመወዝና የሰው ሀብት መድረክ። ኢንተርኔት ባይኖርም ይሰራል። የ6 ወር ነጻ ሙከራ · ክሬዲት ካርድ አያስፈልግም።
 >
 > Attendance, payroll and HR for Ethiopian organisations. Works offline. www.ethr.et
 
@@ -85,7 +85,7 @@ Pin the trial post ([`links/trial-am.png`](assets/links/trial-am.png) with the T
 **Bio (150):**
 
 > Attendance, payroll and HR for Ethiopian organisations.
-> ከመስመር ውጭ ይሰራል · Amharic and English
+> ኢንተርኔት ባይኖርም ይሰራል · Amharic and English
 > 6-month free trial, no credit card
 
 *(126)*

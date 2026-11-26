@@ -4,9 +4,14 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use App\Enums\ContractType;
+use App\Enums\Gender;
+use App\Enums\MaritalStatus;
 use App\Enums\NationalityStatus;
 use App\Models\Branch;
+use App\Models\CostCenter;
 use App\Models\Department;
+use App\Models\Grade;
 use App\Models\Position;
 use Illuminate\Database\Eloquent\Model;
 
@@ -15,8 +20,8 @@ use Illuminate\Database\Eloquent\Model;
  * dropdowns of the workbook an organisation downloads.
  *
  * The fixed lists are the ones EmployeeImportRow's rules accept. The
- * organisation's own are its departments, branches and positions as a list
- * would name them: by name, and by code where two share a name, because a
+ * organisation's own are its departments, branches, positions, grades and cost
+ * centres as a list would name them: by name, and by code where two share a name, because a
  * shared name is refused as ambiguous when the list is read (RelationMatch).
  * A dropdown that offered a value the import then refused would be worse than
  * no dropdown.
@@ -27,18 +32,22 @@ final class EmployeeImportChoices
     public const LIMIT = 500;
 
     /**
-     * @return array{gender: list<string>, status: list<string>, nationality_status: list<string>, marital_status: list<string>, department: list<string>, branch: list<string>, position: list<string>}
+     * @return array{gender: list<string>, status: list<string>, nationality_status: list<string>, marital_status: list<string>, sign_in: list<string>, contract_type: list<string>, department: list<string>, branch: list<string>, position: list<string>, grade: list<string>, cost_center: list<string>}
      */
     public static function forTenant(?int $tenantId): array
     {
         return [
-            'gender' => ['male', 'female'],
+            'gender' => Gender::values(),
             'status' => EmployeeImportRow::STATUSES,
             'nationality_status' => NationalityStatus::values(),
-            'marital_status' => ['single', 'married', 'divorced', 'widowed'],
+            'marital_status' => MaritalStatus::values(),
+            'sign_in' => EmployeeImportRow::SIGN_IN_VALUES,
+            'contract_type' => array_map(fn (ContractType $type): string => $type->value, ContractType::cases()),
             'department' => self::named(Department::class, 'name', $tenantId),
             'branch' => self::named(Branch::class, 'name', $tenantId),
             'position' => self::named(Position::class, 'title', $tenantId),
+            'grade' => self::named(Grade::class, 'name', $tenantId, hasCode: false),
+            'cost_center' => self::named(CostCenter::class, 'name', $tenantId),
         ];
     }
 
@@ -46,7 +55,7 @@ final class EmployeeImportChoices
      * @param  class-string<Model>  $model
      * @return list<string>
      */
-    private static function named(string $model, string $nameColumn, ?int $tenantId): array
+    private static function named(string $model, string $nameColumn, ?int $tenantId, bool $hasCode = true): array
     {
         if ($tenantId === null) {
             return [];
@@ -56,7 +65,7 @@ final class EmployeeImportChoices
             ->where('tenant_id', $tenantId)
             ->orderBy($nameColumn)
             ->limit(self::LIMIT)
-            ->get([$nameColumn, 'code']);
+            ->get([$nameColumn, ...($hasCode ? ['code'] : [])]);
 
         $shared = [];
         foreach ($records as $record) {
@@ -67,7 +76,7 @@ final class EmployeeImportChoices
         $choices = [];
         foreach ($records as $record) {
             $name = trim((string) $record->getAttribute($nameColumn));
-            $code = trim((string) $record->getAttribute('code'));
+            $code = $hasCode ? trim((string) $record->getAttribute('code')) : '';
 
             if ($name !== '' && $shared[mb_strtolower($name)] === 1) {
                 $choices[] = $name;
