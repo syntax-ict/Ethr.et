@@ -19,7 +19,10 @@ import { useBringInPunches } from "@/features/devices/bring-in";
 import { BringInProgress } from "@/features/devices/components/bring-in-progress";
 import { fetchEmployeeImportTemplate } from "@/features/employees/api";
 import { employeeTemplateText } from "@/features/employees/components/import-column-guide";
-import { matchReasonLabel } from "@/features/employees/likeness";
+import {
+  SuggestionLine,
+  type Suggested,
+} from "@/features/devices/components/suggestion-line";
 import { buildTemplate, XLSX_MIME } from "@/features/onboarding/v2/xlsx-grid";
 import { apiErrorDetail, apiErrorMessage } from "@/lib/api/error-message";
 import { useOptionalCalendar } from "@/lib/calendar/calendar-context";
@@ -51,6 +54,16 @@ export function heldSinceDate(firstSeen: string, timeZone: string): string {
   return Number.isNaN(at.getTime())
     ? firstSeen.slice(0, 10)
     : todayIn(timeZone, at);
+}
+
+/**
+ * The first word of the name a terminal sent, to open the picker already
+ * searched. The given name alone, because the father's name is where
+ * spellings differ most, and the picker's search is one match on the text.
+ */
+export function givenName(name: string | null | undefined): string | undefined {
+  const first = name?.trim().split(/\s+/)[0];
+  return first ? first : undefined;
 }
 
 /**
@@ -211,14 +224,42 @@ function UnmatchedRow({
           (c) => c.employee_public_id === match.employee_public_id,
         )
       : undefined;
-  // Who it may be: shown with the reasons, and a person decides.
-  const possible =
-    !holder && match && match.outcome !== "new" ? candidates : [];
+  // Who it may be: the resolver's people with their reasons, then the people
+  // the terminal's name fits that it did not name, each with who they are and
+  // what speaks against them. A person a person decides on, never the server.
+  const nameFits = !holder ? (row.name_matches ?? []) : [];
+  const possible: Suggested[] = [
+    ...(!holder && match && match.outcome !== "new" ? candidates : []).map(
+      (c): Suggested => {
+        const fit = nameFits.find(
+          (p) => p.employee_public_id === c.employee_public_id,
+        );
+        return {
+          public_id: c.employee_public_id,
+          name: c.employee_name,
+          score: c.score,
+          reasons: c.reasons,
+          fit: fit?.fit,
+          identity: c.identity ?? fit?.identity,
+        };
+      },
+    ),
+    ...nameFits
+      .filter(
+        (p) =>
+          !(match?.outcome !== "new" ? candidates : []).some(
+            (c) => c.employee_public_id === p.employee_public_id,
+          ),
+      )
+      .map((p): Suggested => ({
+        public_id: p.employee_public_id,
+        name: p.employee_name,
+        fit: p.fit ?? "same",
+        identity: p.identity,
+        department: p.department,
+      })),
+  ];
   const isNew = match?.outcome === "new";
-  // People the terminal's own name fits, other than those already listed.
-  const sameName = (!holder ? (row.name_matches ?? []) : []).filter(
-    (p) => !possible.some((c) => c.employee_public_id === p.employee_public_id),
-  );
   const canBeBadgeNumber = BADGE_NUMBER.test(row.badge);
 
   function onAssign(employeePublicId: string) {
@@ -284,63 +325,18 @@ function UnmatchedRow({
           </p>
         )}
         {canManage && possible.length > 0 && (
-          <ul className="space-y-0.5 text-xs text-muted-foreground">
-            {possible.map((c) => (
-              <li key={c.employee_public_id}>
-                <button
-                  type="button"
-                  className="text-primary underline underline-offset-2 hover:no-underline"
-                  onClick={() =>
-                    setEmployee({
-                      public_id: c.employee_public_id,
-                      name: c.employee_name,
-                    })
-                  }
-                >
-                  {t("devices_page.unmatched.possibly", "Possibly :name", {
-                    name: c.employee_name,
-                  })}
-                </button>{" "}
-                · {Math.round(c.score * 100)}%
-                {c.reasons.length > 0 && (
-                  <span className="italic">
-                    {" "}
-                    ({c.reasons.map((r) => matchReasonLabel(r, t)).join(", ")})
-                  </span>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-        {canManage && sameName.length > 0 && (
-          <ul className="space-y-0.5 text-xs text-muted-foreground">
-            {sameName.map((p) => (
-              <li key={p.employee_public_id}>
-                <button
-                  type="button"
-                  className="text-primary underline underline-offset-2 hover:no-underline"
-                  onClick={() =>
-                    setEmployee({
-                      public_id: p.employee_public_id,
-                      name: p.employee_name,
-                    })
-                  }
-                >
-                  {t("devices_page.unmatched.possibly", "Possibly :name", {
-                    name: p.employee_name,
-                  })}
-                </button>
-                {p.department && <> · {p.department}</>}
-                <span className="italic">
-                  {" "}
-                  (
-                  {t(
-                    "devices_page.unmatched.same_name",
-                    "same name on the terminal",
-                  )}
-                  )
-                </span>
-              </li>
+          <ul className="space-y-1.5 text-xs text-muted-foreground">
+            {possible.map((person) => (
+              <SuggestionLine
+                key={person.public_id}
+                person={person}
+                onChoose={() =>
+                  setEmployee({
+                    public_id: person.public_id,
+                    name: person.name,
+                  })
+                }
+              />
             ))}
           </ul>
         )}
@@ -391,6 +387,7 @@ function UnmatchedRow({
                   id={`unmatched-${row.device_public_id}-${row.badge}`}
                   value={employee}
                   onChange={setEmployee}
+                  initialSearch={givenName(row.name_on_device)}
                 />
               </div>
               <Button
