@@ -33,6 +33,7 @@ use App\Services\Tenancy\ProfileContext;
 use App\Services\TenantAddressService;
 use App\Support\CalendarPreference;
 use App\Support\ClockPreference;
+use App\Support\DeviceSilenceRules;
 use App\Support\PayChangeThresholds;
 use App\Support\TenantBrand;
 use App\Support\TenantLanding;
@@ -67,6 +68,7 @@ class SettingsController extends Controller
         $rules = app(StatutoryRules::class)->for($tenant, Carbon::today());
         $leaveYear = LeaveYear::forTenant($tenant);
         $payChange = PayChangeThresholds::forTenant($tenant);
+        $silence = DeviceSilenceRules::forTenant($tenant);
 
         return response()->json([
             'organization' => [
@@ -151,6 +153,11 @@ class SettingsController extends Controller
                 'number_format' => $numbering->format($tenant),
                 'next_code' => $numbering->next($tenant),
                 'invitation_reminders' => data_get($tenant->settings, 'invitation_reminders', true) !== false,
+            ],
+            'devices' => [
+                'silence_alerts' => $silence->enabled,
+                'silence_adms_minutes' => $silence->admsMinutes,
+                'silence_push_grace_minutes' => $silence->pushGraceMinutes,
             ],
             'sso' => $this->ssoConfig($tenant),
         ]);

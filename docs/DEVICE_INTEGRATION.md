@@ -794,3 +794,29 @@ the organisation's day (`DeviceDayCounts`). `POST /devices/{device}/allowlist` a
 address a refusal names (`device.update`, audited, idempotent, at most 20 entries).
 `GET /admin/devices/{devicePublicId}/capture` is the platform operator's redacted export of one
 terminal's last seven days and its last 20 heartbeat bodies (body only, never the token).
+
+## Silence notices for terminals that only send (2026-11-24)
+
+A terminal that only sends has no pull job, so nothing told anyone when it went quiet.
+`devices:watch-silence` (every 15 minutes, `withoutOverlapping`) sets each operational
+organisation as the current tenant, asks `DeviceSilence` which terminals are silent, and
+dispatches `DeviceSilent`; `NotifyDeviceSilent` tells the tenant and HR admins, at most once a
+day per device (key `device-notice:silent:{id}:{organisation's date}`). It adds no
+`withoutGlobalScope`. The dashboard's `silent` list comes from the same `DeviceSilence`, so the
+page and the notice cannot disagree.
+
+| Terminal | Evidence | Silent when |
+|---|---|---|
+| `zkteco_adms` | `last_sync_at`, stamped on every ping | `now - max(last_sync_at, start of today's working hours) >= 30 minutes`, inside working hours |
+| Hikvision push, ZKTeco or Suprema with no address | `device_inbound_punches` rows of today, not `last_sync_at` (a Hikvision heartbeat stamps it) | no punch since the start of the organisation's day, `>= 60 minutes` after the default shift began, inside working hours, while the device's branch (or the whole organisation, with no branch) has an active employee with a badge number |
+
+Working hours are the active default shift's days, start and end, minus the holidays of the
+terminal's branch; a shift that crosses midnight is measured from the day it starts. No
+default shift (crews on a default rotation) means no notice. Pulled terminals, terminals never
+heard from and terminals registered after the day began are left out.
+
+Settings live in `tenants.settings`, written by `PUT /settings` (`settings.manage`), so there is
+no migration: `device_silence_alerts` (default on), `device_silence_adms_minutes` (15 to 240,
+default 30), `device_silence_push_grace_minutes` (30 to 480, default 60), read through
+`DeviceSilenceRules`. The production scheduler is the GitHub Actions caller, often 10 to 20
+minutes late, and the setting's hint says so. Pinned in `tests/Feature/Device/DeviceSilenceWatchTest.php`.

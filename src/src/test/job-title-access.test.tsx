@@ -273,3 +273,122 @@ describe("Positions: the access a position gives", () => {
     expect(body).toMatchObject({ access_role: "hr_admin" });
   });
 });
+
+describe("Users: following a position says what it will do first", () => {
+  const preview = (over: Record<string, unknown> = {}) => ({
+    role: "employee",
+    position: "QA Engineer",
+    applies: true,
+    ...over,
+  });
+
+  function serve(user: Record<string, unknown>) {
+    const bodies: Record<string, unknown>[] = [];
+    server.use(
+      http.get("*/api/v1/users", () => HttpResponse.json(paged([user]))),
+      http.patch("*/api/v1/users/:id", async ({ request }) => {
+        bodies.push((await request.json()) as Record<string, unknown>);
+        return HttpResponse.json(account());
+      }),
+    );
+    return bodies;
+  }
+
+  async function openAndFollow() {
+    render(<UsersSettingsPage />, { wrapper: wrap() });
+    await userEvent.click(
+      await screen.findByRole("button", { name: /^Edit / }),
+    );
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.click(
+      within(dialog).getByRole("radio", { name: "Follows position" }),
+    );
+    return dialog;
+  }
+
+  const hrAdmin = (over: Record<string, unknown> = {}) =>
+    account({
+      role: "hr_admin",
+      role_follows_position: false,
+      title_role: null,
+      title_preview: preview(),
+      ...over,
+    });
+
+  it("shows the role the title would give, or says there is no title", async () => {
+    serve(hrAdmin());
+    const dialog = await openAndFollow();
+    expect(
+      within(dialog).getByText("Position QA Engineer gives Employee"),
+    ).toBeVisible();
+  });
+
+  it("names the missing title when there is none", async () => {
+    serve(hrAdmin({ title_preview: preview({ position: null }) }));
+    const dialog = await openAndFollow();
+    expect(
+      within(dialog).getByText("No position, so this gives Employee"),
+    ).toBeVisible();
+  });
+
+  it("asks before a role change, sends nothing, and sends the flag on confirm", async () => {
+    const bodies = serve(hrAdmin());
+    const dialog = await openAndFollow();
+    await userEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+
+    const ask = await screen.findByText("Follow the position?");
+    expect(ask).toBeVisible();
+    expect(
+      screen.getByText(
+        "Selam Tadesse's role changes from HR admin to Employee.",
+      ),
+    ).toBeVisible();
+    expect(bodies).toHaveLength(0);
+
+    await userEvent.click(screen.getByRole("button", { name: "Change role" }));
+    await waitFor(() => expect(bodies).toHaveLength(1));
+    expect(bodies[0]).toMatchObject({ role_follows_position: true });
+    expect(bodies[0]).not.toHaveProperty("role");
+  });
+
+  it("returns to the dialog with nothing sent when the person keeps editing", async () => {
+    const bodies = serve(hrAdmin());
+    const dialog = await openAndFollow();
+    await userEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Keep editing" }),
+    );
+
+    await waitFor(() =>
+      expect(screen.queryByText("Follow the position?")).toBeNull(),
+    );
+    expect(screen.getByText("Where the role comes from")).toBeVisible();
+    expect(bodies).toHaveLength(0);
+  });
+
+  it("says the role is kept when the person could not give the new one", async () => {
+    serve(hrAdmin({ title_preview: preview({ applies: false }) }));
+    const dialog = await openAndFollow();
+    await userEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+
+    expect(
+      await screen.findByText(
+        "Selam Tadesse keeps HR admin until someone who may give Employee applies it. It will show under Differs from position.",
+      ),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Follow the position" }),
+    ).toBeVisible();
+  });
+
+  it("saves straight away when the title gives the role the account already has", async () => {
+    const bodies = serve(
+      hrAdmin({ role: "employee", title_preview: preview() }),
+    );
+    const dialog = await openAndFollow();
+    await userEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(bodies).toHaveLength(1));
+    expect(screen.queryByText("Follow the position?")).toBeNull();
+  });
+});

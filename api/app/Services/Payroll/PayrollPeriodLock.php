@@ -42,6 +42,48 @@ final class PayrollPeriodLock
     }
 
     /**
+     * The days each employee is closed on, for many employees at once:
+     * the same rule as isClosed() (an entry in a released run whose period
+     * covers the day), asked in one query for a whole timesheet.
+     *
+     * @param  list<int>  $employeeIds  all of one tenant
+     * @return array<int, array<string, true>> employee id => Y-m-d => true
+     */
+    public function closedDays(int $tenantId, array $employeeIds, CarbonInterface|string $from, CarbonInterface|string $to): array
+    {
+        $first = Carbon::parse($from)->toDateString();
+        $last = Carbon::parse($to)->toDateString();
+        $closed = [];
+
+        $entries = PayrollEntry::query()
+            ->where('tenant_id', $tenantId)
+            ->whereIn('employee_id', $employeeIds)
+            ->whereHas('payrollRun', fn ($run) => $run
+                ->whereIn('status', PayrollRun::RELEASED_STATUSES)
+                ->whereDate('period_start', '<=', $last)
+                ->whereDate('period_end', '>=', $first))
+            ->with('payrollRun:id,period_start,period_end')
+            ->get(['employee_id', 'payroll_run_id']);
+
+        foreach ($entries as $entry) {
+            $run = $entry->payrollRun;
+            if ($run === null) {
+                continue;
+            }
+
+            $cursor = Carbon::parse(max($run->period_start->toDateString(), $first));
+            $end = Carbon::parse(min($run->period_end->toDateString(), $last));
+
+            while ($cursor->lessThanOrEqualTo($end)) {
+                $closed[$entry->employee_id][$cursor->toDateString()] = true;
+                $cursor = $cursor->addDay();
+            }
+        }
+
+        return $closed;
+    }
+
+    /**
      * Whether any day from $from to $to is closed for the employee: one
      * question for a span, such as a leave request.
      */

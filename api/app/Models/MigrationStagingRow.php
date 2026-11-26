@@ -37,6 +37,12 @@ class MigrationStagingRow extends Model
     public const ACTION_PENDING = 'pending';
 
     /**
+     * Bring back the archived person the row matched and write this row's
+     * details over their record: the corrected file after an undo.
+     */
+    public const ACTION_RESTORE = 'restore';
+
+    /**
      * Beside IdentityMatch's outcomes: nobody matched on anything a person
      * has only one of, and someone is already here under exactly this name,
      * in the department the row names (SameNameRoster). Held for review.

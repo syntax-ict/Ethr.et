@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/api/client";
 import type { components, operations } from "@/api/generated";
 import type { PaginatedResponse } from "@/api/types";
+import { sendInSlices } from "@/features/employees/send-in-slices";
 import type { Employee } from "./types";
 
 /**
@@ -193,6 +194,10 @@ export interface BulkUpdateEmployeesInput {
   employee_ids: string[];
   department_id?: string;
   branch_id?: string;
+  position_id?: string;
+  team_id?: string;
+  cost_center_id?: string;
+  supervisor_id?: string;
   status?: string;
   effective_date?: string;
   reason?: string;
@@ -206,21 +211,92 @@ export interface BulkUpdateEmployeesInput {
 export type BulkUpdateEmployeesResult =
   operations["employeeBulk.bulkUpdate"]["responses"][200]["content"]["application/json"];
 
+/**
+ * People per bulk-update request. The server takes 200 (`BulkUpdateRequest`),
+ * but each person is their own transaction with an edit, an audit row and a
+ * webhook, so a long selection goes up in slices of half that, one after
+ * another, inside the 30-second limit.
+ */
+export const BULK_UPDATE_SLICE = 100;
+
+/** What a bulk update answered, with the people no request carried. */
+export type BulkUpdateRun = BulkUpdateEmployeesResult & {
+  /** The ids a failed slice and every slice after it left unsent. */
+  unsent: string[];
+};
+
+/** The answers of several update slices as one: counts added, results in order. */
+export function combineUpdate(
+  parts: BulkUpdateEmployeesResult[],
+): BulkUpdateEmployeesResult {
+  return {
+    updated: parts.reduce((n, p) => n + p.updated, 0),
+    failed: parts.reduce((n, p) => n + p.failed, 0),
+    results: parts.flatMap((p) => p.results),
+  };
+}
+
+export async function postBulkUpdate(
+  input: BulkUpdateEmployeesInput,
+): Promise<BulkUpdateEmployeesResult> {
+  const { data } = await apiClient.post<BulkUpdateEmployeesResult>(
+    "/employees/bulk-update",
+    input,
+  );
+  return data;
+}
+
+/**
+ * The same change for every id, in slices of `BULK_UPDATE_SLICE`, stopping at
+ * the first slice that fails. A failure of the first slice is thrown, so the
+ * caller shows the server's own message; a later one comes back as `unsent`,
+ * with what did go through, because a retry must send only the rest.
+ */
+export async function runBulkUpdate(
+  input: BulkUpdateEmployeesInput,
+): Promise<BulkUpdateRun> {
+  const run = await sendInSlices(
+    input.employee_ids,
+    (slice) => postBulkUpdate({ ...input, employee_ids: slice }),
+    BULK_UPDATE_SLICE,
+  );
+
+  if (run.results.length === 0 && run.error !== null) {
+    throw run.error;
+  }
+
+  return { ...combineUpdate(run.results), unsent: run.unsent };
+}
+
 export function useBulkUpdateEmployees() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (input: BulkUpdateEmployeesInput) => {
-      const { data } = await apiClient.post<BulkUpdateEmployeesResult>(
-        "/employees/bulk-update",
-        input,
-      );
-      return data;
-    },
+    mutationFn: runBulkUpdate,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["employees"] });
     },
   });
+}
+
+// ── Everyone a filter matches ──────────────────────────────────────
+
+export type EmployeeIdsResult =
+  operations["employeeBulk.ids"]["responses"][200]["content"]["application/json"];
+
+/**
+ * The public ids of everyone the list's search and filters match (at most
+ * `cap`; `capped` says there are more). A read only: the ids go to the bulk
+ * endpoints, which check each person against the signed-in person's reach.
+ */
+export async function fetchMatchingEmployeeIds(
+  params: { search?: string } & EmployeeFilters,
+): Promise<EmployeeIdsResult> {
+  const { search, ...filters } = params;
+  const { data } = await apiClient.get<EmployeeIdsResult>("/employees/ids", {
+    params: { search: search || undefined, ...filterParams(filters) },
+  });
+  return data;
 }
 
 // ── Archive and restore ────────────────────────────────────────────

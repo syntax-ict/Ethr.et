@@ -2629,6 +2629,51 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/reports/timesheet": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The monthly timesheet as a grid: a page of the people the viewer may
+         *     see, each with one cell a day and the figures payroll reads, the totals
+         *     over everyone matched, department subtotals, the overtime rate columns,
+         *     the rules applied and the period's status
+         */
+        get: operations["report.timesheet"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/reports/timesheet/pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The monthly timesheet as a PDF: A4 landscape, the grid, the summary, the
+         *     totals, the legend, the rules applied and the signature lines, in the
+         *     reader's language and calendar. The same filters as the grid, and the
+         *     same people it shows; a list longer than a printed sheet holds is a 422
+         *     that says how to narrow it
+         */
+        get: operations["report.timesheetPdf"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/reports/export": {
         parameters: {
             query?: never;
@@ -3339,6 +3384,33 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/employees/ids": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The public ids of everyone the employees list matches
+         * @description For "select all matching this filter". A read only: nothing is changed by
+         *     filter. The screen sends these ids to the bulk endpoints, which check each
+         *     person against the requester's reach again.
+         *
+         *     Takes the list's own `search` and `filter[...]` parameters, through the
+         *     same code (`EmployeeListFilters`) and the same org scope as
+         *     `GET /employees`. At most 2,000 ids come back; `total` is the full count
+         *     and `capped` is true when `ids` holds fewer than `total`.
+         */
+        get: operations["employeeBulk.ids"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/employees/next-code": {
         parameters: {
             query?: never;
@@ -3445,14 +3517,22 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Move employees to a department or branch, or change their status
+         * Move employees to a department or branch, set their job title, team,
+         *     cost centre or supervisor, or change their status
          * @description The selection is all or nothing: an id outside the requester's org scope
          *     refuses the whole request with 422 before anything is written, with the
          *     message an id that exists nowhere gets. The changes are per employee: a
          *     status change goes through the same transition rules as
-         *     `POST /employees/{employee}/transition`, and `results` reports each id as
-         *     `updated`, `unchanged` (already in that status) or `failed`, with the
-         *     reason. One refused transition does not stop the others.
+         *     `POST /employees/{employee}/transition`, the job fields go through the
+         *     same `EmployeeUpdater` as `PUT /employees/{employee}` (so a job title
+         *     moves the account's access by the same rule, limited to what the person
+         *     making the change could do by hand), and `results` reports each id as
+         *     `updated`, `unchanged` (already as asked) or `failed`, with the reason.
+         *     A supervisor who is the person themselves, or who would make a loop, is
+         *     a `failed` for that person only. `access_held` says the person's login
+         *     follows its job title and could not be moved to the new title's role by
+         *     the person making the change, so it waits on the Users page. One refused
+         *     change does not stop the others.
          */
         post: operations["employeeBulk.bulkUpdate"];
         delete?: never;
@@ -9195,6 +9275,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/users/assignable-roles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The custom roles the signed-in person may give, for the Users page's
+         *     picker. Settings > Roles needs `settings.manage`, which an HR admin does
+         *     not hold, so this is the read for someone who may only assign
+         */
+        get: operations["user.assignableRoles"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/users/{user}": {
         parameters: {
             query?: never;
@@ -10284,6 +10385,10 @@ export interface components {
             employee_ids: string[];
             department_id?: string | null;
             branch_id?: string | null;
+            position_id?: string | null;
+            team_id?: string | null;
+            cost_center_id?: string | null;
+            supervisor_id?: string | null;
             status?: components["schemas"]["EmployeeStatus"] | null;
             /** Format: date-time */
             effective_date?: string | null;
@@ -10554,6 +10659,9 @@ export interface components {
             accepts_commands: boolean;
             receives_only: boolean;
             pulled: boolean;
+            /** @enum {string} */
+            connection_mode: "push" | "pull" | "adms";
+            uses_webhook_token: boolean;
             sync_interval_minutes: number;
             timezone: string | null;
             webhook_ip_allowlist?: string[];
@@ -14367,6 +14475,9 @@ export interface components {
                 letterhead_phone?: string | null;
                 /** Format: email */
                 letterhead_email?: string | null;
+                device_silence_alerts?: boolean;
+                device_silence_adms_minutes?: number;
+                device_silence_push_grace_minutes?: number;
                 letterhead_po_box?: string | null;
             };
         };
@@ -14411,7 +14522,7 @@ export interface components {
         /** UpdateStagingRowRequest */
         UpdateStagingRowRequest: {
             /** @enum {string} */
-            action: "merge" | "create" | "skip" | "defer";
+            action: "merge" | "create" | "skip" | "defer" | "restore";
             /**
              * @description Lets a reviewer pick which candidate an "ambiguous" row merges
              *     with — resolved tenant-scoped in the controller, same as every
@@ -14609,6 +14720,11 @@ export interface components {
             role: components["schemas"]["UserRole"];
             role_follows_position: boolean;
             title_role: string | null;
+            title_preview: {
+                role: string;
+                position: string | null;
+                applies: boolean;
+            } | null;
             status: string;
             locale: string;
             mfa_enabled: boolean;
@@ -14621,6 +14737,7 @@ export interface components {
             custom_role?: {
                 public_id: string;
                 name: string;
+                is_active: boolean;
             } | null;
             employee?: {
                 public_id: string;
@@ -22250,7 +22367,22 @@ export interface operations {
                                     "leave_days",
                                     "holiday_days",
                                     "worked_hours",
-                                    "overtime_hours"
+                                    "overtime_hours",
+                                    "rest_days",
+                                    "missing_days",
+                                    "early_days",
+                                    "late_minutes",
+                                    "early_minutes",
+                                    "lateness_deduct_minutes",
+                                    "scheduled_hours",
+                                    "short_hours",
+                                    "overtime_normal_hours",
+                                    "overtime_night_hours",
+                                    "overtime_rest_day_hours",
+                                    "overtime_holiday_hours",
+                                    "overtime_holiday_night_hours",
+                                    "overtime_unapproved_hours",
+                                    "overtime_limit_days"
                                 ];
                                 filters: [
                                     "period",
@@ -22413,6 +22545,164 @@ export interface operations {
                             complete?: boolean;
                         };
                     };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "report.timesheet": {
+        parameters: {
+            query?: {
+                from?: string | null;
+                to?: string | null;
+                month?: string | null;
+                department?: string | null;
+                branch?: string | null;
+                shift?: string | null;
+                employment_status?: components["schemas"]["EmployeeStatus"] | null;
+                page?: number;
+                per_page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        period: {
+                            from: string;
+                            to: string;
+                        } | null;
+                        days: {
+                            date: string;
+                            iso_weekday: number;
+                        }[];
+                        data: {
+                            public_id: string;
+                            employee_code: string | null;
+                            name: string;
+                            name_am: string | null;
+                            badge_number: string | null;
+                            position: string | null;
+                            department: {
+                                public_id: string;
+                                name: string;
+                                name_am: string | null;
+                            } | null;
+                            shift: {
+                                public_id: string;
+                                name: string;
+                                name_am: string | null;
+                            } | null;
+                            cells: {
+                                date: string;
+                                code: string | null;
+                                short: string | null;
+                                kind: string;
+                                worked: boolean;
+                                late: boolean;
+                                early: boolean;
+                                worked_minutes: number;
+                                scheduled_minutes: number;
+                                late_minutes: number;
+                                early_minutes: number;
+                                overtime: {
+                                    [key: string]: number;
+                                };
+                                records: string[];
+                                locked: boolean;
+                                exception: {
+                                    type: string;
+                                    state: string;
+                                } | null;
+                            }[];
+                            totals: {
+                                [key: string]: unknown;
+                            };
+                            check_ok: boolean;
+                        }[];
+                        meta: {
+                            current_page: number;
+                            last_page: number;
+                            per_page: number;
+                            total: number;
+                        };
+                        links: {
+                            next: string | null;
+                            prev: string | null;
+                        };
+                        complete: boolean;
+                        max_people: number;
+                        totals: {
+                            [key: string]: unknown;
+                        } | null;
+                        department_subtotals: {
+                            department: {
+                                public_id: string;
+                                name: string;
+                                name_am: string | null;
+                            } | null;
+                            employees: number;
+                            totals: {
+                                [key: string]: unknown;
+                            };
+                        }[];
+                        rate_columns: {
+                            rate: number;
+                            types: string[];
+                        }[];
+                        rules_applied: {
+                            [key: string]: unknown;
+                        };
+                        status: {
+                            code: string;
+                            blocking: number;
+                            locked_days: number;
+                            employed_days: number;
+                        } | null;
+                        with_pay: boolean;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "report.timesheetPdf": {
+        parameters: {
+            query?: {
+                from?: string | null;
+                to?: string | null;
+                month?: string | null;
+                department?: string | null;
+                branch?: string | null;
+                shift?: string | null;
+                employment_status?: components["schemas"]["EmployeeStatus"] | null;
+                page?: number;
+                per_page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    "Content-Disposition"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": string;
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -22934,6 +23224,12 @@ export interface operations {
                                 punches: number;
                             }[];
                         };
+                        silent: {
+                            device_public_id: string;
+                            name: string;
+                            kind: string;
+                            since: string;
+                        }[];
                         unmatched: {
                             badges: number;
                             punches: number;
@@ -24067,6 +24363,43 @@ export interface operations {
             403: components["responses"]["AuthorizationException"];
         };
     };
+    "employeeBulk.ids": {
+        parameters: {
+            query?: {
+                search?: string | null;
+                "filter[status]"?: string | null;
+                "filter[archived]"?: boolean | null;
+                "filter[nationality_needs_review]"?: boolean | null;
+                "filter[missing]"?: string | null;
+                "filter[department_id]"?: string | null;
+                "filter[branch_id]"?: string | null;
+                "filter[position_id]"?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        ids: string[];
+                        total: number;
+                        capped: boolean;
+                        /** @constant */
+                        cap: 2000;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
     "employee.nextCode": {
         parameters: {
             query?: never;
@@ -24235,19 +24568,25 @@ export interface operations {
                         failed: number;
                         results: ({
                             employee_id: string;
+                            name: string;
                             /** @constant */
                             outcome: "updated";
                             error: null;
+                            access_held: boolean;
                         } | {
                             employee_id: string;
+                            name: string;
                             /** @constant */
                             outcome: "failed";
                             error: string;
+                            access_held: boolean;
                         } | {
                             employee_id: string;
+                            name: string;
                             /** @constant */
                             outcome: "unchanged";
                             error: null;
+                            access_held: boolean;
                         })[];
                     };
                 };
@@ -29714,6 +30053,11 @@ export interface operations {
                                 taken: boolean;
                             }[];
                             warnings: unknown[];
+                            restore: {
+                                possible: boolean;
+                                allowed: boolean;
+                                reasons: string[];
+                            } | null;
                             can_apply_changes: boolean;
                             scheduled_action: boolean;
                             processed_at: string | null;
@@ -29862,6 +30206,11 @@ export interface operations {
                                 taken: boolean;
                             }[];
                             warnings: unknown[];
+                            restore: {
+                                possible: boolean;
+                                allowed: boolean;
+                                reasons: string[];
+                            } | null;
                             can_apply_changes: boolean;
                             scheduled_action: boolean;
                             processed_at: string | null;
@@ -30124,6 +30473,11 @@ export interface operations {
                                 taken: boolean;
                             }[];
                             warnings: unknown[];
+                            restore: {
+                                possible: boolean;
+                                allowed: boolean;
+                                reasons: string[];
+                            } | null;
                             can_apply_changes: boolean;
                             scheduled_action: boolean;
                             processed_at: string | null;
@@ -30207,6 +30561,11 @@ export interface operations {
                             taken: boolean;
                         }[];
                         warnings: unknown[];
+                        restore: {
+                            possible: boolean;
+                            allowed: boolean;
+                            reasons: string[];
+                        } | null;
                         can_apply_changes: boolean;
                         scheduled_action: boolean;
                         processed_at: string | null;
@@ -30418,6 +30777,7 @@ export interface operations {
                             created: number;
                             merged: number;
                             updated: number;
+                            restored: number;
                             skipped: number;
                             deferred: number;
                         };
@@ -37256,6 +37616,11 @@ export interface operations {
                             next_code: string;
                             invitation_reminders: boolean;
                         };
+                        devices: {
+                            silence_alerts: boolean;
+                            silence_adms_minutes: number | null;
+                            silence_push_grace_minutes: number | null;
+                        };
                         sso: {
                             is_enabled: boolean;
                             provider: string;
@@ -40272,13 +40637,38 @@ export interface operations {
                             punches: string;
                             first_seen: string;
                             last_seen: string;
-                            match: unknown;
+                            match: {
+                                [key: string]: unknown;
+                            } | null;
                             recording_itself: boolean;
                             name_on_device: string | null;
                             name_matches: {
                                 employee_public_id: string;
                                 employee_name: string;
-                                department: string | null;
+                                department: string;
+                                fit: string;
+                                identity: {
+                                    employee_code: string | null;
+                                    department: string | null;
+                                    position: string | null;
+                                    branch: string | null;
+                                    hire_date: string;
+                                    status: string;
+                                    badge_number: string | null;
+                                    warnings: ({
+                                        /** @constant */
+                                        code: "other_badge";
+                                        value: string;
+                                    } | {
+                                        /** @constant */
+                                        code: "hired_after";
+                                        value: Record<string, never> | null;
+                                    } | {
+                                        /** @constant */
+                                        code: "own_attendance";
+                                        value: number;
+                                    })[];
+                                } | null;
                             }[];
                         }[];
                     };
@@ -40353,6 +40743,11 @@ export interface operations {
                 search?: string;
                 "filter[role]"?: string;
                 "filter[status]"?: string;
+                /**
+                 * @description A public id, read through the tenant scope: another organisation's
+                 *      role finds no one rather than raising an error.
+                 */
+                "filter[custom_role]"?: string;
                 per_page?: number;
             };
             header?: never;
@@ -40369,6 +40764,11 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: (components["schemas"]["UserResource"] & {
+                            custom_role: {
+                                public_id: string;
+                                name: string;
+                                is_active: boolean;
+                            } | null;
                             employee: {
                                 public_id: string;
                                 name: string;
@@ -40449,6 +40849,35 @@ export interface operations {
             422: components["responses"]["ValidationException"];
         };
     };
+    "user.assignableRoles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            public_id: string;
+                            name: string;
+                            description: string;
+                            org_scope: string;
+                            permissions_count: number;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
     "user.destroy": {
         parameters: {
             query?: never;
@@ -40522,6 +40951,11 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserResource"] & {
+                        custom_role: {
+                            public_id: string;
+                            name: string;
+                            is_active: boolean;
+                        } | null;
                         employee: {
                             public_id: string;
                             name: string;
@@ -40600,6 +41034,11 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserResource"] & {
+                        custom_role: {
+                            public_id: string;
+                            name: string;
+                            is_active: boolean;
+                        } | null;
                         employee: {
                             public_id: string;
                             name: string;

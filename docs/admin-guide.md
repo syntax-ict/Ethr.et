@@ -422,8 +422,8 @@ The cards below are open to every holder of `payroll.viewConfig`, and change onl
 Finance → Payroll Runs → Process Payroll → select the pay period → confirm.
 
 The engine:
-1. Pulls confirmed attendance for each employee
-2. Deducts leave days
+1. Reads each employee's attendance and leave for the period: the overtime worked by rate, unpaid leave days, the Art. 85 sick-leave days and, when lateness deductions are on, the lateness minutes an approved correction decided. Absences are listed on the run and never deducted
+2. Deducts unpaid leave days
 3. Calculates basic salary (with proration for new hires/exits)
 4. Adds overtime and allowances
 5. Deducts income tax, pension, loans
@@ -475,9 +475,35 @@ Schedule a saved report from the **Saved** tab for automatic email delivery, dai
 
 A saved report can be run, scheduled or deleted, and a schedule can be deleted; neither can be edited. Saving and scheduling depend on your plan.
 
+### Monthly timesheet
+
+The monthly timesheet reads the same figures payroll reads, so the two cannot disagree. Each row is one person for a month in your calendar (an Ethiopian month, Pagume included, or a Gregorian one):
+
+- **Days**: workdays, present (late and early days are kinds of present), absent, leave, holidays, rest days and missing-punch days. An absence is a workday with no record, up to yesterday, in an organization that records attendance at all. Payroll flags absences on the run and never deducts them, so they are not taken off payable days.
+- **Late and early**: the count of days and the minutes observed. The minutes payroll will deduct are the ones an approved lateness correction decided, and are shown apart.
+- **Hours**: scheduled, worked, and short. Short hours are counted day by day, so a long day does not make up for a short one.
+- **Overtime by rate**: one column for each rate the organization pays (1.5× day, 1.75× night, 2.0× rest day, 2.5× holiday are the legal minimums). Overtime worked is paid whether or not it was approved in advance; the timesheet shows how much was unapproved, and the days over the legal limits of 4 hours a day and 12 hours a week, from the rules in Payroll rules.
+- **Status**: shown, never set by hand. Open, exceptions (a punch is still open or pending), reconciled, part-paid or paid (payroll has released the days). A day payroll has paid cannot be edited; a later fix goes into the next run.
+
+**The grid.** On the **Quick reports** tab, the monthly timesheet card has **Open as a day-by-day grid**, which opens the month chosen above it. The page is `/reports/timesheet?from=…&to=…`, so a link or a reload keeps the month and the filters (department, branch, shift, employment status).
+
+- Each row is a person, with one cell a day and a letter in it: **P** present, **L** late, **E** left early, **M** missing punch, **A** absent, **AL** annual, **SL** sick, **ML** maternity, **OL** other leave, **FD** field duty, **½** half day leave, **H** public holiday, **R** weekly rest day. A dot is a day that is not over. Weekends are shaded, and the legend under the sheet names every code.
+- **Click a cell** to see what was scheduled and worked that day, the late and early minutes, the overtime by rate, and the punches behind it. A day payroll has paid is marked and cannot be corrected from here; any other day links to **Request a correction**. Seeing the punches needs `attendance.viewAll`; without it the drawer says the day has records.
+- A warning mark at the end of a row means the row does not add up: its workdays, present days, overtime or hours disagree with the records. It should never show; if it does, tell support.
+- Summary columns follow the days, then one overtime column for each rate the organization pays. **Payable days** is shown only to someone who may see payroll.
+- Under the sheet: totals for everyone listed and for each department, the legend, and **How this is counted** (each shift's grace and early-departure minutes and break, how punches pair, how a night shift is dated, the overtime window and legal limits, and that absences are listed and not deducted).
+- Totals and the status are shown for up to 200 people. For a longer list the sheet still pages through everyone, says so, and shows no status: choose a department, branch or shift to narrow it.
+- On a phone, each person is a card with the month as a strip of days; tapping a day opens the same drawer.
+- **Download CSV** saves the page as it reads, a code a day; **Print** prints the sheet from the browser.
+- **Download PDF** makes the sheet for the wall and the file: A4 landscape, the organization's letterhead, the title in English and in Amharic, the period in your calendar, who made it and when, the status, the filters and the shifts. The days come first (one column a day, weekends shaded, paid days boxed), then the summary on its own page, then department totals, the legend of codes, how it was counted, and **Prepared by**, **Checked by** and **Approved by** lines with a box for the stamp. It holds up to 50 people: for more, choose a department, branch or shift and the message tells you so. Excel comes with the queued files in a later release.
+
+Through the API, `GET /reports/timesheet` returns a page of people with one cell per day, the totals over everyone the filters match, department subtotals, the rules applied and the status. The Builder's "Monthly timesheet" source carries the same figures as columns.
+
 ### Quick Reports
 
 The **Quick Reports** tab lists ready-made reports: the standard ones, and those recommended for the organization's type and working pattern (for example staffing by grade for a government office, overtime by department for a factory on shifts). A month picker in your calendar applies to the timesheet, attendance, absence and payroll reports. Each can be downloaded as CSV.
+
+Four reports built on the monthly timesheet's figures are standard for every organization, each for the month chosen above them: **Late and early leave** (late days and early departures with their minutes, and the lateness payroll will deduct), **Overtime by rate** (hours in each rate payroll pays, the unapproved hours and the days over the legal limit), **Missing punches** (who has a day with a punch still to fix, and who has no attendance), and **Attendance by department** (present, late, absent and leave days and the hours short, totalled per department). They read the same figures as the timesheet and payroll, so they agree with both. Daily attendance is the Attendance page, the absences and leave balances reports are above, and a raw punch log per device is on the Devices page.
 
 The statutory outputs are on each payroll run, not in Reports: open the run and use **Export** for the payroll register, the bank file, the journal, and the income tax and pension schedules.
 

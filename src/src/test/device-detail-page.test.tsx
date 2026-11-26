@@ -160,6 +160,7 @@ describe("device detail for a terminal that sends to ETHR", () => {
           adapter_type: "hikvision",
           receives_only: true,
           has_webhook_token: true,
+          uses_webhook_token: true,
           webhook_token_prefix: "tok123ab",
           webhook_url_masked:
             "https://www.ethr.et/api/v1/devices/webhook/hikvision?token=tok123ab...",
@@ -215,6 +216,7 @@ describe("device detail for a terminal that has not been heard from", () => {
     status: "pending",
     auto_sync: false,
     has_webhook_token: true,
+    uses_webhook_token: true,
     webhook_token_prefix: "tok123ab",
     webhook_url_masked:
       "https://www.ethr.et/api/v1/devices/webhook/hikvision?token=tok123ab...",
@@ -232,6 +234,14 @@ describe("device detail for a terminal that has not been heard from", () => {
       ),
       http.get("*/api/v1/devices/DEV1/events", () =>
         HttpResponse.json({ data: [], current_page: 1, last_page: 1 }),
+      ),
+      // Edit is the shared device form, which offers the organisation's branches.
+      http.get("*/api/v1/organization/branches", () =>
+        HttpResponse.json({
+          data: [],
+          meta: { current_page: 1, last_page: 1, per_page: 25, total: 0 },
+          links: { next: null, prev: null },
+        }),
       ),
     );
   }
@@ -554,6 +564,7 @@ describe("device detail: regenerating the webhook token", () => {
           adapter_type: "hikvision",
           receives_only: true,
           has_webhook_token: true,
+          uses_webhook_token: true,
           webhook_token_prefix: "tok123ab",
           webhook_url_masked:
             "https://www.ethr.et/api/v1/devices/webhook/hikvision?token=tok123ab...",

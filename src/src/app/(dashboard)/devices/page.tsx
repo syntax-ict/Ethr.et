@@ -18,9 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import {
   Select,
@@ -29,20 +27,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogDescription,
-} from "@/components/ui/dialog";
 import { PageActions } from "@/components/shared/page-actions";
 import { EmptyState } from "@/components/shared/empty-state";
 import { RoleGate } from "@/components/shared/role-gate";
 
 import { DeviceActionsMenu } from "@/features/devices/components/device-actions-menu";
+import { DeviceFormDialog } from "@/features/devices/components/device-form";
+import { DeviceSetupWizard } from "@/features/devices/components/device-setup-wizard";
+import { DeleteDeviceDialog } from "@/features/devices/components/delete-device-dialog";
 import { IssuedAddressDialog } from "@/features/devices/components/issued-address-dialog";
+import {
+  issuedSetupFor,
+  type IssuedSetup,
+} from "@/features/devices/issued-setup";
 import {
   DeviceEnrollmentsDialog,
   ImportHistoryDialog,
@@ -56,16 +53,10 @@ import {
   useTestDeviceConnection,
   useUpdateDevice,
   type Device,
+  type DeviceUpdate,
   isPulled,
 } from "@/features/devices/api";
-import {
-  buildDevicePayload,
-  EMPTY_DEVICE_FORM,
-  canSendToEthr,
-  isIpAdapter,
-  SIMULATOR_IN_FORM,
-  type DeviceFormData,
-} from "@/features/devices/payload";
+import type { DevicePayload } from "@/features/devices/payload";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
@@ -96,11 +87,12 @@ const ADAPTER_LABELS: Record<string, string> = {
 export default function DevicesPage() {
   const { t } = useT();
   const [createOpen, setCreateOpen] = useState(false);
+  // Add Device opens the guided setup; the full form is its Advanced link.
+  const [wizardOpen, setWizardOpen] = useState(false);
   const [editDevice, setEditDevice] = useState<Device | null>(null);
   const [deleteDevice, setDeleteDevice] = useState<Device | null>(null);
   const [discoverDevice, setDiscoverDevice] = useState<Device | null>(null);
   const [historyDevice, setHistoryDevice] = useState<Device | null>(null);
-  const [form, setForm] = useState<DeviceFormData>({ ...EMPTY_DEVICE_FORM });
   // In the address: "offline devices" is a link someone can send.
   const filters = useQueryFilters(
     { q: "", status: "all" },
@@ -114,24 +106,25 @@ export default function DevicesPage() {
     status: statusFilter === "all" ? undefined : statusFilter,
   });
 
-  const { data: branches } = branchesApi.useList();
+  const branchesQuery = branchesApi.useList();
+  const branches = branchesQuery.data;
 
   const createMutation = useCreateDevice();
-  // The new terminal's address, shown once: the server keeps only a hash.
-  const [issuedUrl, setIssuedUrl] = useState<string | null>(null);
+  // What to do on the new terminal, by how it connects. A push terminal's
+  // address is shown once: the server keeps only a hash.
+  const [issuedSetup, setIssuedSetup] = useState<IssuedSetup | null>(null);
   const updateMutation = useUpdateDevice();
   const deleteMutation = useDeleteDevice();
   const pullMutation = usePullDeviceEvents();
   const syncAllMutation = useSyncAllDevices();
   const testMutation = useTestDeviceConnection();
 
-  function submitCreate() {
-    createMutation.mutate(buildDevicePayload(form, "create"), {
+  function submitCreate(payload: DevicePayload) {
+    createMutation.mutate(payload, {
       onSuccess: (created) => {
         toast.success(t("devices_page.registered"));
-        if (created.webhook_url) setIssuedUrl(created.webhook_url);
+        setIssuedSetup(issuedSetupFor(created));
         setCreateOpen(false);
-        setForm({ ...EMPTY_DEVICE_FORM });
       },
       onError: (err: unknown) => {
         toast.error(apiErrorMessage(err, t("devices_page.add_failed")));
@@ -139,12 +132,12 @@ export default function DevicesPage() {
     });
   }
 
-  function submitUpdate() {
+  function submitUpdate(payload: DeviceUpdate) {
     if (!editDevice) return;
     updateMutation.mutate(
       {
         publicId: editDevice.public_id,
-        payload: buildDevicePayload(form, "edit"),
+        payload,
       },
       {
         onSuccess: () => {
@@ -193,7 +186,7 @@ export default function DevicesPage() {
     if (window.location.hash !== "#add") return;
     const timer = window.setTimeout(() => {
       openedFromHash.current = true;
-      setCreateOpen(true);
+      setWizardOpen(true);
     }, 0);
     return () => window.clearTimeout(timer);
   }, [canCreate]);
@@ -238,28 +231,7 @@ export default function DevicesPage() {
     });
   }
 
-  function openEdit(device: Device) {
-    setForm({
-      name: device.name,
-      adapter_type: device.adapter_type,
-      serial_number: device.serial_number ?? "",
-      branch_public_id: device.branch_public_id ?? "",
-      // Blank, not "80": the stored port is not shown, and a pre-filled
-      // default would silently replace it whenever only the IP is changed.
-      ip: "",
-      port: "",
-      username: "",
-      password: "",
-      api_key: "",
-      auto_sync: device.auto_sync,
-      sends_to_ethr: device.receives_only === true,
-    });
-    setEditDevice(device);
-  }
-
   const devices: Device[] = data?.data ?? [];
-
-  const isMockAdapter = form.adapter_type === "mock";
 
   return (
     <RoleGate anyPermission={["viewDevices"]}>
@@ -289,12 +261,7 @@ export default function DevicesPage() {
                 </Button>
               )}
               {canCreate && (
-                <Button
-                  onClick={() => {
-                    setForm({ ...EMPTY_DEVICE_FORM });
-                    setCreateOpen(true);
-                  }}
-                >
+                <Button onClick={() => setWizardOpen(true)}>
                   <Plus className="mr-2 h-4 w-4" />{" "}
                   {t("devices_page.add_device")}
                 </Button>
@@ -353,12 +320,7 @@ export default function DevicesPage() {
             description={t("devices_page.no_devices_desc")}
             action={
               canCreate ? (
-                <Button
-                  onClick={() => {
-                    setForm({ ...EMPTY_DEVICE_FORM });
-                    setCreateOpen(true);
-                  }}
-                >
+                <Button onClick={() => setWizardOpen(true)}>
                   <Plus className="mr-2 h-4 w-4" />{" "}
                   {t("devices_page.add_device")}
                 </Button>
@@ -373,7 +335,7 @@ export default function DevicesPage() {
                 device={d}
                 onPull={canUpdate ? () => pull(d.public_id) : undefined}
                 onTest={() => testConnection(d.public_id, d.adapter_type)}
-                onEdit={canUpdate ? () => openEdit(d) : undefined}
+                onEdit={canUpdate ? () => setEditDevice(d) : undefined}
                 onDelete={canDelete ? () => setDeleteDevice(d) : undefined}
                 onDiscover={() => setDiscoverDevice(d)}
                 onImportHistory={
@@ -386,87 +348,62 @@ export default function DevicesPage() {
           </div>
         )}
 
-        {/* Create Dialog */}
+        <DeviceSetupWizard
+          open={wizardOpen}
+          onOpenChange={setWizardOpen}
+          branches={
+            branchesQuery.isPending ? undefined : (branches?.data ?? [])
+          }
+          onAdvanced={() => {
+            setWizardOpen(false);
+            setCreateOpen(true);
+          }}
+          onDiscover={setDiscoverDevice}
+        />
+
+        {/* Register: the full form, reached from the wizard's Advanced link */}
         <DeviceFormDialog
           open={createOpen}
           onOpenChange={setCreateOpen}
           title={t("devices_page.register_device")}
-          form={form}
-          setForm={setForm}
+          mode="create"
           branches={branches?.data ?? []}
-          isMock={isMockAdapter}
-          addressRequired
-          branchRequired
-          onSubmit={(e) => {
-            e.preventDefault();
-            submitCreate();
-          }}
+          onSubmit={submitCreate}
           isPending={createMutation.isPending}
           submitLabel={t("devices_page.register")}
         />
 
         <IssuedAddressDialog
-          url={issuedUrl}
-          onClose={() => setIssuedUrl(null)}
+          setup={issuedSetup}
+          onClose={() => setIssuedSetup(null)}
         />
 
-        {/* Edit Dialog */}
-        <DeviceFormDialog
-          open={!!editDevice}
-          onOpenChange={(open) => {
-            if (!open) setEditDevice(null);
-          }}
-          title={t("devices_page.edit_device")}
-          form={form}
-          setForm={setForm}
-          branches={branches?.data ?? []}
-          isMock={isMockAdapter}
-          // A blank address on edit keeps the stored connection — unless the
-          // adapter changed, when the stored settings belong to another vendor.
-          addressRequired={editDevice?.adapter_type !== form.adapter_type}
-          onSubmit={(e) => {
-            e.preventDefault();
-            submitUpdate();
-          }}
-          isPending={updateMutation.isPending}
-          submitLabel={t("leave_types_page.save_changes")}
-        />
+        {/* Edit: the same form as Register, and as the device's own page */}
+        {editDevice && (
+          <DeviceFormDialog
+            key={editDevice.public_id}
+            open
+            onOpenChange={(open) => {
+              if (!open) setEditDevice(null);
+            }}
+            title={t("devices_page.edit_device")}
+            mode="edit"
+            device={editDevice}
+            branches={branches?.data ?? []}
+            onSubmit={submitUpdate}
+            isPending={updateMutation.isPending}
+            submitLabel={t("leave_types_page.save_changes")}
+          />
+        )}
 
-        {/* Delete Confirmation */}
-        <Dialog
-          open={!!deleteDevice}
-          onOpenChange={(open) => {
-            if (!open) setDeleteDevice(null);
-          }}
-        >
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{t("devices_page.delete_device")}</DialogTitle>
-              <DialogDescription>
-                {t("devices_page.delete_confirm_prefix")}{" "}
-                <strong>{deleteDevice?.name}</strong>?{" "}
-                {t("devices_page.delete_confirm_suffix")}
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setDeleteDevice(null)}>
-                {t("common.cancel")}
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={() =>
-                  deleteDevice && confirmDelete(deleteDevice.public_id)
-                }
-                disabled={deleteMutation.isPending}
-              >
-                {deleteMutation.isPending && (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                )}
-                {t("common.delete")}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <DeleteDeviceDialog
+          deviceName={deleteDevice?.name ?? null}
+          pending={deleteMutation.isPending}
+          onConfirm={() =>
+            deleteDevice && confirmDelete(deleteDevice.public_id)
+          }
+          onClose={() => setDeleteDevice(null)}
+        />
 
         {/* Workforce discovery + attendance-history backfill */}
         <DeviceEnrollmentsDialog
@@ -674,309 +611,5 @@ function StatusBadge({ status }: { status: string }) {
       />
       {labelKey ? t(labelKey) : status}
     </Badge>
-  );
-}
-
-function DeviceFormDialog({
-  open,
-  onOpenChange,
-  title,
-  form,
-  setForm,
-  branches,
-  isMock,
-  addressRequired = false,
-  branchRequired = false,
-  onSubmit,
-  isPending,
-  submitLabel,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  title: string;
-  form: DeviceFormData;
-  setForm: React.Dispatch<React.SetStateAction<DeviceFormData>>;
-  branches: { public_id: string; name: string }[];
-  isMock: boolean;
-  addressRequired?: boolean;
-  // A new device must name its branch (StoreDeviceRequest); on edit a blank
-  // one keeps the stored branch.
-  branchRequired?: boolean;
-  onSubmit: (e: React.FormEvent) => void;
-  isPending: boolean;
-  submitLabel: string;
-}) {
-  const { t } = useT();
-  const set = (
-    key: Exclude<keyof DeviceFormData, "auto_sync" | "sends_to_ethr">,
-    value: string,
-  ) => setForm((p) => ({ ...p, [key]: value }));
-  const sendsToEthr = canSendToEthr(form.adapter_type) && form.sends_to_ethr;
-  const onlyBranch = branches.length === 1 ? branches[0].public_id : null;
-  // With no branch to offer the field is not drawn, and the server says why.
-  const branchMissing =
-    branchRequired && branches.length > 0 && form.branch_public_id === "";
-
-  // An organisation with one branch has nothing to choose: fill it in, so
-  // Register is not held back by a question with one answer.
-  useEffect(() => {
-    if (open && branchRequired && onlyBranch && form.branch_public_id === "") {
-      setForm((p) => ({ ...p, branch_public_id: onlyBranch }));
-    }
-  }, [open, branchRequired, onlyBranch, form.branch_public_id, setForm]);
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={onSubmit} className="space-y-4">
-          <div>
-            <Label htmlFor="device-name">{t("devices_page.device_name")}</Label>
-            <Input
-              id="device-name"
-              value={form.name}
-              onChange={(e) => set("name", e.target.value)}
-              required
-              placeholder={t("devices_page.device_name_placeholder")}
-              className="mt-1"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="adapter-type">
-                {t("devices_page.adapter_type")}
-              </Label>
-              <Select
-                value={form.adapter_type}
-                onValueChange={(v) => set("adapter_type", v)}
-              >
-                <SelectTrigger id="adapter-type" className="mt-1">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="hikvision">Hikvision</SelectItem>
-                  <SelectItem value="zkteco">ZKTeco</SelectItem>
-                  <SelectItem value="zkteco_adms">
-                    {t("devices_page.zkteco_adms")}
-                  </SelectItem>
-                  <SelectItem value="suprema">Suprema</SelectItem>
-                  {SIMULATOR_IN_FORM && (
-                    <SelectItem value="mock">
-                      {t("devices_page.mock_simulator")}
-                    </SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="serial-number">
-                {t("devices_page.serial_number")}
-              </Label>
-              <Input
-                id="serial-number"
-                value={form.serial_number}
-                onChange={(e) => set("serial_number", e.target.value)}
-                placeholder={
-                  form.adapter_type === "zkteco_adms"
-                    ? t("devices_page.serial_required")
-                    : t("leave_page.optional")
-                }
-                className="mt-1"
-              />
-            </div>
-          </div>
-
-          <div
-            className="flex items-center justify-between rounded-lg border p-3"
-            hidden={sendsToEthr}
-          >
-            <div>
-              <p className="text-sm font-medium">
-                {t("device_detail_page.auto_sync")}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {t("device_detail_page.auto_sync_hint")}
-              </p>
-            </div>
-            <Switch
-              aria-label={t("device_detail_page.auto_sync")}
-              checked={form.auto_sync}
-              onCheckedChange={(v) => setForm((p) => ({ ...p, auto_sync: v }))}
-            />
-          </div>
-
-          {form.adapter_type === "zkteco_adms" && (
-            <p className="rounded-lg border p-3 text-sm text-muted-foreground">
-              {t("devices_page.adms_hint")}
-            </p>
-          )}
-
-          {isMock && (
-            <div className="rounded-lg border border-warning-edge bg-warning-soft p-3 text-sm text-warning-on-soft">
-              {t("devices_page.mock_hint")}
-            </div>
-          )}
-
-          {canSendToEthr(form.adapter_type) && (
-            <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
-              <div>
-                <p className="text-sm font-medium">
-                  {t(
-                    "devices_page.sends_to_ethr",
-                    "The terminal is on our office network",
-                  )}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {t(
-                    "devices_page.sends_to_ethr_hint",
-                    "It sends each punch to ETHR, so no address is needed. After registering, the device page shows what to enter on the terminal. ETHR cannot read its enrolled users, set its clock or fetch punches it missed.",
-                  )}
-                </p>
-              </div>
-              <Switch
-                aria-label={t(
-                  "devices_page.sends_to_ethr",
-                  "The terminal is on our office network",
-                )}
-                checked={form.sends_to_ethr}
-                onCheckedChange={(v) =>
-                  setForm((p) => ({ ...p, sends_to_ethr: v }))
-                }
-              />
-            </div>
-          )}
-
-          {isIpAdapter(form.adapter_type) && !sendsToEthr && (
-            <div className="space-y-4 rounded-lg border p-4">
-              <p className="text-xs font-medium text-muted-foreground uppercase">
-                {t("devices_page.connection_settings")}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                {t(
-                  "devices_page.public_address_hint",
-                  "ETHR connects to this address over the internet, so it must be a public one. An office-network address such as 192.168.1.100 is refused.",
-                )}
-              </p>
-              {!addressRequired && (
-                <p className="text-sm text-muted-foreground">
-                  {t("devices_page.keep_connection_hint")}
-                </p>
-              )}
-              <div className="grid grid-cols-3 gap-3">
-                <div className="col-span-2">
-                  <Label htmlFor="ip-address">
-                    {t("devices_page.ip_address")}
-                  </Label>
-                  <Input
-                    id="ip-address"
-                    value={form.ip}
-                    onChange={(e) => set("ip", e.target.value)}
-                    required={addressRequired}
-                    placeholder="203.0.113.10"
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="port">{t("devices_page.port")}</Label>
-                  <Input
-                    id="port"
-                    value={form.port}
-                    onChange={(e) => set("port", e.target.value)}
-                    required={addressRequired || form.ip.trim() !== ""}
-                    type="number"
-                    min={1}
-                    max={65535}
-                    className="mt-1"
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label htmlFor="username">{t("devices_page.username")}</Label>
-                  <Input
-                    id="username"
-                    value={form.username}
-                    onChange={(e) => set("username", e.target.value)}
-                    placeholder={t("leave_page.optional")}
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="password">{t("auth.password")}</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    value={form.password}
-                    onChange={(e) => set("password", e.target.value)}
-                    placeholder={t("leave_page.optional")}
-                    className="mt-1"
-                  />
-                </div>
-              </div>
-              {form.adapter_type === "suprema" && (
-                <div>
-                  <Label htmlFor="api-key">{t("devices_page.api_key")}</Label>
-                  <Input
-                    id="api-key"
-                    value={form.api_key}
-                    onChange={(e) => set("api_key", e.target.value)}
-                    placeholder={t("devices_page.api_key_placeholder")}
-                    className="mt-1"
-                  />
-                </div>
-              )}
-            </div>
-          )}
-
-          {branches.length > 0 && (
-            <div>
-              <Label htmlFor="branch">
-                {branchRequired
-                  ? t("attendance.kiosks_page.branch")
-                  : t("attendance.kiosks_page.branch").replace(" *", "")}
-              </Label>
-              <Select
-                value={form.branch_public_id}
-                onValueChange={(v) => set("branch_public_id", v)}
-              >
-                <SelectTrigger
-                  id="branch"
-                  className="mt-1"
-                  aria-required={branchRequired || undefined}
-                >
-                  <SelectValue
-                    placeholder={t("attendance.kiosks_page.select_branch")}
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {branches.map((b) => (
-                    <SelectItem key={b.public_id} value={b.public_id}>
-                      {b.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-            >
-              {t("common.cancel")}
-            </Button>
-            <Button type="submit" disabled={isPending || branchMissing}>
-              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {submitLabel}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
   );
 }

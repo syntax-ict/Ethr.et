@@ -290,6 +290,13 @@ export const ROUTE_META: Record<string, RouteMeta> = {
     label: "Reports",
     description: "Generate and download operational reports",
   },
+  "/reports/timesheet": {
+    section: "Insights",
+    parent: { label: "Reports", href: "/reports" },
+    label: "Monthly timesheet",
+    description:
+      "Each person's day-by-day attendance for a month, with the figures payroll reads",
+  },
   "/analytics": {
     section: "Insights",
     label: "Analytics",

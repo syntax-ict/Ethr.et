@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Device } from "@/features/devices/api";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
+import { AdmsSetupValues } from "@/features/devices/components/adms-setup-values";
 import { AllowAddressButton } from "@/features/devices/components/allow-address-button";
 
 /**
@@ -23,14 +24,6 @@ export function AdmsSetupCard({ device }: { device: Device }) {
   if (!adms) return null;
 
   const allowlist = device.webhook_ip_allowlist ?? [];
-  // Monospace for what is typed on the device; plain text for advice.
-  const rows: [string, string, boolean][] = [
-    [t("adms_setup.server_address"), adms.server, true],
-    [t("adms_setup.server_port"), t("adms_setup.server_port_value"), false],
-    [t("adms_setup.domain_name"), t("adms_setup.on"), false],
-    [t("adms_setup.serial"), device.serial_number ?? "—", true],
-  ];
-
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -41,14 +34,7 @@ export function AdmsSetupCard({ device }: { device: Device }) {
         <p className="text-sm text-muted-foreground">
           {t("adms_setup.resends")}
         </p>
-        <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-[max-content_1fr]">
-          {rows.map(([label, value, typed]) => (
-            <div key={label} className="contents">
-              <dt className="text-muted-foreground">{label}</dt>
-              <dd className={typed ? "font-mono break-all" : ""}>{value}</dd>
-            </div>
-          ))}
-        </dl>
+        <AdmsSetupValues server={adms.server} serial={device.serial_number} />
 
         {allowlist.length === 0 && (
           <div className="flex gap-2 rounded-lg border border-warning-edge bg-warning-soft p-3 text-sm text-warning-on-soft">

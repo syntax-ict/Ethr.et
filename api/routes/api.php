@@ -462,6 +462,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     Route::prefix('users')->group(function () {
         Route::get('/', [UserController::class, 'index']);
         Route::post('/', [UserController::class, 'store']);
+        Route::get('/assignable-roles', [UserController::class, 'assignableRoles']);
         Route::post('/invitations', [InvitationController::class, 'store']);
         Route::get('/invitations/{batch}', [InvitationController::class, 'show']);
         Route::patch('/{user}', [UserController::class, 'update']);
@@ -594,6 +595,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     // Employees
     Route::get('/employees/stats', [EmployeeController::class, 'stats']);
     Route::get('/employees/export', [EmployeeBulkController::class, 'export']);
+    Route::get('/employees/ids', [EmployeeBulkController::class, 'ids']);
     Route::get('/employees/next-code', [EmployeeController::class, 'nextCode']);
 
     // Tenant-wide expiring-document watchlist. Declared before the
@@ -851,6 +853,12 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::get('/sources', [ReportController::class, 'sources']);
         Route::get('/presets', [ReportController::class, 'presets']);
         Route::post('/generate', [ReportController::class, 'generate'])
+            ->middleware(RequiresFeature::class.':reports')
+            ->middleware('throttle:reports');
+        Route::get('/timesheet', [ReportController::class, 'timesheet'])
+            ->middleware(RequiresFeature::class.':reports')
+            ->middleware('throttle:reports');
+        Route::get('/timesheet/pdf', [ReportController::class, 'timesheetPdf'])
             ->middleware(RequiresFeature::class.':reports')
             ->middleware('throttle:reports');
         Route::post('/export', [ReportController::class, 'export'])

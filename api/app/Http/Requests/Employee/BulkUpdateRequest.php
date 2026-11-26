@@ -8,7 +8,11 @@ use App\Enums\EmployeeStatus;
 use App\Http\Requests\Employee\Concerns\ResolvesBulkEmployeeIds;
 use App\Http\Requests\Employee\Concerns\ValidatesRelationTenancy;
 use App\Models\Branch;
+use App\Models\CostCenter;
 use App\Models\Department;
+use App\Models\Employee;
+use App\Models\Position;
+use App\Models\Team;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -38,6 +42,10 @@ class BulkUpdateRequest extends FormRequest
             'employee_ids.*' => ['required', 'string', 'exists:employees,public_id'],
             'department_id' => ['nullable', 'exists:departments,public_id'],
             'branch_id' => ['nullable', 'exists:branches,public_id'],
+            'position_id' => ['nullable', 'exists:positions,public_id'],
+            'team_id' => ['nullable', 'exists:teams,public_id'],
+            'cost_center_id' => ['nullable', 'exists:cost_centers,public_id'],
+            'supervisor_id' => ['nullable', 'exists:employees,public_id'],
             // Must be constrained to the enum, as StoreEmployeeRequest already
             // does. A bare `string` here let any value reach the column, and
             // `status` is cast to EmployeeStatus on read — so writing e.g.
@@ -64,6 +72,10 @@ class BulkUpdateRequest extends FormRequest
         return [
             'department_id' => Department::class,
             'branch_id' => Branch::class,
+            'position_id' => Position::class,
+            'team_id' => Team::class,
+            'cost_center_id' => CostCenter::class,
+            'supervisor_id' => Employee::class,
         ];
     }
 

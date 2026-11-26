@@ -46,5 +46,6 @@ return [
         'title_access_needs_users' => 'Seensa gitni hojii kennu jijjiiruuf hayyama fayyadamtoota bulchuu qabaachuu qabdu.',
         'title_access_held' => 'Gahee kana kennuu hin dandeessan; kanaaf herregni akkuma ture hafe.',
         'own_access_follows_title' => 'Hayyamni keessan gita hojii keessan hordofa. Bulchaa dhaabbata keessanii akka jijjiiru gaafadhaa.',
+        'own_custom_role' => 'Gahee addaa keessan kan jijjiiru bulchaan biraa dha.',
     ],
 ];

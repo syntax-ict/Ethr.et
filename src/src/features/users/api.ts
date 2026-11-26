@@ -33,16 +33,37 @@ export function useUsers(params?: {
   status?: UserStatus;
   /** `held` lists accounts whose role differs from what their position gives. */
   titleAccess?: "held";
+  /** A custom role's public id: lists only the people who hold it. */
+  customRole?: string;
 }) {
   return useQuery<PaginatedResponse<TenantUser>>({
     queryKey: ["users", params],
     queryFn: async () => {
-      const { status, titleAccess, ...rest } = params ?? {};
+      const { status, titleAccess, customRole, ...rest } = params ?? {};
       const query: Record<string, string | number | undefined> = { ...rest };
       if (status) query["filter[status]"] = status;
       if (titleAccess) query["filter[title_access]"] = titleAccess;
+      if (customRole) query["filter[custom_role]"] = customRole;
       return (await apiClient.get("/users", { params: query })).data;
     },
+  });
+}
+
+export type AssignableRole = NonNullable<
+  operations["user.assignableRoles"]["responses"][200]["content"]["application/json"]
+>["data"][number];
+
+/**
+ * The custom roles the signed-in person may give. Settings > Roles needs
+ * `settings.manage`, which an HR admin lacks, so the picker reads this
+ * instead. Pass `enabled: false` for someone who may not edit users.
+ */
+export function useAssignableRoles(enabled = true) {
+  return useQuery<AssignableRole[]>({
+    queryKey: ["users", "assignable-roles"],
+    enabled,
+    queryFn: async () =>
+      (await apiClient.get("/users/assignable-roles")).data.data,
   });
 }
 

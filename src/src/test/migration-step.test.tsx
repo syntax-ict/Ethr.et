@@ -10,7 +10,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { Workbook } from "exceljs";
 import { server } from "./msw/server";
-import { MigrationStep } from "@/features/onboarding/v2/components/migration-step";
+import {
+  MigrationStep,
+  actionsFor,
+} from "@/features/onboarding/v2/components/migration-step";
 import { readWorkbook } from "@/features/onboarding/v2/xlsx-grid";
 import type {
   MigrationBatch,
@@ -1943,5 +1946,159 @@ describe("the confirmation before a list is added", () => {
     expect(
       screen.queryByText(/can be archived again afterwards/),
     ).not.toBeInTheDocument();
+  });
+});
+
+describe("a row matched to someone archived", () => {
+  const row = (
+    id: string,
+    restore: NonNullable<MigrationBatch["rows"][number]["restore"]>,
+    action: MigrationBatch["rows"][number]["action"],
+  ) => ({
+    ...AMBIGUOUS_BATCH.rows[0],
+    public_id: id,
+    display_name: `Person ${id}`,
+    match_outcome: "archived" as const,
+    candidates: [],
+    resolved_employee_public_id: null,
+    action,
+    restore,
+  });
+
+  it("offers bringing them back only where nothing stops it, and never as a new person", () => {
+    const free = row(
+      "A",
+      { possible: true, allowed: true, reasons: [] },
+      "restore",
+    );
+    const used = row(
+      "B",
+      { possible: false, allowed: true, reasons: ["attendance"] },
+      "defer",
+    );
+    const barred = row(
+      "C",
+      { possible: true, allowed: false, reasons: [] },
+      "defer",
+    );
+
+    expect(actionsFor(free, false)).toEqual([
+      "merge",
+      "restore",
+      "skip",
+      "defer",
+    ]);
+    expect(actionsFor(used, false)).toEqual(["merge", "skip", "defer"]);
+    expect(actionsFor(barred, false)).toEqual(["merge", "skip", "defer"]);
+    // A list that completes people adds and restores nobody.
+    expect(actionsFor(free, true)).toEqual(["merge", "skip", "defer"]);
+    // A row with no archived match keeps Create.
+    expect(actionsFor({ action: "create" }, false)).toEqual([
+      "merge",
+      "create",
+      "skip",
+      "defer",
+    ]);
+  });
+
+  it("says what bringing them back does, and why a person cannot be brought back", async () => {
+    const batch: MigrationBatch = {
+      ...AMBIGUOUS_BATCH,
+      summary: { archived: 2 },
+      rows: [
+        row("A", { possible: true, allowed: true, reasons: [] }, "restore"),
+        row(
+          "B",
+          { possible: false, allowed: true, reasons: ["attendance"] },
+          "defer",
+        ),
+      ],
+    };
+    server.use(
+      http.get("*/devices", () =>
+        HttpResponse.json({ data: [], meta: {}, links: {} }),
+      ),
+      http.post("*/onboarding/migration/rows", () =>
+        HttpResponse.json(batch, { status: 201 }),
+      ),
+      http.get("*/onboarding/migration/batches/:batchId", () =>
+        HttpResponse.json(batch),
+      ),
+    );
+
+    const { container } = renderWithClient(<MigrationStep />);
+    fireEvent.change(
+      container.querySelector("textarea") as HTMLTextAreaElement,
+      {
+        target: { value: "Abebe Kebede" },
+      },
+    );
+    fireEvent.click(await screen.findByText("Stage for review"));
+
+    expect(
+      await screen.findByText(
+        "Archived. Adding this list brings them back with this line's details.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Cannot be brought back from a list: Has attendance records. Restore them from the archived view if they should return.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  async function reviewBatch(batch: MigrationBatch) {
+    server.use(
+      http.get("*/devices", () =>
+        HttpResponse.json({ data: [], meta: {}, links: {} }),
+      ),
+      http.post("*/onboarding/migration/rows", () =>
+        HttpResponse.json(batch, { status: 201 }),
+      ),
+      http.get("*/onboarding/migration/batches/:batchId", () =>
+        HttpResponse.json(batch),
+      ),
+    );
+
+    const { container } = renderWithClient(<MigrationStep />);
+    fireEvent.change(
+      container.querySelector("textarea") as HTMLTextAreaElement,
+      { target: { value: "Abebe Kebede" } },
+    );
+    fireEvent.click(await screen.findByText("Stage for review"));
+  }
+
+  const BRINGS_BACK =
+    "Archived. Adding this list brings them back with this line's details.";
+
+  it("promises the return only on a row whose action is restore", async () => {
+    const possible = { possible: true, allowed: true, reasons: [] };
+
+    await reviewBatch({
+      ...AMBIGUOUS_BATCH,
+      summary: { archived: 3 },
+      rows: [
+        row("A", possible, "defer"),
+        row("B", possible, "skip"),
+        row("C", possible, "restore"),
+      ],
+    });
+
+    expect(await screen.findByText(BRINGS_BACK)).toBeInTheDocument();
+    expect(screen.getAllByText(BRINGS_BACK)).toHaveLength(1);
+  });
+
+  it("promises nothing on a list that completes people, whatever a row says", async () => {
+    await reviewBatch({
+      ...AMBIGUOUS_BATCH,
+      mode: "complete",
+      summary: { archived: 1 },
+      rows: [
+        row("A", { possible: true, allowed: true, reasons: [] }, "restore"),
+      ],
+    });
+
+    expect(await screen.findByText("Person A")).toBeInTheDocument();
+    expect(screen.queryByText(BRINGS_BACK)).not.toBeInTheDocument();
   });
 });
