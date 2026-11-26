@@ -21,8 +21,6 @@
         .amount { text-align: right; font-family: monospace; white-space: nowrap; }
         .missing { color: #B91C1C; }
         tr.total td { font-weight: bold; border-top: 2px solid #0F4C75; border-bottom: none; }
-        .sign { margin-top: 22px; width: 100%; }
-        .sign td { width: 33%; padding-top: 18px; border-top: 1px solid #94A3B8; color: #64748B; }
         .footer { margin-top: 10px; font-size: 7px; color: #94A3B8; }
     </style>
 </head>
@@ -68,9 +66,11 @@
         </tbody>
     </table>
 
-    <table class="sign">
-        <tr><td>Prepared by</td><td>Checked by</td><td>Authorised signature and stamp</td></tr>
-    </table>
+    @include('pdf.partials.signatures', ['labels' => [
+        __('report.signatures.prepared', [], 'en'),
+        __('report.signatures.checked', [], 'en'),
+        __('report.signatures.authorised', [], 'en'),
+    ]])
 
     <p class="footer">Generated {{ $header['generated_at'] }} by ETHR. Amounts in ETB.</p>
 </body>
