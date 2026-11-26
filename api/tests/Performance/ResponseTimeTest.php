@@ -21,6 +21,7 @@ use App\Models\LeaveType;
 use App\Models\PayrollEntry;
 use App\Models\PayrollRun;
 use App\Models\Shift;
+use App\Services\Report\TimesheetPdf;
 use App\Services\Report\TimesheetReport;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
@@ -310,5 +311,23 @@ test('the monthly timesheet with totals, at the size limit, fits the host', func
     expect($response->json('total'))->toBe(TimesheetReport::MAX_PEOPLE);
 
     assertWithinBudget($ms, 30_000, 'timesheet report source, '.TimesheetReport::MAX_PEOPLE.' people x 31 days');
+    Carbon::setTestNow();
+});
+
+test('the printed monthly timesheet, at the most people one sheet holds, fits the host', function () {
+    Carbon::setTestNow(Carbon::parse('2026-11-02 10:00', 'Africa/Addis_Ababa'));
+    [$tenant] = seedTimesheetMonth(TimesheetPdf::MAX_PEOPLE);
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+    Cache::flush();
+
+    $start = hrtime(true);
+    $response = test()->get("http://{$tenant->subdomain}.ethr.test/api/v1/reports/timesheet/pdf?from=2026-10-01&to=2026-10-31");
+    $ms = (hrtime(true) - $start) / 1_000_000;
+
+    $response->assertOk();
+    expect(substr($response->getContent(), 0, 5))->toBe('%PDF-');
+
+    fwrite(STDERR, sprintf("    timesheet PDF: %d people, %d KB, peak memory %.0f MB\n", TimesheetPdf::MAX_PEOPLE, strlen($response->getContent()) / 1024, memory_get_peak_usage(true) / 1_048_576));
+    assertWithinBudget($ms, 30_000, 'timesheet PDF, '.TimesheetPdf::MAX_PEOPLE.' people x 31 days (host limit 30 s)');
     Carbon::setTestNow();
 });

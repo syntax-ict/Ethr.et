@@ -11,6 +11,15 @@ import { CalendarProvider } from "@/lib/calendar/calendar-context";
 import { setLocale } from "@/lib/i18n/translations";
 import am from "@/lib/i18n/locales/am.json";
 
+const saved = vi.hoisted(() => ({ blob: vi.fn() }));
+const toasts = vi.hoisted(() => ({ error: vi.fn() }));
+
+vi.mock("sonner", () => ({ toast: { error: toasts.error, success: vi.fn() } }));
+vi.mock("@/lib/utils/csv-export", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/utils/csv-export")>()),
+  saveBlob: saved.blob,
+}));
+
 vi.mock("@/lib/hooks/usePermissions", () => ({
   usePermissions: () => ({
     isAtLeast: () => true,
@@ -398,5 +407,139 @@ describe("Monthly timesheet screen", () => {
     expect(asked!.get("from")).toBe("2026-10-12");
     expect(asked!.get("to")).toBe("2026-10-14");
     expect(asked!.get("per_page")).toBe("25");
+  });
+
+  it("downloads the same month and filters as a PDF", async () => {
+    serve(sheet());
+    let asked: URLSearchParams | null = null;
+    server.use(
+      http.get("*/api/v1/reports/timesheet/pdf", ({ request }) => {
+        asked = new URL(request.url).searchParams;
+        return new HttpResponse(new Blob(["%PDF-1.4"]), {
+          headers: { "Content-Type": "application/pdf" },
+        });
+      }),
+    );
+    window.history.replaceState(
+      null,
+      "",
+      "/reports/timesheet?from=2026-10-12&to=2026-10-14&department=01HDEP",
+    );
+    const user = userEvent.setup();
+    render(<TimesheetView />, { wrapper: Wrap });
+    await screen.findAllByText("Abebe Kebede");
+
+    await user.click(screen.getByRole("button", { name: "Download PDF" }));
+
+    await waitFor(() => expect(saved.blob).toHaveBeenCalled());
+    expect(saved.blob.mock.calls[0][0]).toBe("timesheet-2026-10-12.pdf");
+    expect(asked!.get("from")).toBe("2026-10-12");
+    expect(asked!.get("to")).toBe("2026-10-14");
+    expect(asked!.get("department")).toBe("01HDEP");
+    // The PDF is the whole sheet: no paging.
+    expect(asked!.get("page")).toBeNull();
+    expect(asked!.get("per_page")).toBeNull();
+  });
+
+  it("shows the API's reason when a list is too long for one printed sheet", async () => {
+    serve(sheet());
+    server.use(
+      http.get("*/api/v1/reports/timesheet/pdf", () =>
+        HttpResponse.json(
+          {
+            type: "validation_error",
+            title: "Validation Failed",
+            status: 422,
+            errors: {
+              department: [
+                "A printed timesheet holds up to 100 people. Choose a department, branch or shift to narrow the list.",
+              ],
+            },
+          },
+          { status: 422 },
+        ),
+      ),
+    );
+    saved.blob.mockClear();
+    toasts.error.mockClear();
+    const user = userEvent.setup();
+    render(<TimesheetView />, { wrapper: Wrap });
+    await screen.findAllByText("Abebe Kebede");
+
+    await user.click(screen.getByRole("button", { name: "Download PDF" }));
+
+    await waitFor(() =>
+      expect(toasts.error).toHaveBeenCalledWith(
+        expect.stringContaining("holds up to 100 people"),
+      ),
+    );
+    expect(saved.blob).not.toHaveBeenCalled();
+  });
+
+  it("says the PDF could not be made in the reader's language, not axios's English", async () => {
+    serve(sheet());
+    server.use(
+      http.get("*/api/v1/reports/timesheet/pdf", () =>
+        HttpResponse.json(
+          { type: "server_error", status: 500 },
+          { status: 500 },
+        ),
+      ),
+    );
+    toasts.error.mockClear();
+    const user = userEvent.setup();
+    render(<TimesheetView />, { wrapper: Wrap });
+    await screen.findAllByText("Abebe Kebede");
+
+    await user.click(screen.getByRole("button", { name: "Download PDF" }));
+
+    await waitFor(() =>
+      expect(toasts.error).toHaveBeenCalledWith(
+        "The PDF could not be made. Try again, or choose a department.",
+      ),
+    );
+  });
+
+  it("says a CSV is one page when there are several, and carries every column of the sheet", async () => {
+    serve(
+      sheet({
+        meta: { current_page: 2, last_page: 3, per_page: 25, total: 60 },
+        with_pay: true,
+        data: [{ ...sheet().data[0], totals: { ...TOTALS, payable_days: 3 } }],
+      }),
+    );
+    window.history.replaceState(
+      null,
+      "",
+      "/reports/timesheet?from=2026-10-12&to=2026-10-14&page=2",
+    );
+    render(<TimesheetView />, { wrapper: Wrap });
+    await screen.findAllByText("Abebe Kebede");
+
+    expect(
+      screen.getByRole("button", { name: "Download this page as CSV" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Download CSV" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("offers a way back when the page asked for is past the last", async () => {
+    serve(
+      sheet({
+        data: [],
+        meta: { current_page: 9, last_page: 1, per_page: 25, total: 1 },
+      }),
+    );
+    window.history.replaceState(
+      null,
+      "",
+      "/reports/timesheet?from=2026-10-12&to=2026-10-14&page=9",
+    );
+    render(<TimesheetView />, { wrapper: Wrap });
+
+    expect(
+      await screen.findByRole("button", { name: "Back to the first page" }),
+    ).toBeInTheDocument();
   });
 });

@@ -4,6 +4,7 @@ import { apiClient } from "@/api/client";
 import type { operations } from "@/api/generated";
 import type { CalendarSystem } from "@/lib/calendar/calendar-context";
 import { toEthiopian } from "@/lib/calendar/ethiopian";
+import { saveBlob } from "@/lib/utils/csv-export";
 import {
   currentReportMonth,
   reportMonthRange,
@@ -125,6 +126,51 @@ export function periodOf(
 }
 
 const PER_PAGE = 25;
+
+/**
+ * The same sheet as an A4 landscape PDF: the filters of the screen, none of
+ * its paging. A list too long for one printed sheet comes back as a 422 that
+ * names the way to narrow it; with `responseType: "blob"` that body is a Blob,
+ * so it is read here, and thrown as the message a person can act on.
+ */
+export async function downloadTimesheetPdf(
+  filters: TimesheetFilters,
+  period: { from: string; to: string },
+): Promise<void> {
+  try {
+    const { data } = await apiClient.get("/reports/timesheet/pdf", {
+      params: {
+        ...period,
+        department: filters.department || undefined,
+        branch: filters.branch || undefined,
+        shift: filters.shift || undefined,
+        employment_status: filters.employment_status || undefined,
+      },
+      responseType: "blob",
+    });
+    saveBlob(`timesheet-${period.from}.pdf`, data);
+  } catch (error) {
+    // The message is the API's own sentence for a refusal that says how to
+    // put it right (a list too long for one sheet is a 422). Anything else, a
+    // 500, a busy host, a network failure, is empty, and the screen says it
+    // in the reader's language instead of axios's English.
+    const response = (
+      error as { response?: { status?: number; data?: unknown } }
+    ).response;
+    let message = "";
+    if (response?.status === 422 && response.data instanceof Blob) {
+      try {
+        const parsed = JSON.parse(await response.data.text()) as {
+          errors?: Record<string, string[]>;
+        };
+        message = Object.values(parsed.errors ?? {})[0]?.[0] ?? "";
+      } catch {
+        message = "";
+      }
+    }
+    throw new Error(message);
+  }
+}
 
 export function useTimesheet(
   filters: TimesheetFilters,
