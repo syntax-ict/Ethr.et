@@ -76,7 +76,13 @@ describe("MFA challenge page", () => {
     const field = () =>
       container.querySelector("#mfa-code") as HTMLInputElement;
 
-    fireEvent.change(field(), { target: { value: "111111" } });
+    // One digit per change event. The field reads a jump of more than one
+    // digit as an autofill and submits by itself after a short delay, and this
+    // test is about typing the code and then pressing Verify: the two together
+    // verified twice, and the second landed after the test had finished.
+    "111111".split("").forEach((_, i) => {
+      fireEvent.change(field(), { target: { value: "1".repeat(i + 1) } });
+    });
     fireEvent.click(screen.getByRole("button", { name: /verify/i }));
 
     expect(await screen.findByText("Invalid code.")).toBeInTheDocument();
