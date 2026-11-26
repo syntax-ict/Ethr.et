@@ -123,6 +123,42 @@ const open = (name) => async (page) => {
   await page.waitForTimeout(600);
 };
 
+const OFFICE = /ከቢሮው አውታረ መረብ ብቻ ይልካል/;
+
+/** Opens a device card's action menu. */
+async function cardMenu(page, name) {
+  const actions = page.getByRole("button", { name: /ድርጊቶች|Actions/ });
+  const card = page
+    .locator("main")
+    .locator("div")
+    .filter({ hasText: name })
+    .filter({ has: actions })
+    .last();
+  await card
+    .getByRole("button", { name: /ድርጊቶች|Actions/ })
+    .first()
+    .click();
+}
+
+/** The devices guide's wizard, answered for a ZKTeco that sends from the office. */
+async function wizardChoose(page) {
+  await page
+    .locator("main")
+    .getByRole("button", { name: "መሣሪያ ጨምር" })
+    .first()
+    .click();
+  await dialog(page).getByRole("radio", { name: "ZKTeco" }).check();
+  await dialog(page).getByRole("radio", { name: OFFICE }).check();
+}
+
+/** ...and on to its details step, filled in with the serial given. */
+async function wizardDetails(page, serial) {
+  await wizardChoose(page);
+  await dialog(page).getByRole("button", { name: "ቀጣይ" }).click();
+  await dialog(page).locator("#device-name").fill("የሽያጭ ክፍል መግቢያ");
+  await dialog(page).locator("#serial-number").fill(serial);
+}
+
 export const SHOTS = [
   // ------------------------------------------------------------ employee
   {
@@ -1424,5 +1460,310 @@ export const SHOTS = [
     clip: popover,
     clipPad: 10,
     markers: [],
+  },
+
+  // ------------------------------------------------------------ devices guide
+  // The pictures of the Amharic devices guide. The wizard's own shots come
+  // last: the last two each register a device of their own.
+  {
+    id: "dev-silence-setting",
+    guide: "devices",
+    as: "admin",
+    path: "/settings/attendance",
+    height: 1600,
+    prepare: async (page) => {
+      await page.getByText("መሣሪያ ሲጸጥ አሳውቁኝ").scrollIntoViewIfNeeded();
+    },
+    clip: (page) =>
+      page
+        .getByText("ጸጥ ያሉ መሣሪያዎች", { exact: true })
+        .first()
+        .locator("xpath=ancestor::*[contains(@class,'rounded')][1]"),
+    markers: [
+      {
+        target: (page) => page.getByRole("switch", { name: "መሣሪያ ሲጸጥ አሳውቁኝ" }),
+      },
+      { target: (page) => page.getByLabel("ግንኙነት ካቋረጠ በኋላ (ደቂቃ)") },
+      { target: (page) => page.getByLabel("ቀኑ ከጀመረ በኋላ ምዝገባ ሳይመጣ (ደቂቃ)") },
+    ],
+  },
+  {
+    id: "dev-device-adms",
+    guide: "devices",
+    as: "admin",
+    path: "/devices",
+    height: 1400,
+    prepare: async (page) => {
+      await page
+        .getByRole("link", { name: "የመግቢያ በር (ZKTeco ADMS)" })
+        .first()
+        .click();
+      await page.getByText("መሣሪያውን ያገናኙ", { exact: true }).first().waitFor();
+    },
+    markers: [
+      {
+        target: (page) =>
+          page.getByText("መሣሪያውን ያገናኙ", { exact: true }).first(),
+      },
+      {
+        target: (page) => page.getByText("የሰርቨር አድራሻ", { exact: true }).first(),
+      },
+      {
+        target: (page) => page.getByText("COMM → Cloud Server Setting").first(),
+      },
+    ],
+  },
+  {
+    id: "dev-quarantine",
+    guide: "devices",
+    as: "admin",
+    path: "/devices",
+    height: 1500,
+    prepare: async (page) => {
+      await page
+        .getByRole("link", { name: /የጓሮ ደጃፍ/ })
+        .first()
+        .click();
+      await page
+        .getByText("ትኩረት የሚሹ የመገኘት ምዝገባዎች", { exact: true })
+        .first()
+        .waitFor();
+    },
+    markers: [
+      {
+        target: (page) =>
+          page.getByText("ትኩረት የሚሹ የመገኘት ምዝገባዎች", { exact: true }).first(),
+      },
+      { target: button("የተመረጡትን እንደገና ላክ") },
+      { target: button("የተመረጡትን አስወግድ") },
+    ],
+  },
+  {
+    id: "dev-unmatched",
+    guide: "devices",
+    as: "admin",
+    path: "/devices",
+    height: 1500,
+    markers: [
+      {
+        target: (page) => page.getByText("ያልታወቁ ባጆች", { exact: true }).first(),
+      },
+      { target: button("መድብ") },
+      { target: button("አስወግድ") },
+    ],
+  },
+  {
+    id: "dev-health",
+    guide: "devices",
+    as: "admin",
+    path: "/devices/dashboard",
+    height: 1500,
+    markers: [
+      {
+        target: (page) =>
+          page.getByText("ጠቅላላ መሣሪያዎች", { exact: true }).first(),
+      },
+      {
+        target: (page) => page.getByText("የዛሬ መገኘቶች", { exact: true }).first(),
+      },
+      {
+        target: (page) => page.getByText("የመሣሪያ ሁኔታ", { exact: true }).first(),
+      },
+    ],
+  },
+  {
+    id: "dev-commands",
+    guide: "devices",
+    as: "admin",
+    path: "/devices",
+    height: 1400,
+    prepare: async (page) => {
+      await page
+        .getByRole("link", { name: "የሒሳብ ክፍል (ZKTeco ADMS)" })
+        .first()
+        .click();
+      await tab("ትዕዛዞች")(page).click();
+      await page.getByText("ሰዓቱን አሁን አስተካክል").first().waitFor();
+    },
+    markers: [
+      {
+        target: (page) => page.getByRole("button", { name: "ሰዓቱን አሁን አስተካክል" }),
+      },
+      { target: (page) => page.getByRole("button", { name: "ሁሉንም ሠራተኞች ላክ" }) },
+      { target: (page) => page.locator("main table tbody tr").first() },
+    ],
+  },
+  {
+    id: "dev-history",
+    guide: "devices",
+    as: "admin",
+    path: "/devices",
+    prepare: async (page) => {
+      await cardMenu(page, "የጓሮ በር ተርሚናል");
+      await page.getByRole("menuitem", { name: "የመገኘት ታሪክ አስገባ" }).click();
+      await page.waitForTimeout(600);
+    },
+    clip: dialog,
+    markers: [
+      { target: (page) => dialog(page).getByRole("combobox").first() },
+      {
+        target: (page) =>
+          dialog(page).getByRole("button", { name: "ማስገባት ጀምር" }),
+      },
+    ],
+  },
+  {
+    id: "dev-delete",
+    guide: "devices",
+    as: "admin",
+    path: "/devices",
+    prepare: async (page) => {
+      await cardMenu(page, "የ2ኛ ፎቅ ተርሚናል");
+      await page.getByRole("menuitem", { name: "ሰርዝ", exact: true }).click();
+      await page.waitForTimeout(600);
+    },
+    clip: dialog,
+    markers: [
+      { target: (page) => dialog(page).getByRole("button", { name: "ሰርዝ" }) },
+      { target: (page) => dialog(page).getByRole("button", { name: "ተው" }) },
+    ],
+  },
+  {
+    id: "dev-employee-enrol",
+    guide: "devices",
+    as: "admin",
+    path: "/employees",
+    height: 1100,
+    prepare: async (page) => {
+      await page.locator("main table tbody tr a").first().click();
+      await page
+        .getByRole("button", { name: "በመሣሪያዎች ላይ አስመዝግብ" })
+        .first()
+        .waitFor();
+    },
+    markers: [
+      {
+        target: (page) =>
+          page.getByRole("button", { name: "በመሣሪያዎች ላይ አስመዝግብ" }).first(),
+        pin: "below",
+      },
+    ],
+  },
+  {
+    id: "dev-form-advanced",
+    guide: "devices",
+    as: "admin",
+    path: "/devices",
+    height: 1500,
+    prepare: async (page) => {
+      await page
+        .locator("main")
+        .getByRole("button", { name: "መሣሪያ ጨምር" })
+        .first()
+        .click();
+      await dialog(page).getByRole("button", { name: "የላቀ" }).click();
+      await page.waitForTimeout(600);
+    },
+    clip: dialog,
+    markers: [
+      {
+        target: (page) =>
+          dialog(page).getByText("መለያ", { exact: true }).first(),
+      },
+      {
+        target: (page) =>
+          dialog(page).getByText("ግንኙነት", { exact: true }).first(),
+      },
+      {
+        target: (page) =>
+          dialog(page).getByText("ሰዎች እና ትዕዛዞች", { exact: true }).first(),
+      },
+      {
+        target: (page) =>
+          dialog(page).getByText("ተጨማሪ ቅንብሮች", { exact: true }).first(),
+      },
+    ],
+  },
+  {
+    id: "dev-wizard-choose",
+    guide: "devices",
+    as: "admin",
+    path: "/devices",
+    prepare: async (page) => {
+      await wizardChoose(page);
+    },
+    clip: dialog,
+    markers: [
+      { target: (page) => dialog(page).getByRole("radio", { name: "ZKTeco" }) },
+      { target: (page) => dialog(page).getByRole("radio", { name: OFFICE }) },
+      { target: (page) => dialog(page).getByRole("button", { name: "ቀጣይ" }) },
+      { target: (page) => dialog(page).getByRole("button", { name: "የላቀ" }) },
+    ],
+  },
+  {
+    id: "dev-wizard-details",
+    guide: "devices",
+    as: "admin",
+    path: "/devices",
+    prepare: async (page) => {
+      await wizardDetails(page, "GUIDE-WZ-0001");
+    },
+    clip: dialog,
+    markers: [
+      { target: (page) => dialog(page).locator("#device-name") },
+      { target: (page) => dialog(page).locator("#serial-number") },
+      {
+        target: (page) =>
+          dialog(page).getByRole("button", { name: "መዝግብና ቀጥል" }),
+      },
+    ],
+  },
+  {
+    id: "dev-wizard-terminal",
+    guide: "devices",
+    as: "admin",
+    path: "/devices",
+    prepare: async (page) => {
+      await wizardDetails(page, "GUIDE-WZ-0002");
+      await dialog(page).getByRole("button", { name: "መዝግብና ቀጥል" }).click();
+      await dialog(page).getByRole("button", { name: "ግንኙነቱን ፈትሽ" }).waitFor();
+    },
+    clip: dialog,
+    markers: [
+      {
+        target: (page) =>
+          dialog(page).getByText("COMM", { exact: false }).first(),
+      },
+      {
+        target: (page) =>
+          dialog(page).getByRole("button", { name: /ቅዳ/ }).first(),
+      },
+      {
+        target: (page) =>
+          dialog(page).getByRole("button", { name: "ግንኙነቱን ፈትሽ" }),
+      },
+    ],
+  },
+  {
+    id: "dev-wizard-waiting",
+    guide: "devices",
+    as: "admin",
+    path: "/devices",
+    prepare: async (page) => {
+      await wizardDetails(page, "GUIDE-WZ-0003");
+      await dialog(page).getByRole("button", { name: "መዝግብና ቀጥል" }).click();
+      await dialog(page).getByRole("button", { name: "ግንኙነቱን ፈትሽ" }).click();
+      await dialog(page).getByText("የመጀመሪያውን ግንኙነት በመጠበቅ ላይ").first().waitFor();
+    },
+    clip: dialog,
+    markers: [
+      {
+        target: (page) =>
+          dialog(page).getByText("የመሣሪያውን የመጀመሪያ ጥሪ በመጠበቅ ላይ").first(),
+      },
+      {
+        target: (page) => dialog(page).getByRole("button", { name: "በኋላ ጨርስ" }),
+      },
+    ],
   },
 ];

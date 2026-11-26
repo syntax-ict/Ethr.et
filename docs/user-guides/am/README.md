@@ -7,6 +7,7 @@ Illustrated guides for the people who use ETHR, as PDF. The first edition is in 
 | የሠራተኛ መመሪያ (Employee) | every employee | [`employee.md`](employee.md) | [`pdf/ethr-employee-guide-am.pdf`](pdf/ethr-employee-guide-am.pdf) |
 | የኃላፊ መመሪያ (Manager) | supervisors, department and branch heads | [`manager.md`](manager.md) | [`pdf/ethr-manager-guide-am.pdf`](pdf/ethr-manager-guide-am.pdf) |
 | የአስተዳዳሪ መመሪያ (Administrator) | tenant admins and HR admins | [`admin.md`](admin.md) | [`pdf/ethr-admin-guide-am.pdf`](pdf/ethr-admin-guide-am.pdf) |
+| የባዮሜትሪክ መሣሪያዎች መመሪያ (Biometric devices) | tenant admins and HR admins | [`devices.md`](devices.md) | [`pdf/ethr-biometric-devices-guide-am.pdf`](pdf/ethr-biometric-devices-guide-am.pdf) |
 
 The English guides in [`docs/user-guide.md`](../../user-guide.md), [`docs/manager-guide.md`](../../manager-guide.md) and [`docs/admin-guide.md`](../../admin-guide.md) were the starting point, but the Amharic guides were written from the screens as they are now. Where the two disagree (approval chains, overtime requests, help requests), the Amharic guide follows the product.
 
