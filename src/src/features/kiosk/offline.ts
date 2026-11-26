@@ -131,12 +131,16 @@ export async function savePunchOffline(
 interface SyncResult {
   idempotency_key: string;
   status: "created" | "duplicate" | "error";
+  /** On an error: true when this exact punch will never be accepted. */
+  final?: boolean;
 }
 
 /**
- * Send what waited. Every answered punch leaves the queue - recorded,
- * already recorded, or refused for good (a wrong PIN stays wrong); a punch
- * the server never answered stays for the next try.
+ * Send what waited. A punch leaves the queue when the server recorded it,
+ * already had it, or refused it for good (an error answered `final: true`: a
+ * wrong PIN stays wrong). Any other answer keeps it for the next try, as does
+ * no answer: an error the server did not call final may pass, and dropping it
+ * would lose a punch an employee made. The kiosk's own loop retries.
  */
 export async function syncQueuedPunches(token: string): Promise<number> {
   const queued = await queuedPunches();
@@ -157,8 +161,12 @@ export async function syncQueuedPunches(token: string): Promise<number> {
       { headers: { "X-Kiosk-Token": token }, skipAuthRefresh: true },
     );
     for (const result of data.results) {
+      if (result.status === "error") {
+        if (result.final === true) await dropPunch(result.idempotency_key);
+        continue;
+      }
       await dropPunch(result.idempotency_key);
-      if (result.status !== "error") sent++;
+      sent++;
     }
   }
   return sent;

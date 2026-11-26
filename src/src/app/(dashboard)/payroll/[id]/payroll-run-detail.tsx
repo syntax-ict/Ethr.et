@@ -65,6 +65,7 @@ import {
   useMarkPayrollPaid,
   useReprocessPayroll,
   type PayrollEntry,
+  problemOf,
 } from "@/features/payroll/api";
 import { CalculationLogDialog } from "@/features/payroll/components/calculation-log-dialog";
 import { OvertimeLimitsBanner } from "@/features/payroll/components/overtime-limits-banner";
@@ -72,6 +73,13 @@ import { AbsencesBanner } from "@/features/payroll/components/absences-banner";
 import { ReconciliationBanner } from "@/features/payroll/components/reconciliation-banner";
 import { DeductionCeilingBanner } from "@/features/payroll/components/deduction-ceiling-banner";
 import { IntegrityBanner } from "@/features/payroll/components/integrity-banner";
+import {
+  MissingTinBanner,
+  NoAttendanceBanner,
+  PayChangesBanner,
+  SharedBankAccountsBanner,
+} from "@/features/payroll/components/pre-approval-checks";
+import { PayDifferencesApprovalDialog } from "@/features/payroll/components/pay-differences-approval-dialog";
 import { PensionExemptionsBanner } from "@/features/payroll/components/pension-exemptions-banner";
 import {
   fetchPayrollJournal,
@@ -247,13 +255,48 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
   const [approveDialogOpen, setApproveDialogOpen] = useState(false);
   const [reprocessDialogOpen, setReprocessDialogOpen] = useState(false);
 
-  function approve() {
+  // What the server asked of an approval or a void beyond the pension count:
+  // acknowledge the open pay differences, wait for pending ones, or (void)
+  // acknowledge the settled ones. Each is its own 422 problem type.
+  const [payDifferenceAsk, setPayDifferenceAsk] = useState<{
+    mode: "unacknowledged" | "pending";
+    count: number;
+    failed: number;
+  } | null>(null);
+  const [settledAsk, setSettledAsk] = useState<number | null>(null);
+
+  function approve(acknowledgedPayDifferences?: number) {
     approvePayroll.mutate(
-      { publicId: id, acknowledgedPensionExemptions: exemptionCount },
       {
-        onSuccess: () =>
-          toast.success(t("payroll_detail_page.approved_success")),
+        publicId: id,
+        acknowledgedPensionExemptions: exemptionCount,
+        acknowledgedPayDifferences,
+      },
+      {
+        onSuccess: () => {
+          setPayDifferenceAsk(null);
+          toast.success(t("payroll_detail_page.approved_success"));
+        },
         onError: (err: unknown) => {
+          const problem = problemOf(err);
+          if (
+            problem?.type ===
+            "https://ethr.et/errors/pay-differences-unacknowledged"
+          ) {
+            setPayDifferenceAsk({
+              mode: "unacknowledged",
+              count: Number(problem.pay_differences) || 0,
+              failed: Number(problem.pay_differences_failed) || 0,
+            });
+            return;
+          }
+          if (
+            problem?.type === "https://ethr.et/errors/pay-differences-pending"
+          ) {
+            setPayDifferenceAsk({ mode: "pending", count: 0, failed: 0 });
+            return;
+          }
+          setPayDifferenceAsk(null);
           toast.error(
             apiErrorDetail(err) || t("payroll_detail_page.approve_failed"),
           );
@@ -262,17 +305,32 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
     );
   }
 
-  function handleVoid(e: React.FormEvent) {
-    e.preventDefault();
+  function handleVoid(e?: React.FormEvent, acknowledgedSettled?: number) {
+    e?.preventDefault();
     voidPayroll.mutate(
-      { publicId: id, reason: voidReason },
+      {
+        publicId: id,
+        reason: voidReason,
+        acknowledgedSettledPayDifferences: acknowledgedSettled,
+      },
       {
         onSuccess: () => {
           toast.success(t("payroll_detail_page.voided_success"));
           setVoidDialogOpen(false);
+          setSettledAsk(null);
           setVoidReason("");
         },
         onError: (err: unknown) => {
+          const problem = problemOf(err);
+          if (
+            problem?.type ===
+            "https://ethr.et/errors/settled-pay-differences-unacknowledged"
+          ) {
+            setVoidDialogOpen(false);
+            setSettledAsk(Number(problem.settled_pay_differences) || 0);
+            return;
+          }
+          setSettledAsk(null);
           toast.error(
             apiErrorDetail(err) || t("payroll_detail_page.void_failed"),
           );
@@ -713,6 +771,18 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
       {register?.integrity && run.status !== "voided" && (
         <IntegrityBanner integrity={register.integrity} />
       )}
+      {register?.pay_changes && run.status !== "voided" && (
+        <PayChangesBanner changes={register.pay_changes} />
+      )}
+      {register?.shared_bank_accounts && run.status !== "voided" && (
+        <SharedBankAccountsBanner shared={register.shared_bank_accounts} />
+      )}
+      {register?.missing_tin && run.status !== "voided" && (
+        <MissingTinBanner missing={register.missing_tin} />
+      )}
+      {register?.no_attendance && run.status !== "voided" && (
+        <NoAttendanceBanner none={register.no_attendance} />
+      )}
 
       {run.reprocessed_from_public_id && (
         <div className="rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground">
@@ -877,6 +947,32 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
         }}
       />
 
+      <PayDifferencesApprovalDialog
+        mode={payDifferenceAsk?.mode ?? null}
+        count={payDifferenceAsk?.count ?? 0}
+        failedCount={payDifferenceAsk?.failed ?? 0}
+        loading={approvePayroll.isPending}
+        onConfirm={() => approve(payDifferenceAsk?.count)}
+        onClose={() => setPayDifferenceAsk(null)}
+      />
+
+      <ConfirmDialog
+        open={settledAsk !== null}
+        onOpenChange={(open) => {
+          if (!open) setSettledAsk(null);
+        }}
+        title={t("pay_differences.void_title")}
+        description={t("pay_differences.void_description", undefined, {
+          count: settledAsk ?? 0,
+        })}
+        confirmLabel={t("pay_differences.void_confirm", undefined, {
+          count: settledAsk ?? 0,
+        })}
+        variant="destructive"
+        loading={voidPayroll.isPending}
+        onConfirm={() => handleVoid(undefined, settledAsk ?? undefined)}
+      />
+
       <ConfirmDialog
         open={reprocessDialogOpen}
         onOpenChange={setReprocessDialogOpen}
@@ -963,7 +1059,7 @@ export function PayrollRunDetail({ routeId }: { routeId: string }) {
 
       <Dialog open={voidDialogOpen} onOpenChange={setVoidDialogOpen}>
         <DialogContent>
-          <form onSubmit={handleVoid}>
+          <form onSubmit={(e) => handleVoid(e)}>
             <DialogHeader>
               <DialogTitle>{t("payroll_detail_page.void_payroll")}</DialogTitle>
               <DialogDescription>

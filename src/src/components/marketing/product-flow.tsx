@@ -112,12 +112,12 @@ export function ProductFlow() {
           </div>
 
           <h2 className="mt-4 text-sm font-semibold text-foreground">
-            {t("marketing.flow.step_sync", "Keeps working offline")}
+            {t("marketing.flow.step_sync", "Attendance works offline")}
           </h2>
           <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
             {t(
               "marketing.flow.step_sync_desc",
-              "Records queue on the device and upload themselves the moment the connection returns.",
+              "Punches queue on the device and upload themselves the moment the connection returns.",
             )}
           </p>
         </li>

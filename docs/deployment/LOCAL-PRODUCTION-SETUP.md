@@ -43,6 +43,7 @@ breaks silently on a different domain.
 | **`APP_URL`** | `http://localhost:8081` | `https://<APP_DOMAIN>` |
 | **`APP_KEY`** | generated fresh per setup | generated on the host by `key:generate` — **never the one in git history** |
 | **Scheduler** | run by hand (below) | GitHub Actions, once two secrets exist |
+| **Mail** | `MAIL_MAILER=log` — messages are written to `.local-production/app/api/storage/logs/`, none is sent | `smtp` through the host's mailbox |
 | **TLS** | none | Plesk-issued; wildcard binding is **M3**, open |
 
 **Identical in both:** the release tree itself (`scripts/shared-hosting/build-release.sh`,

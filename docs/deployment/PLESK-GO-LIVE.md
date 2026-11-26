@@ -221,6 +221,14 @@ release steps (Part 5). A release from before the check reports nothing there, w
 the script shows as unknown. *(On 2026-11-04 a release went live at 05:33Z without its
 steps; `release.json` alone read in step for five hours while the schema was behind.)*
 
+CI never drives the static export Apache serves, so the offline shell is checked here,
+against the live site, with the network cut by the browser (about three minutes, signed
+out, read-only):
+
+```bash
+cd src && npm run test:e2e:production:offline
+```
+
 Then open `https://<APP_DOMAIN>/login`, sign in, and run
 [`shared-hosting/deploy-checklist.md`](shared-hosting/deploy-checklist.md). Now do Part 1
 step 2 so the scheduler starts.
@@ -296,7 +304,14 @@ private key is a secret like `APP_KEY`; keep it out of chats and tickets.
    Enterprise had been raised to 8,999 ETB in the console while the seeder said 2,999, and the
    refreshed snapshot failed four backend checks on PR #444.)*
 1. Merge to `main`, and wait for **Plesk release** to go green.
-2. Plesk Git → **Pull now → Deploy now**.
+2. Plesk Git → **Pull now**, then reload the page so the commit card is current. **Before
+   pressing Deploy**, run `scripts/release-status.sh https://<APP_DOMAIN>` from a local
+   checkout: it lists the commits Deploy would add and says whether the release adds a
+   migration. If it does, set `MAINTENANCE_TOKEN` first (step 3), so `migrate` can run the
+   moment the deploy lands. Then **Deploy now**. *(On 2026-11-23 and 2026-11-24 a release
+   went live with its migration unrun. Both had been checked when they were built, and the
+   `production` branch had moved on to a release with a migration by the time Deploy was
+   pressed. Run the script at the button, not earlier.)*
 3. Set `MAINTENANCE_TOKEN` in `.env`, then run `migrate`, `seed` (it picks up permissions a
    release adds), as in Part 5 step 3 — or the Toolkit's Artisan, if it ever
    attaches the application. `optimize` is not needed: the first request after the deploy drops a

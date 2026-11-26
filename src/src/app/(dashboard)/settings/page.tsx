@@ -11,6 +11,8 @@ import {
   KeyRound,
   Copy,
 } from "lucide-react";
+import { useSaveStatus } from "@/components/shared/save-status";
+import { useUnsavedChangesWarning } from "@/lib/hooks/useUnsavedChangesWarning";
 import { useT } from "@/lib/i18n/useT";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,6 +37,9 @@ import { OrganizationCard } from "@/features/settings/components/organization-ca
 import { BrandingCard } from "@/features/settings/components/branding-card";
 import { LandingCard } from "@/features/settings/components/landing-card";
 import { ShowcaseCard } from "@/features/settings/components/showcase-card";
+import { PasswordPolicyCard } from "@/features/settings/components/password-policy-card";
+import { ActivationCodeCard } from "@/features/settings/components/activation-code-card";
+import { LoginIdentifiersCard } from "@/features/settings/components/login-identifiers-card";
 import { EmployeeNumberCard } from "@/features/employees/components/employee-number-card";
 import {
   useSettings,
@@ -104,6 +109,7 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
 
   const updateSettings = useUpdateSettings();
   const updateSso = useUpdateSso();
+  const { announceSaved, announceError } = useSaveStatus();
 
   const [dirty, setDirty] = useState<SecurityDraft>({});
   // The API names the failing field ("settings.session_timeout_minutes"); a
@@ -112,6 +118,15 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
   const [ssoDirty, setSsoDirty] = useState<SsoUpdate>({});
   // Server field errors for the SSO card, on the same terms as Security.
   const [ssoErrors, setSsoErrors] = useState<FieldErrors>({});
+  // Switched on in the saved settings but missing what a sign-in needs. The
+  // certificate is write-only, so the server says whether one is stored.
+  const ssoNotReady = data.sso.is_enabled && !data.sso.configured;
+  const ssoMissing = [
+    !data.sso.idp_entity_id && t("settings.idp_entity_id", "IdP entity ID"),
+    !data.sso.idp_sso_url && t("settings.idp_sso_url", "IdP SSO URL"),
+    !data.sso.has_certificate &&
+      t("settings.idp_certificate", "IdP certificate (PEM)"),
+  ].filter((x): x is string => typeof x === "string");
   // The display selects save as soon as they change; the chosen value is
   // shown at once rather than after the settings query refetches, which
   // read as the control snapping back for the round trip.
@@ -146,9 +161,11 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
       onSuccess: () => {
         setDirty({});
         toast.success(t("settings.saved", "Settings saved"));
+        announceSaved();
       },
       onError: (error) => {
         setSecurityErrors(fieldErrors(error));
+        announceError(error);
         toastError(
           error,
           t("settings.save_failed", "Failed to save settings"),
@@ -179,9 +196,14 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
   ) {
     setPendingDisplay((p) => ({ ...p, ...display }));
     updateSettings.mutate(display, {
-      onSuccess: () => toast.success(t("settings.saved", "Settings saved")),
-      onError: (error) =>
-        toastError(error, t("settings.save_failed", "Failed to save settings")),
+      onSuccess: () => {
+        toast.success(t("settings.saved", "Settings saved"));
+        announceSaved();
+      },
+      onError: (error) => {
+        announceError(error);
+        toastError(error, t("settings.save_failed", "Failed to save settings"));
+      },
       onSettled: () => setPendingDisplay({}),
     });
   }
@@ -192,9 +214,14 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
       onSuccess: () => {
         setSsoDirty({});
         toast.success(t("settings.sso_saved", "SSO settings saved"));
+        announceSaved(t("settings.sso_saved", "SSO settings saved"));
       },
       onError: (err) => {
         setSsoErrors(fieldErrors(err));
+        announceError(
+          err,
+          t("settings.sso_save_failed", "Failed to save SSO settings"),
+        );
         toast.error(
           apiErrorMessage(
             err,
@@ -255,6 +282,22 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
 
   const hasDirty = Object.keys(dirty).length > 0;
 
+  // Differs from what was loaded, not merely touched: a value typed or
+  // chosen back to the saved one is not a change. The certificate is
+  // write-only (the server never returns it), so anything typed counts.
+  const securityChanged = (
+    Object.entries(dirty) as [keyof SecurityDraft, string | undefined][]
+  ).some(
+    ([key, value]) =>
+      value !== undefined && value !== String(data.security[key]),
+  );
+  const ssoChanged = Object.entries(ssoDirty).some(([key, value]) =>
+    key === "idp_certificate"
+      ? typeof value === "string" && value.trim() !== ""
+      : value !== (data.sso as unknown as Record<string, unknown>)[key],
+  );
+  useUnsavedChangesWarning(securityChanged || ssoChanged);
+
   return (
     <div className="space-y-6">
       {/* Each card saves itself. The Security fields were saved by a button
@@ -288,7 +331,7 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
             <CardHeader>
               <div className="flex items-center gap-2">
                 <CalendarDays className="h-4 w-4 text-muted-foreground" />
-                <CardTitle className="text-base">
+                <CardTitle as="h2" className="text-base">
                   {t("settings.display", "Display")}
                 </CardTitle>
               </div>
@@ -385,13 +428,13 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
         <TabsContent
           value="security"
           forceMount={keep("security")}
-          className="mt-6 data-[state=inactive]:hidden"
+          className="mt-6 space-y-6 data-[state=inactive]:hidden"
         >
           <Card>
             <CardHeader>
               <div className="flex items-center gap-2">
                 <Shield className="h-4 w-4 text-muted-foreground" />
-                <CardTitle className="text-base">
+                <CardTitle as="h2" className="text-base">
                   {t("settings.security_settings", "Sign-in security")}
                 </CardTitle>
               </div>
@@ -495,6 +538,9 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
               </div>
             </CardContent>
           </Card>
+          <LoginIdentifiersCard />
+          <PasswordPolicyCard policy={data.security.password_policy} />
+          <ActivationCodeCard hours={data.security.activation_code_hours} />
         </TabsContent>
 
         <TabsContent
@@ -507,19 +553,42 @@ function SettingsTabs({ data }: { data: TenantSettings }) {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <KeyRound className="h-4 w-4 text-muted-foreground" />
-                  <CardTitle className="text-base">
+                  <CardTitle as="h2" className="text-base">
                     {t("settings.sso_saml", "SAML single sign-on")}
                   </CardTitle>
                 </div>
-                {/* What is saved, not the draft: the switch below says the rest. */}
-                <Badge variant={data.sso.is_enabled ? "success" : "secondary"}>
-                  {data.sso.is_enabled
-                    ? t("settings.sso_enabled", "Enabled")
-                    : t("settings.sso_disabled", "Disabled")}
+                {/* What is saved, not the draft: the switch below says the rest.
+                    On but unable to work is "Not ready", never "Enabled". */}
+                <Badge
+                  variant={
+                    ssoNotReady
+                      ? "warning"
+                      : data.sso.is_enabled
+                        ? "success"
+                        : "secondary"
+                  }
+                >
+                  {ssoNotReady
+                    ? t("settings.sso_not_ready", "Not ready")
+                    : data.sso.is_enabled
+                      ? t("settings.sso_enabled", "Enabled")
+                      : t("settings.sso_disabled", "Disabled")}
                 </Badge>
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
+              {ssoNotReady && (
+                <p
+                  role="status"
+                  className="rounded-lg border border-warning-edge bg-warning-soft p-3 text-sm text-warning-on-soft"
+                >
+                  {t(
+                    "settings.sso_not_ready_missing",
+                    "SSO is switched on but people cannot use it yet. Still missing: :items.",
+                    { items: ssoMissing.join(", ") },
+                  )}
+                </p>
+              )}
               <div className="flex items-center justify-between rounded-lg border p-4">
                 <div className="space-y-0.5">
                   <Label htmlFor="sso-toggle">

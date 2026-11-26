@@ -17,6 +17,8 @@ import { FormField } from "@/components/patterns/FormField";
 import { useSettings, useUpdateSettings } from "@/features/settings/api";
 import { ethiopianMonthName } from "@/lib/calendar/ethiopian";
 import { apiErrorMessage } from "@/lib/api/error-message";
+import { useSaveStatus } from "@/components/shared/save-status";
+import { useUnsavedChangesWarning } from "@/lib/hooks/useUnsavedChangesWarning";
 import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 import { ErrorState } from "@/components/shared/error-state";
@@ -117,6 +119,7 @@ export function PayrollScheduleCard() {
   }
 
   const save = useUpdateSettings();
+  const { announceSaved, announceError } = useSaveStatus();
 
   function saveSchedule() {
     const next: ScheduleErrors = {};
@@ -170,17 +173,21 @@ export function PayrollScheduleCard() {
           toast.success(
             t("payroll_config.schedule_saved", "Payroll schedule saved"),
           );
+          announceSaved(
+            t("payroll_config.schedule_saved", "Payroll schedule saved"),
+          );
         },
-        onError: (err) =>
-          toast.error(
-            apiErrorMessage(
-              err,
-              t(
-                "payroll_config.schedule_save_failed",
-                "Could not save the payroll schedule",
-              ),
+        onError: (err) => {
+          const message = apiErrorMessage(
+            err,
+            t(
+              "payroll_config.schedule_save_failed",
+              "Could not save the payroll schedule",
             ),
-          ),
+          );
+          toast.error(message);
+          announceError(err, message);
+        },
       },
     );
   }
@@ -190,6 +197,7 @@ export function PayrollScheduleCard() {
     (Object.keys(form) as (keyof ScheduleForm)[]).some(
       (k) => form[k] !== persisted[k],
     );
+  useUnsavedChangesWarning(isDirty);
 
   return (
     <Card>

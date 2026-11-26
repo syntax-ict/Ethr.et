@@ -37,6 +37,7 @@ const GUIDES = {
   employee: { file: "employee.md", pdf: "ethr-employee-guide-am.pdf" },
   manager: { file: "manager.md", pdf: "ethr-manager-guide-am.pdf" },
   admin: { file: "admin.md", pdf: "ethr-admin-guide-am.pdf" },
+  devices: { file: "devices.md", pdf: "ethr-biometric-devices-guide-am.pdf" },
 };
 
 // ---------------------------------------------------------------- markdown

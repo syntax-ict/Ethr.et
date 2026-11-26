@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Profile;
 
+use App\Support\Locales;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreLetterRequest extends FormRequest
@@ -19,7 +20,7 @@ class StoreLetterRequest extends FormRequest
             'purpose' => ['required', 'string', 'min:3', 'max:255'],
             'addressed_to' => ['nullable', 'string', 'max:255'],
             'include_salary' => ['sometimes', 'boolean'],
-            'language' => ['sometimes', 'string', 'in:en,am,om'],
+            'language' => ['sometimes', 'string', Locales::rule()],
         ];
     }
 }

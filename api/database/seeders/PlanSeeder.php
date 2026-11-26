@@ -25,18 +25,18 @@ class PlanSeeder extends Seeder
                 'marketing_features' => [
                     'Attendance and leave',
                     'Employee records',
-                    'Works offline',
+                    'Attendance works offline',
                 ],
                 'marketing_features_am' => [
                     'መገኘት እና ፈቃድ',
                     'የሠራተኛ መዝገብ',
-                    'ከመስመር ውጭ ይሠራል',
+                    'መገኘት ኢንተርኔት ባይኖርም ይሠራል',
                 ],
                 'description_om' => 'Waajjira tokko kan argamaa fi boqonnaa sirnatti galchuu barbaaduuf.',
                 'marketing_features_om' => [
                     'Argamaa fi boqonnaa',
                     'Galmee hojjettootaa',
-                    'Toora ala ni hojjeta',
+                    'Argamaan toora ala ni hojjeta',
                 ],
                 'sort_order' => 1,
             ],

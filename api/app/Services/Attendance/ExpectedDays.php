@@ -9,6 +9,7 @@ use App\Enums\ExpectedDay;
 use App\Enums\LeaveStatus;
 use App\Models\Employee;
 use App\Models\LeaveRequest;
+use App\Models\LeaveType;
 use App\Models\Tenant;
 use App\Services\CurrentTenant;
 use App\Services\Holiday\HolidayService;
@@ -160,6 +161,68 @@ final class ExpectedDays
         }
 
         return $kinds;
+    }
+
+    /**
+     * What each approved leave day is, for the days `between()` calls
+     * ON_LEAVE: the request's type and whether it is a half day. The timesheet
+     * reads this beside `between()`; it decides nothing about which days are
+     * leave days (a holiday or rest day inside a request is not one).
+     *
+     * A day covered by two requests takes the one that started first.
+     *
+     * @param  Collection<int, Employee>  $employees  all of one tenant
+     * @return array<int, array<string, array{kind: string, follows_art85: bool, type_code: string|null, half_day: bool, is_paid: bool}>> employee id => Y-m-d => leave
+     */
+    public function leaveBetween(Collection $employees, CarbonInterface $from, CarbonInterface $to): array
+    {
+        $first = $employees->first();
+
+        if ($first === null) {
+            return [];
+        }
+
+        $firstDay = $from->format('Y-m-d');
+        $lastDay = $to->format('Y-m-d');
+        $detail = [];
+
+        $requests = LeaveRequest::query()
+            ->where('tenant_id', $first->tenant_id)
+            ->whereIn('employee_id', $employees->pluck('id')->all())
+            ->where('status', LeaveStatus::APPROVED)
+            ->whereDate('start_date', '<=', $lastDay)
+            ->whereDate('end_date', '>=', $firstDay)
+            ->with(['leaveType' => fn ($q) => $q->withTrashed()])
+            ->orderBy('start_date')
+            ->orderBy('id')
+            ->get(['id', 'employee_id', 'leave_type_id', 'start_date', 'end_date', 'days']);
+
+        foreach ($requests as $request) {
+            if ($request->start_date === null || $request->end_date === null) {
+                continue;
+            }
+            // A request whose type row is gone reads as plain leave.
+            $type = $request->leaveType instanceof LeaveType ? $request->leaveType : null;
+            $startDay = $request->start_date->format('Y-m-d');
+            $endDay = $request->end_date->format('Y-m-d');
+            $leave = [
+                'kind' => $type === null ? LeaveType::KIND_LEAVE : (string) $type->kind,
+                'follows_art85' => $type !== null && $type->follows_art85,
+                'type_code' => $type?->code,
+                'half_day' => $startDay === $endDay && (float) $request->days < 1.0,
+                'is_paid' => $type === null || $type->is_paid,
+            ];
+
+            $cursor = Carbon::parse(max($startDay, $firstDay));
+            $end = Carbon::parse(min($endDay, $lastDay));
+
+            while ($cursor->lessThanOrEqualTo($end)) {
+                $detail[$request->employee_id][$cursor->format('Y-m-d')] ??= $leave;
+                $cursor = $cursor->addDay();
+            }
+        }
+
+        return $detail;
     }
 
     private function classify(bool $employed, bool $works, bool $holiday, bool $onLeave): ExpectedDay

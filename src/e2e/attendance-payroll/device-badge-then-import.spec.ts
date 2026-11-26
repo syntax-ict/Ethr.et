@@ -11,7 +11,12 @@ import { addisDate, as, heldPunchTimes, hikvisionPunch, live, minutesAgo, record
  * replayed by the import: badge numbers on a list are not unique and a typo
  * must not record a week of someone else's punches. The badge's card on
  * Devices now says whose it is ("This is ...") and offers "Assign and replay",
- * and that click is what records them.
+ * and that click is what records them. That holds in this stack because no
+ * scheduler runs here. On production the five-minute sweep
+ * (`held-punches-auto-record`) records a badge when its number and the terminal's
+ * own name both name one person, by itself, so there the click is no longer
+ * needed for such a badge; the journey drives the click to prove
+ * the replay path, which stays available.
  *
  * Read back from the API throughout: the person exists with the badge, the
  * card's match is `matched` before the click, one attendance record carries the

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Observability;
 
+use App\Support\BackgroundWork;
 use App\Support\StaleReleaseCaches;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
@@ -129,7 +130,7 @@ final class CronRunner
         }
 
         try {
-            return $work();
+            return BackgroundWork::run($work);
         } finally {
             $lock->release();
         }

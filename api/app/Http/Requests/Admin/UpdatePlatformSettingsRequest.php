@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Admin;
 
+use App\Rules\ReferenceCode;
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdatePlatformSettingsRequest extends FormRequest
@@ -65,12 +67,13 @@ class UpdatePlatformSettingsRequest extends FormRequest
      *                       label shares one sidebar row with the collapse
      *                       button; `url:https` for the reason the logo has it.
      *
-     * @return array<string, list<string>>
+     * @return array<string, list<string|ValidationRule>>
      */
     public function rules(): array
     {
         return [
-            'bank_name' => ['nullable', 'string', 'max:255'],
+            'bank_name' => ['nullable', 'required_with:bank_code', 'string', 'max:255'],
+            'bank_code' => ['nullable', 'string', 'max:60', new ReferenceCode(['bank'])],
             // Ethiopian bank account numbers are digits, commonly written with
             // spaces or dashes for readability. Anything else is a typo on a field
             // that decides where customers send money, so reject it rather than

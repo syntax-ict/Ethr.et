@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Notifications;
 
+use App\Enums\NotificationType;
 use App\Notifications\Concerns\RespectsNotificationPreferences;
 use App\Support\NotificationMessage;
 use Illuminate\Bus\Queueable;
@@ -20,19 +21,14 @@ class AttendanceAnomalyNotification extends Notification
         private readonly ?string $detail = null,
     ) {}
 
-    protected function preferenceType(): string
+    protected function preferenceType(): NotificationType
     {
-        return 'attendance_anomaly';
+        return NotificationType::ATTENDANCE_ANOMALY;
     }
 
     public function via(object $notifiable): array
     {
-        $channels = ['database'];
-        if (config('broadcasting.default') === 'reverb') {
-            $channels[] = 'broadcast';
-        }
-
-        return $this->filterChannels($notifiable, $channels);
+        return $this->filterChannels($notifiable, ['database'], broadcast: true);
     }
 
     public function toArray(object $notifiable): array

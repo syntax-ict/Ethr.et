@@ -103,6 +103,58 @@ final class ShiftMatcher
     }
 
     /**
+     * rotationRestDays() for everyone at once: the assignments are loaded
+     * once for all of them, and employees holding the same assignments share
+     * one answer. A day no rotation governs is absent, as there.
+     *
+     * @param  Collection<int, Employee>  $employees  all of one tenant
+     * @return array<int, array<string, bool>> employee id => Y-m-d => rest day
+     */
+    public function rotationRestDaysBetween(Collection $employees, CarbonInterface $from, CarbonInterface $to): array
+    {
+        $first = $employees->first();
+
+        if ($first === null) {
+            return [];
+        }
+
+        $candidates = $this->candidates($employees->values()->all(), $from->format('Y-m-d'), $to->format('Y-m-d'));
+        $defaultRotation = $this->defaults($first)['rotation'];
+
+        if ($defaultRotation === null && $candidates->every(fn (ShiftAssignment $a): bool => ! $a->isRotation())) {
+            return [];
+        }
+
+        $end = Carbon::parse($to->format('Y-m-d'));
+        $bySet = [];
+        $restDays = [];
+
+        foreach ($employees as $employee) {
+            $owned = $this->ownedBy($candidates, $employee);
+            $set = $owned->pluck('id')->implode(',');
+
+            if (! isset($bySet[$set])) {
+                $bySet[$set] = [];
+
+                for ($cursor = Carbon::parse($from->format('Y-m-d')); $cursor->lessThanOrEqualTo($end); $cursor = $cursor->addDay()) {
+                    $day = $cursor->format('Y-m-d');
+                    $assignment = $this->governing($owned, $day);
+
+                    if ($assignment !== null && $assignment->isRotation()) {
+                        $bySet[$set][$day] = $this->rotationShift($assignment, $cursor) === null;
+                    } elseif ($assignment === null && $defaultRotation !== null) {
+                        $bySet[$set][$day] = $this->defaultRotationShift($defaultRotation, $cursor) === null;
+                    }
+                }
+            }
+
+            $restDays[$employee->id] = $bySet[$set];
+        }
+
+        return $restDays;
+    }
+
+    /**
      * For each date in the range, whether $employee is scheduled to work: the
      * governing rotation's answer, else the governing or default shift's
      * `working_days`, else the organisation's working week. Same precedence

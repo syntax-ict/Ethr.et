@@ -51,6 +51,20 @@ final class StagingFixtures
         ]);
     }
 
+    /**
+     * Someone who was archived and still holds their employee number: the
+     * `(tenant_id, employee_code)` index keeps every soft-deleted row.
+     *
+     * @param  array<string, mixed>  $attributes
+     */
+    public static function archived(Tenant $tenant, array $attributes = []): Employee
+    {
+        $employee = self::employee($tenant, $attributes);
+        $employee->delete();
+
+        return $employee;
+    }
+
     public static function service(): WorkforceMigrationService
     {
         return app(WorkforceMigrationService::class);

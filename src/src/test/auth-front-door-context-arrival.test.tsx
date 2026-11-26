@@ -48,6 +48,7 @@ const arriving: HostCtx = {
   carryOrganisation: null,
   tenantRequest: null,
   tenantContextLoading: true,
+  hostLookupPending: false,
   tenantLookupError: null,
   tenantFieldVisible: false,
 };
@@ -73,6 +74,7 @@ const arrived: HostCtx = {
   tenantBillingOnly: false,
   carryOrganisation: "acme",
   tenantContextLoading: false,
+  hostLookupPending: false,
 };
 
 // A verified custom domain: nothing in the address names the organisation,

@@ -35,6 +35,8 @@ import {
   sectionOrder,
 } from "@/lib/auth/landing-text";
 import type { LandingBackground } from "@/lib/auth/landing-background";
+import { useSaveStatus } from "@/components/shared/save-status";
+import { useUnsavedChangesWarning } from "@/lib/hooks/useUnsavedChangesWarning";
 import { useT } from "@/lib/i18n/useT";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -53,6 +55,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { CoverUpload } from "@/features/settings/components/brand-image-upload";
 import { PortalPreview } from "@/features/settings/components/portal-preview";
+import { PhoneInput } from "@/components/shared/phone-input";
 
 type Background = LandingBackground["background"];
 const BACKGROUNDS: readonly Background[] = [
@@ -306,9 +309,14 @@ export function LandingCard({
   const { t } = useT();
   const updateLanding = useUpdateLanding();
   const linkLabel = useLinkLabel();
+  const { announceSaved, announceError } = useSaveStatus();
   const qrRef = useRef<HTMLCanvasElement>(null);
 
   const [form, setForm] = useState<LandingForm>(() => fromSettings(landing));
+  // What was loaded, then what was last saved: the form is dirty when it
+  // differs from this, so typing a value back is not a change.
+  const [baseline, setBaseline] = useState(() => JSON.stringify(form));
+  useUnsavedChangesWarning(JSON.stringify(form) !== baseline);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const set = <K extends keyof LandingForm>(key: K, value: LandingForm[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -355,9 +363,13 @@ export function LandingCard({
 
   function save() {
     setFieldErrors({});
+    const submitted = JSON.stringify(form);
     updateLanding.mutate(toUpdate(form), {
-      onSuccess: () =>
-        toast.success(t("settings.landing_saved", "Public website saved")),
+      onSuccess: () => {
+        setBaseline(submitted);
+        toast.success(t("settings.landing_saved", "Public website saved"));
+        announceSaved(t("settings.landing_saved", "Public website saved"));
+      },
       onError: (error: unknown) => {
         const errors = (
           error as {
@@ -372,6 +384,10 @@ export function LandingCard({
           );
         }
         toast.error(
+          t("settings.landing_save_failed", "Failed to save the sign-in page"),
+        );
+        announceError(
+          error,
           t("settings.landing_save_failed", "Failed to save the sign-in page"),
         );
       },
@@ -471,7 +487,7 @@ export function LandingCard({
       <CardHeader>
         <div className="flex items-center gap-2">
           <LogIn className="h-4 w-4 text-muted-foreground" />
-          <CardTitle className="text-base">
+          <CardTitle as="h2" className="text-base">
             {t("settings.landing_title", "Public website")}
           </CardTitle>
         </div>
@@ -695,12 +711,10 @@ export function LandingCard({
                 label={t("settings.landing_support_phone", "HR help phone")}
                 error={fieldErrors.support_phone}
               >
-                <Input
+                <PhoneInput
                   id="landing-phone"
-                  type="tel"
                   value={form.support_phone}
-                  placeholder="+251 11 000 0000"
-                  onChange={(e) => set("support_phone", e.target.value)}
+                  onChange={(v) => set("support_phone", v)}
                 />
               </Field>
             </div>

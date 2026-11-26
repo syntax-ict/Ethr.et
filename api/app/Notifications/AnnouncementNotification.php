@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Notifications;
 
+use App\Enums\NotificationType;
 use App\Models\Announcement;
 use App\Notifications\Concerns\RespectsNotificationPreferences;
 use Illuminate\Bus\Queueable;
@@ -17,9 +18,9 @@ class AnnouncementNotification extends Notification
         private readonly Announcement $announcement,
     ) {}
 
-    protected function preferenceType(): string
+    protected function preferenceType(): NotificationType
     {
-        return 'announcement';
+        return NotificationType::ANNOUNCEMENT;
     }
 
     public function via(object $notifiable): array
@@ -34,7 +35,7 @@ class AnnouncementNotification extends Notification
             'title' => $this->announcement->title,
             'priority' => $this->announcement->priority,
             'message' => $this->announcement->title,
-            'url' => '/announcements',
+            'url' => '/announcements?read='.$this->announcement->public_id,
         ];
     }
 }

@@ -347,9 +347,25 @@ test('finance admin can view chart of accounts', function () {
     expect(count($response->json('accounts')))->toBe(8);
 });
 
-test('finance admin can update chart of accounts', function () {
+test('finance admin cannot change the chart of accounts, which needs payroll.manageConfig', function () {
     $tenant = createTenant();
     actingAsUser(['role' => UserRole::FINANCE_ADMIN], $tenant);
+
+    test()->putJson("http://{$tenant->subdomain}.ethr.test/api/v1/accounting/chart-of-accounts", [
+        'accounts' => [
+            ['key' => 'salary_expense', 'account_code' => '6100', 'account_name' => 'Staff Costs'],
+        ],
+    ])->assertForbidden();
+
+    $this->assertDatabaseMissing('chart_of_accounts', [
+        'tenant_id' => $tenant->id,
+        'key' => 'salary_expense',
+    ]);
+});
+
+test('tenant admin can update chart of accounts', function () {
+    $tenant = createTenant();
+    actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
 
     test()->putJson("http://{$tenant->subdomain}.ethr.test/api/v1/accounting/chart-of-accounts", [
         'accounts' => [

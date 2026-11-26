@@ -46,8 +46,27 @@ export default defineConfig({
   projects: [
     {
       name: "production-chromium",
+      testIgnore: /offline\.spec\.ts$/,
       use: {
         ...devices["Desktop Chrome"],
+        channel: process.env.PW_CHANNEL || undefined,
+        launchOptions: {
+          executablePath: process.env.PW_EXECUTABLE_PATH || undefined,
+        },
+      },
+    },
+    {
+      // The offline shell, which exists only with the worker running. The one
+      // project where it is allowed, and only for specs that start from an
+      // empty profile and never sign in: with nothing queued on the phone the
+      // worker has nothing to replay (see e2e-production/offline.spec.ts).
+      //
+      //   npm run test:e2e:production:offline
+      name: "production-offline",
+      testMatch: /offline\.spec\.ts$/,
+      use: {
+        ...devices["Desktop Chrome"],
+        serviceWorkers: "allow",
         channel: process.env.PW_CHANNEL || undefined,
         launchOptions: {
           executablePath: process.env.PW_EXECUTABLE_PATH || undefined,

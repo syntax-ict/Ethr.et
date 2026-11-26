@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useT } from "@/lib/i18n/useT";
@@ -9,8 +9,12 @@ interface SearchInputProps {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
-  name?: string;
-  "aria-label"?: string;
+  /**
+   * The box's name for a screen reader, in a visually hidden `<label>`. A
+   * placeholder disappears when typing starts and is not a name. Defaults to
+   * the placeholder's own words.
+   */
+  label?: string;
   debounceMs?: number;
 }
 
@@ -18,11 +22,11 @@ export function SearchInput({
   value,
   onChange,
   placeholder,
-  name = "q",
-  "aria-label": ariaLabel,
+  label,
   debounceMs = 300,
 }: SearchInputProps) {
   const { t } = useT();
+  const inputId = useId();
   const [local, setLocal] = useState(value);
 
   // Emit only text the parent does not already have, and keep the latest
@@ -51,21 +55,19 @@ export function SearchInput({
     setLocal(value);
   }
 
-  const resolvedPlaceholder =
-    placeholder ?? t("search_input.placeholder", "Search…");
+  const hint = placeholder ?? t("search_input.placeholder");
 
   return (
     <div className="relative">
+      <label htmlFor={inputId} className="sr-only">
+        {label ?? hint}
+      </label>
       <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/60" />
       <Input
-        type="search"
-        name={name}
-        autoComplete="off"
-        spellCheck={false}
-        aria-label={ariaLabel ?? resolvedPlaceholder}
+        id={inputId}
         value={local}
         onChange={(e) => setLocal(e.target.value)}
-        placeholder={resolvedPlaceholder}
+        placeholder={hint}
         className="pl-9 pr-8"
       />
       {local && (

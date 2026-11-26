@@ -20,7 +20,7 @@ Six short videos for Instagram Reels, TikTok, YouTube Shorts and Facebook, each 
 |---|---|---|---|
 | 0 to 2 | A phone's status bar; airplane mode switched on | A branch with no network | ግንኙነት የሌላቸው ቅርንጫፎች |
 | 2 to 7 | ETHR open on the phone; the employee taps Check in; the record shows as saved on the phone | Check in | መግቢያ |
-| 7 to 11 | Two more check-ins on other demo accounts, or the same phone at the kiosk | Offline | ከመስመር ውጪ |
+| 7 to 11 | Two more check-ins on other demo accounts, or the same phone at the kiosk | Offline | ከመስመር ውጭ |
 | 11 to 16 | Airplane mode off; the records upload; the status reads synced | Synced | ተመሳስሏል |
 | 16 to 18 | The attendance list on a laptop, the three check-ins present | Nothing is typed twice | ምንም ሁለት ጊዜ አይተየብም። |
 | 18 to 20 | End card | 6-month free trial | የ6 ወር ነጻ ሙከራ |

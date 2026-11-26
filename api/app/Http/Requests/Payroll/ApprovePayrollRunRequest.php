@@ -23,6 +23,7 @@ class ApprovePayrollRunRequest extends FormRequest
     {
         return [
             'acknowledged_pension_exemptions' => ['nullable', 'integer', 'min:0'],
+            'acknowledged_pay_differences' => ['nullable', 'integer', 'min:0'],
         ];
     }
 }

@@ -47,6 +47,7 @@ const arriving: HostCtx = {
   carryOrganisation: null,
   tenantRequest: null,
   tenantContextLoading: true,
+  hostLookupPending: false,
   tenantLookupError: null,
   tenantFieldVisible: false,
 };
@@ -72,6 +73,7 @@ const arrived: HostCtx = {
   carryOrganisation: "acme",
   tenantRequest: { mode: "entry", slug: "acme" },
   tenantContextLoading: false,
+  hostLookupPending: false,
 };
 
 const queryClient = () =>

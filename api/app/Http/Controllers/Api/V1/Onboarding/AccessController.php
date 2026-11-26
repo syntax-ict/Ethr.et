@@ -63,11 +63,16 @@ class AccessController extends Controller
         }
         $tenant->update(['settings' => $settings]);
 
+        // Settings > Security saves through this endpoint too. Once go-live has
+        // completed onboarding, the wizard's record is left as it was: marking
+        // the step again would move `current_step` back from the last step.
         $progress = OnboardingProgress::firstOrCreate(
             ['tenant_id' => $tenant->id],
             ['current_step' => 1, 'completed_steps' => [], 'step_data' => []]
         );
-        $progress->markStepComplete(OnboardingStep::ACCESS_IDENTITY->value, ['login_identifiers' => $identifiers]);
+        if ($progress->completed_at === null) {
+            $progress->markStepComplete(OnboardingStep::ACCESS_IDENTITY->value, ['login_identifiers' => $identifiers]);
+        }
 
         // The response has show()'s shape, `available` included: the wizard
         // writes it straight into its cache, and the step's next render maps

@@ -20,6 +20,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * @property array<string, mixed> $raw
  * @property array<int, array<string, mixed>>|null $changes
+ * @property bool|null $created_employee whether this create row made its person (true) or only linked to someone already here (false); null for any other row
  */
 class MigrationStagingRow extends Model
 {
@@ -34,6 +35,12 @@ class MigrationStagingRow extends Model
     public const ACTION_DEFER = 'defer';
 
     public const ACTION_PENDING = 'pending';
+
+    /**
+     * Bring back the archived person the row matched and write this row's
+     * details over their record: the corrected file after an undo.
+     */
+    public const ACTION_RESTORE = 'restore';
 
     /**
      * Beside IdentityMatch's outcomes: nobody matched on anything a person
@@ -56,6 +63,7 @@ class MigrationStagingRow extends Model
         'action',
         'changes',
         'processed_at',
+        'created_employee',
     ];
 
     protected $hidden = [
@@ -73,6 +81,7 @@ class MigrationStagingRow extends Model
             'candidates' => 'array',
             'match_confidence' => 'float',
             'processed_at' => 'datetime',
+            'created_employee' => 'boolean',
         ];
     }
 

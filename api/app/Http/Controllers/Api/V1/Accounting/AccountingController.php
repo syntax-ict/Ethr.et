@@ -59,7 +59,7 @@ class AccountingController extends Controller
 
     public function updateChartOfAccounts(UpdateChartOfAccountsRequest $request): JsonResponse
     {
-        Gate::authorize('payroll.viewAll');
+        Gate::authorize('payroll.manageConfig');
 
         $tenantId = app(CurrentTenant::class)->requireId();
 

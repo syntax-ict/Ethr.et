@@ -1,6 +1,10 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from "axios";
 
-import { clearOfflineIdentity } from "@/features/auth/offline-identity";
+import {
+  clearOfflineIdentity,
+  readOfflineIdentity,
+} from "@/features/auth/offline-identity";
+import { clearOfflineOnSignOut } from "@/lib/offline-signout";
 import { clearApiCache } from "@/lib/api-cache";
 import { hostContext } from "@/lib/auth/host-context";
 import { getLocale } from "@/lib/i18n/translations";
@@ -219,6 +223,22 @@ function busyDelayMs(retryAfter: unknown, attempt: number): number {
 
 let redirectingToEnrolment = false;
 
+/**
+ * The `type` of a problem+json answer, or undefined. A file download asks for
+ * a Blob, and a Blob's own `type` is its MIME type ("text/html"), which is not
+ * a problem type: reading it as one made a busy host's page look like a
+ * deliberate answer, so the heaviest requests were never sent again.
+ */
+function problemType(data: unknown): string | undefined {
+  // The body of a download is a Blob, whose MIME type says what it holds: JSON
+  // is the API answering on purpose; anything else (the host's HTML page) is not.
+  if (typeof Blob !== "undefined" && data instanceof Blob) {
+    return data.type.includes("json") ? "problem" : undefined;
+  }
+  const type = (data as { type?: unknown } | null | undefined)?.type;
+  return typeof type === "string" ? type : undefined;
+}
+
 /** The refresh in flight, shared by every 401 that arrives while it runs. */
 let refreshing: Promise<unknown> | null = null;
 
@@ -238,7 +258,7 @@ apiClient.interceptors.response.use(
       error.response !== undefined &&
       BUSY_STATUSES.includes(error.response.status) &&
       SAFE_METHODS.includes((originalRequest.method ?? "get").toLowerCase()) &&
-      typeof error.response.data?.type !== "string" &&
+      problemType(error.response.data) === undefined &&
       busyAttempt < MAX_BUSY_RETRIES
     ) {
       const wait = busyDelayMs(
@@ -268,7 +288,7 @@ apiClient.interceptors.response.use(
         method: originalRequest?.method,
         url: originalRequest?.url,
         status: error.response?.status,
-        type: error.response?.data?.type,
+        type: problemType(error.response?.data),
       });
     }
 
@@ -319,7 +339,15 @@ apiClient.interceptors.response.use(
 
         return apiClient(originalRequest);
       } catch {
+        // Read before the identity goes: it names who is leaving.
+        let departing: string | null = null;
+        try {
+          departing = readOfflineIdentity()?.user?.employee_public_id ?? null;
+        } catch {
+          // Signing out goes ahead regardless.
+        }
         clearOfflineIdentity();
+        await clearOfflineOnSignOut(departing);
         await clearApiCache();
         window.location.href = "/login";
       }

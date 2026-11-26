@@ -5,6 +5,7 @@ import { Loader2, Plus, Trash2, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/shared/phone-input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
@@ -18,6 +19,12 @@ import { FormField } from "@/components/patterns/FormField";
 import { FormErrorSummary } from "@/components/patterns/FormErrorSummary";
 import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import { useT } from "@/lib/i18n/useT";
+import { Controller } from "react-hook-form";
+import { OptionSelect } from "@/components/shared/option-select";
+import {
+  RELATIONSHIPS,
+  useRelationshipLabel,
+} from "@/lib/options/relationship";
 import { useConfirm } from "@/components/shared/use-confirm";
 import { useZodForm } from "@/lib/forms/use-zod-form";
 import { rules, fieldMessage } from "@/lib/forms/rules";
@@ -37,17 +44,21 @@ const contactSchema = z.object({
   // so an unparseable number is stored raw and is then unreachable by any
   // lookup that expects E.164. Catching it here keeps that from happening
   // quietly — an emergency contact nobody can dial is worse than a blank one.
-  phone: rules.phone(),
+  // A contact may live abroad, so a foreign number with its country code is
+  // accepted too (`Phone::any()` on the server).
+  phone: rules.anyPhone(),
 });
 type ContactValues = z.infer<typeof contactSchema>;
 
 export function EmergencyContactsTab({ employeeId }: { employeeId: string }) {
   const { t } = useT();
+  const relationshipText = useRelationshipLabel();
   const { requestConfirm, confirmDialog } = useConfirm();
   const [addOpen, setAddOpen] = useState(false);
 
   const {
     register,
+    control,
     submit,
     reset,
     rootError,
@@ -130,7 +141,7 @@ export function EmergencyContactsTab({ employeeId }: { employeeId: string }) {
                     <div>
                       <p className="text-sm font-medium">{c.name}</p>
                       <p className="text-xs text-muted-foreground">
-                        {c.relationship} · {c.phone}
+                        {relationshipText(c.relationship)} · {c.phone}
                       </p>
                     </div>
                   </div>
@@ -181,13 +192,24 @@ export function EmergencyContactsTab({ employeeId }: { employeeId: string }) {
               required
               error={fieldMessage(t, errors.relationship?.message)}
             >
-              <Input
-                {...register("relationship")}
-                placeholder={t(
-                  "employee.emergency.relationship_placeholder",
-                  "Spouse, Parent...",
+              <Controller
+                control={control}
+                name="relationship"
+                render={({ field }) => (
+                  <OptionSelect
+                    id="contact_relationship"
+                    value={field.value}
+                    onChange={field.onChange}
+                    options={RELATIONSHIPS}
+                    getLabel={relationshipText}
+                    otherValue="other"
+                    otherLabel={t(
+                      "relationship.other_specify",
+                      "Say how they are related",
+                    )}
+                    className="mt-1"
+                  />
                 )}
-                className="mt-1"
               />
             </FormField>
 
@@ -197,13 +219,22 @@ export function EmergencyContactsTab({ employeeId }: { employeeId: string }) {
               required
               error={fieldMessage(t, errors.phone?.message)}
             >
-              <Input
-                {...register("phone")}
-                type="tel"
-                inputMode="tel"
-                placeholder="0911223344"
-                className="mt-1"
-              />
+              {(controlProps) => (
+                <Controller
+                  control={control}
+                  name="phone"
+                  render={({ field }) => (
+                    <PhoneInput
+                      {...controlProps}
+                      international
+                      value={field.value}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                      className="mt-1"
+                    />
+                  )}
+                />
+              )}
             </FormField>
 
             <DialogFooter>

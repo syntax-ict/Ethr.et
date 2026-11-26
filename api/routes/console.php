@@ -2,12 +2,14 @@
 
 use App\Jobs\AccrueLeaveBalancesJob;
 use App\Jobs\ApplyDuePersonnelActionsJob;
+use App\Jobs\BackfillBankAccountHashesJob;
 use App\Jobs\CarryForwardLeaveBalancesJob;
 use App\Jobs\CleanupExpiredDataJob;
 use App\Jobs\GenerateMonthlyInvoicesJob;
 use App\Jobs\HandleOverdueInvoicesJob;
 use App\Jobs\NotifyExpiringTrialsJob;
 use App\Jobs\ProcessDeviceInboundPunchesJob;
+use App\Jobs\RecordHeldPunchesJob;
 use App\Jobs\RollForwardHolidaysJob;
 use App\Jobs\RunDashboardDigestsJob;
 use App\Jobs\RunScheduledReportsJob;
@@ -20,6 +22,7 @@ use App\Services\Leave\LeaveYear;
 use App\Services\Observability\QueueHealth;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('inspire', function () {
@@ -28,6 +31,19 @@ Artisan::command('inspire', function () {
 
 // Pull events from all registered biometric devices every 5 minutes
 Schedule::command('devices:sync')->everyFiveMinutes()->withoutOverlapping();
+
+// A terminal that only sends to ETHR (ADMS, Hikvision push, ZKTeco or Suprema
+// with no address) goes quiet while its organisation is at work: tell the
+// tenant and HR admins, at most once a day per device. Every fifteen minutes,
+// a multiple of the five the external scheduler caller ticks at; the limits
+// (30 and 60 minutes) already allow for that caller running 10 to 20 minutes
+// late. Skips pulled terminals, which PullDeviceEventsJob already reports.
+Schedule::command('devices:watch-silence')->everyFifteenMinutes()->name('devices-watch-silence')->withoutOverlapping();
+
+// Tell the admins when an account that follows its job title starts waiting for
+// someone who may give it the role the title names. One notice per organisation
+// per new set of waiting accounts, so a bulk change is one notice, not many.
+Schedule::command('access:watch-held-titles')->everyFifteenMinutes()->name('access-watch-held-titles')->withoutOverlapping();
 
 // Close check-ins left open past the shift's end, at the shift's end, for
 // organisations that turned auto check-out on (AttendanceSetting). Every five
@@ -76,6 +92,10 @@ Schedule::command('tenancy:recheck-custom-domains')
 // all its tries leaves them pending and a heartbeat adds no row to queue
 // another, so the evening's last punches would wait for the next new one.
 Schedule::call(fn () => ProcessDeviceInboundPunchesJob::sweepStranded())->everyFiveMinutes()->name('device-inbox-sweep')->withoutOverlapping();
+
+// Held punches of a badge whose number has since been written on one current
+// employee are recorded without a click (BASELINE §25t). A name alone never.
+Schedule::call(fn () => RecordHeldPunchesJob::sweep())->everyFiveMinutes()->name('held-punches-auto-record')->withoutOverlapping();
 
 // Scan previous workday for missing punches — 18:30 EAT = 15:30 UTC
 Schedule::call(function () {
@@ -138,6 +158,20 @@ Schedule::call(function () {
         ApplyDuePersonnelActionsJob::dispatch($tenant->id)->onQueue('default');
     });
 })->hourlyAt(5)->name('apply-due-personnel-actions')->withoutOverlapping();
+
+// Bank account hashes for the shared-account check before approval, on rows
+// saved before the hash existed (2026-11-22). Only operational organisations
+// with a row still to fill get a job, so once every row has one this queues
+// nothing.
+Schedule::call(function () {
+    DB::table('employee_bank_details')
+        ->whereNull('account_number_hash')
+        ->whereNotNull('account_number')
+        ->whereIn('tenant_id', Tenant::operational()->select('id'))
+        ->distinct()
+        ->pluck('tenant_id')
+        ->each(fn (mixed $tenantId) => BackfillBankAccountHashesJob::dispatch((int) $tenantId));
+})->hourlyAt(20)->name('backfill-bank-account-hashes')->withoutOverlapping();
 
 // Where each organisation is between sign-up and using ETHR, for the console
 // (docs/operations/TENANT-JOURNEY.md). Only snapshots older than fifty minutes

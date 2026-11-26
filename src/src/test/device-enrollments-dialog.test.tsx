@@ -158,7 +158,7 @@ describe("<DeviceEnrollmentsDialog> for a device that reports its list", () => {
     );
     renderDialog();
 
-    expect(await screen.findByText("2 deleted earlier")).toBeInTheDocument();
+    expect(await screen.findByText("2 archived earlier")).toBeInTheDocument();
   });
 
   it("names no deleted people when the device holds none, or the answer predates the count", async () => {
@@ -170,7 +170,7 @@ describe("<DeviceEnrollmentsDialog> for a device that reports its list", () => {
     renderDialog();
 
     expect(await screen.findByText("1042")).toBeInTheDocument();
-    expect(screen.queryByText(/deleted earlier/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/archived earlier/)).not.toBeInTheDocument();
   });
 });
 

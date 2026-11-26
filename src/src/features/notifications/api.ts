@@ -46,11 +46,20 @@ type UnreadCount =
  * the unread count that already drew the badge (dashboard review,
  * 2026-11-03, PR 11).
  */
-export function useNotifications(params?: { page?: number }, enabled = true) {
+export function useNotifications(
+  params?: { page?: number; unread?: boolean },
+  enabled = true,
+) {
   return useQuery<PaginatedResponse<Notification>>({
     queryKey: ["notifications", params],
     queryFn: async () => {
-      const { data } = await apiClient.get("/notifications", { params });
+      // The API's own spelling of the unread filter; its list answers `filter[read]=false`.
+      const { data } = await apiClient.get("/notifications", {
+        params: {
+          page: params?.page,
+          ...(params?.unread ? { "filter[read]": "false" } : {}),
+        },
+      });
       return data;
     },
     enabled,

@@ -33,6 +33,7 @@ class AnnouncementController extends Controller
 
             return AnnouncementResource::collection(
                 Announcement::query()
+                    ->with(['publisher:id,employee_id,display_name,email', 'publisher.employee:id,name'])
                     ->orderByRaw('published_at IS NULL DESC')
                     ->orderByDesc('published_at')
                     ->orderByDesc('id')
@@ -41,11 +42,9 @@ class AnnouncementController extends Controller
         }
 
         $query = Announcement::query()
-            ->published()
-            ->notExpired()
-            ->visibleTo($request->user())
-            ->orderByRaw("CASE priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 WHEN 'normal' THEN 3 WHEN 'low' THEN 4 END")
-            ->orderByDesc('published_at');
+            ->with(['publisher:id,employee_id,display_name,email', 'publisher.employee:id,name'])
+            ->readableBy($request->user())
+            ->readingOrder();
 
         return AnnouncementResource::collection(
             $query->paginate($request->integer('per_page', 25))
@@ -58,21 +57,14 @@ class AnnouncementController extends Controller
         // binding applies neither scope, so this action used to hand back any
         // announcement in the tenant to anyone holding its public id — including
         // a draft created with `publish_now: false`, which is the one state that
-        // means "not visible yet". The rule is re-run through the same two
-        // scopes rather than restated from the loaded model, so the list and the
+        // means "not visible yet". The rule is re-run through the same scope
+        // rather than restated from the loaded model, so the list and the
         // single-read cannot come to disagree about what "published" means.
-        $visible = Announcement::query()
-            ->published()
-            ->notExpired()
-            ->visibleTo($request->user())
-            ->whereKey($announcement->getKey())
-            ->exists();
-
-        // Managers keep access. `store()` can create a draft and `update()`
+        // Managers keep access: `store()` can create a draft and `update()`
         // edits one, so a drafting UI has to be able to read it back.
         $canManage = $request->user()?->hasPermission('announcement.manage') ?? false;
 
-        if (! $visible && ! $canManage) {
+        if (! $canManage && ! $announcement->isReadableBy($request->user())) {
             // The same exception route-model binding raises for an id that
             // resolves to nothing, constructed the same way, so the two produce
             // a byte-identical body. A draft is not a forbidden resource — it is
@@ -81,7 +73,7 @@ class AnnouncementController extends Controller
             throw (new ModelNotFoundException)->setModel(Announcement::class, [$announcement->public_id]);
         }
 
-        return new AnnouncementResource($announcement);
+        return new AnnouncementResource($announcement->load(['publisher:id,employee_id,display_name,email', 'publisher.employee:id,name']));
     }
 
     public function store(StoreAnnouncementRequest $request): JsonResponse

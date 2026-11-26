@@ -126,6 +126,7 @@ the execution log.
 | Notices in the reader's language and only to active people; vacancies on the public site and not over-filled; announcements fit | #466, #482, #510, #624 | NOT-006, NOT-007, VAC-004, ANN-009; NOT-005, VAC-001 changed |
 | Public site: what the product does, call links, feed out of shared caches | #507, #519, #632 | MKT-013, MKT-014, LAND-009; MKT-006, NEWS-003 changed |
 | Webhooks: delivery id signed, held deliveries expire, connect to the checked address | #489, #624 | WH-008, WH-009; WH-003, KEY-006 changed |
+| An announcement reads the same everywhere, and every reader can open one in full | #836, #843 | ANN-010 to ANN-018 |
 
 **Third edition, stage 2, file 05** (2026-11-08). #646 merged after the rest; check S-01 before running its cases:
 
@@ -331,6 +332,20 @@ https://www.ethr.et`); a case whose commit is not live yet is recorded Blocked, 
 | The UAT guide brought up to date with what shipped since 2026-11-14 | this edition | [02](02-UAT-GUIDE.md): UAT-A5, UAT-A8, UAT-E3, UAT-F4, UAT-H2, UAT-H6, UAT-H13, UAT-H15, UAT-H16, UAT-H18, UAT-P1 changed 2026-11-17 |
 | A held badge says what the Hikvision terminal calls it, offers the employees that name could be (never assigns), carries the name into "Add as a new employee" and the downloaded list | #785 | DEV-070 to DEV-072 |
 | A pulled terminal's sync interval has a floor of 5 minutes (the scheduler ticks every five), the select and the API refuse less, a device stored lower reads as 5, and the screen says "At most every :count min" with a hint that a late pull loses nothing | #788 | DEV-073 |
+| A committed list's additions can be undone: the button "Undo this list's additions" on the committed screen for someone who may delete employees, a preview that names who is archived and who is kept and why, archive in slices that spare anyone used since and close an unused login, one audit entry, the second group "Lists added recently" on the card; the people a list made are recorded on each row, and for older lists worked out | #808 | STG-051 to STG-054; MASS-006, MASS-010 changed |
+| SSO is offered on the sign-in page and shown as "Enabled" only when the entity ID, the SSO URL and a certificate are all set; otherwise the card reads "Not ready" and names what is missing, and a save that would leave SSO on without them is 422 | #838 | SSO-006, SSO-007; SSO-002 changed |
+| The SCIM page lists the organisation's own tokens (name, prefix, created, last used, expiry) and revokes them behind a confirmation, for holders of `apikey.manage`; anyone else is told who can; a switched-off feature is said on the page | #839 | SCIM-004 to SCIM-006 |
+| Payroll rules and their sidebar row follow `payroll.viewConfig` (change: `payroll.manageConfig`), not the Tenant Admin role; the four cards that save the organisation's settings need `settings.manage`; the accounting chart saves only with `payroll.manageConfig` | #841 | PAY-042, PAY-043; PAY-001, PAY-007 changed |
+| The organisation's language accepts only the shipped languages (English, Amharic, Afaan Oromoo); `ti` and `so` are 422 | #851 | TEN-028 |
+| Holidays marks estimated dates "Estimated" and warns, within 90 days of the last one-time holiday, that the next year's are missing | #852 | HOL-006, HOL-007; HOL-001 changed |
+| Notification templates take an Afaan Oromoo subject and body; a reader gets their own language's text before English; default names in sentence case and no em dash in any subject | #853 | NOT-008 to NOT-010 |
+| The SSO URL must be https; the sign-out URL and the attribute mapping, which nothing read, are no longer accepted | #856 | SSO-008 |
+| The Security tab gains Password rules (8 to 128, four switches), Activation codes (1 to 72 hours) and Sign-in methods, each saved on its own and audited | #857 | PWD-016, ACT-014, AUTH-043 |
+| `?tab=` is written back to the address when a tab is chosen, so a tab can be linked, survives a reload and Back leaves the page in one step | #861 | UI-015 |
+| Every settings page, and the General tab's Branding, Security and SSO tabs, is found from the command palette, filtered by permission, in all three languages | #864 | UI-016 |
+| Settings forms warn before the browser closes, reloads or leaves the page with an unsaved change (not for an in-app link), and one hidden status line announces "Settings saved" or the reason a save failed | #865 | UI-017, UI-018; UI-005 changed |
+| `GET /navigation/badges` draws the sidebar and tab bar counts instead of the whole manager dashboard; a count the person may not see is `null` | #866 | UI-019 |
+| Settings sub-pages read "Admin › Settings › page"; British spelling in route text and sidebar; "Not set" for an empty username; the Users search and each exit-checklist checkbox have names; General's card titles are h2 | #872 | UI-020 |
 
 **Not in the pack on 2026-11-10, on purpose.** Work that had no pull request that day (three
 pieces in local worktrees and one pushed branch) has no case: it can still change before anyone

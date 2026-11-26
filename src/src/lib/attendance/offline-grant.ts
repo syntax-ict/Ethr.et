@@ -1,4 +1,5 @@
 import { apiClient } from "@/api/client";
+import { OFFLINE_GRANT_PREFIX } from "@/lib/offline-signout";
 
 /**
  * The server's permission to punch offline (see OfflineGrant on the API).
@@ -19,10 +20,18 @@ interface StoredGrant {
   rp_id?: string | null;
 }
 
-const PREFIX = "ethr.offline_grant.";
+const PREFIX = OFFLINE_GRANT_PREFIX;
 
-/** Renew a grant with less than this left, so a long outage stays covered. */
-const RENEW_BEFORE_MS = 24 * 60 * 60 * 1000;
+/**
+ * Renew a grant once it is this old (by `issued_at`). The grant is valid for
+ * 72 hours, a server policy this does not change. The punch page renews it
+ * whenever it is open with signal and the grant is over 6 hours old, so a phone
+ * that was online on that page within the 6 hours before it lost signal holds a
+ * grant with at least 66 hours left. A phone that was not has less, down to
+ * none; the punch screen then says so (offline-binding.ts) rather than saving a
+ * punch the server would refuse.
+ */
+const RENEW_AFTER_MS = 6 * 60 * 60 * 1000;
 
 function read(employeePublicId: string): StoredGrant | null {
   try {
@@ -56,16 +65,21 @@ export function currentOfflineDevice(
 }
 
 /**
- * Fetch a fresh grant when the stored one is missing or close to expiry, or
- * when the phone has just been registered and the grant does not name it.
+ * Fetch a fresh grant when the stored one is missing, expired or more than 6
+ * hours old, or when the phone has just been registered and the grant does not
+ * name it.
  */
 export async function refreshOfflineGrant(
   employeePublicId: string,
   hasRegisteredPhone = false,
 ): Promise<void> {
   const stored = read(employeePublicId);
+  const issuedAt = stored ? Date.parse(stored.issued_at) : NaN;
   const fresh =
-    stored && Date.parse(stored.expires_at) - Date.now() > RENEW_BEFORE_MS;
+    stored &&
+    Date.parse(stored.expires_at) > Date.now() &&
+    Number.isFinite(issuedAt) &&
+    Date.now() - issuedAt <= RENEW_AFTER_MS;
   if (fresh && (!hasRegisteredPhone || stored.device_nonce)) {
     return;
   }

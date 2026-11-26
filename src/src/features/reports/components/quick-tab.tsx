@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import {
   reportCutNote,
   reportFieldLabel,
@@ -161,6 +162,40 @@ const PRESET_TEXT: Record<string, (t: T) => { title: string; desc: string }> = {
     desc: t(
       "reports_page.presets.attendance_by_branch.desc",
       "Days present, late and absent for the month, totalled per branch or site.",
+    ),
+  }),
+  late_and_early: (t) => ({
+    title: t(
+      "reports_page.presets.late_and_early.title",
+      "Late and early leave",
+    ),
+    desc: t(
+      "reports_page.presets.late_and_early.desc",
+      "Each person's late days and early departures, with the minutes, and the lateness payroll will deduct.",
+    ),
+  }),
+  overtime_by_rate: (t) => ({
+    title: t("reports_page.presets.overtime_by_rate.title", "Overtime by rate"),
+    desc: t(
+      "reports_page.presets.overtime_by_rate.desc",
+      "Overtime hours in each rate payroll pays (day, night, rest day, holiday), with the unapproved hours and the days over the legal limit.",
+    ),
+  }),
+  missing_punches: (t) => ({
+    title: t("reports_page.presets.missing_punches.title", "Missing punches"),
+    desc: t(
+      "reports_page.presets.missing_punches.desc",
+      "People whose days have a punch still to fix, or no attendance at all, for the month.",
+    ),
+  }),
+  attendance_by_department: (t) => ({
+    title: t(
+      "reports_page.presets.attendance_by_department.title",
+      "Attendance by department",
+    ),
+    desc: t(
+      "reports_page.presets.attendance_by_department.desc",
+      "Days present, late, absent and on leave, and the hours short, for the month, totalled per department.",
     ),
   }),
   payroll_by_cost_center: (t) => ({
@@ -389,6 +424,24 @@ export function QuickTab() {
                         )}
                         {t("reports_page.run")}
                       </Button>
+                      {preset.key === "monthly_timesheet" ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="ml-2"
+                          asChild
+                        >
+                          <Link
+                            href={`/reports/timesheet?from=${reportMonthRange(month).from}&to=${reportMonthRange(month).to}`}
+                          >
+                            <CalendarCheck className="mr-2 h-3 w-3" />
+                            {t(
+                              "reports_page.timesheet.open_grid",
+                              "Open as a day-by-day grid",
+                            )}
+                          </Link>
+                        </Button>
+                      ) : null}
                     </CardContent>
                   </Card>
                 );

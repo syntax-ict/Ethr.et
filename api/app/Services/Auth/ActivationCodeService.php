@@ -421,7 +421,13 @@ final class ActivationCodeService
 
     private function ttlHours(): int
     {
-        $raw = $this->currentTenant->get()?->getAttribute('settings');
+        return self::ttlHoursFor($this->currentTenant->get());
+    }
+
+    /** How long a code issued one at a time lives for a tenant, as enforced. */
+    public static function ttlHoursFor(?Tenant $tenant): int
+    {
+        $raw = $tenant?->getAttribute('settings');
         $settings = is_array($raw) ? $raw : [];
         $hours = (int) ($settings['activation_code_hours'] ?? self::DEFAULT_TTL_HOURS);
 

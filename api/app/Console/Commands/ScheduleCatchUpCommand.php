@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Support\HealthSignals;
 use Cron\CronExpression;
 use DateTimeZone;
 use Illuminate\Console\Command;
@@ -28,6 +29,11 @@ use Throwable;
  * since then, once, however late the call. An event that came due several times
  * in the gap (an hourly report after a six-hour gap) runs once: each run covers
  * "now", not each missed slot.
+ *
+ * The marker lives in the `signals` store (HealthSignals), not the default one:
+ * every release runs `optimize:clear`, which empties the default store, and a
+ * run that found no marker would cover only its own minute and skip whatever
+ * came due between the last tick and the deploy.
  *
  * The first call on a deployment covers only the current minute, so deploying
  * this does not fire a month of missed work at once. The window is capped for
@@ -92,7 +98,7 @@ final class ScheduleCatchUpCommand extends Command
             }
         }
 
-        Cache::forever(self::LAST_RUN_KEY, $now->getTimestamp());
+        HealthSignals::store()->forever(self::LAST_RUN_KEY, $now->getTimestamp());
 
         if ($ran === 0) {
             $this->line('No scheduled tasks came due since the last run.');
@@ -104,7 +110,8 @@ final class ScheduleCatchUpCommand extends Command
     /** Exclusive start of the window: the last run, bounded; the previous minute on a first run. */
     private function windowStart(Carbon $now): Carbon
     {
-        $last = Cache::get(self::LAST_RUN_KEY);
+        // Upgrade path: the release that moved the marker finds it in the old place, once.
+        $last = HealthSignals::store()->get(self::LAST_RUN_KEY) ?? Cache::store()->get(self::LAST_RUN_KEY);
         $floor = $now->copy()->subDays(self::MAX_WINDOW_DAYS);
 
         if (! is_numeric($last)) {

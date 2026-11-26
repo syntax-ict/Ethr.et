@@ -1,7 +1,17 @@
 import {
   Activity,
   AlarmClock,
+  Archive,
   Banknote,
+  BookOpen,
+  Coins,
+  Lock,
+  Mail,
+  Palette,
+  ShieldCheck,
+  SlidersHorizontal,
+  Timer,
+  UserCog,
   BarChart3,
   Bell,
   Briefcase,
@@ -16,7 +26,6 @@ import {
   Clock,
   Contact,
   CreditCard,
-  Download,
   FilePenLine,
   FileText,
   Fingerprint,
@@ -81,6 +90,12 @@ export interface NavContext {
   /** Today's date, ISO, for destinations that open one day. */
   today: string;
 }
+
+/** The label a row is filed under in the palette: a group's, or "Settings". */
+export type DestinationContext = Pick<
+  DestinationGroup,
+  "labelKey" | "labelFallback"
+>;
 
 export interface Destination {
   /** Stable, never shown: keys `intent.<id>.phrases` and test names. */
@@ -327,7 +342,7 @@ const TENANT_SECTIONS: NavSectionDef[] = [
         id: "organization",
         href: "/organization",
         labelKey: "nav.organization",
-        labelFallback: "Organization",
+        labelFallback: "Organisation",
         icon: Building2,
         show: (c) => c.can.manageOrg,
       }),
@@ -621,8 +636,8 @@ export function navSections(ctx: NavContext): NavSectionDef[] {
 
 /**
  * Pages with no sidebar row of their own, reachable from the palette: the
- * person's own profile and notifications, and the settings pages the hub
- * lists. Each settings row repeats the gate `settings-nav.tsx` applies.
+ * person's own profile, notifications and help requests. The settings pages
+ * are `SETTINGS_DESTINATIONS`, below.
  */
 export const MORE_DESTINATIONS: Destination[] = [
   {
@@ -660,111 +675,285 @@ export const MORE_DESTINATIONS: Destination[] = [
     icon: CalendarClock,
     show: (c) => c.can.manageEmployees,
   },
+];
+// ── Settings ─────────────────────────────────────────────────────────────────
+
+/**
+ * What a settings row's gate reads. A subset of `NavContext`, so the settings
+ * navigation, which has no sidebar context of its own, can ask the same
+ * question the palette asks.
+ */
+export type SettingsAccess = Pick<NavContext, "can" | "isSuperAdmin">;
+
+export interface SettingsDestination extends Destination {
+  href: string;
+  show: (ctx: SettingsAccess) => boolean;
+  /**
+   * Where the settings navigation links, when that is not the address the
+   * palette opens: the left nav's General is `/settings`, which highlights by
+   * path, while the palette opens `/settings?tab=general`.
+   */
+  navHref?: string;
+}
+
+export interface SettingsGroup {
+  titleKey: string;
+  titleFallback: string;
+  items: SettingsDestination[];
+}
+
+/**
+ * The settings hub, once. `settings-nav.tsx` draws it as its left navigation
+ * and the command palette searches it, so a page cannot be in one and not the
+ * other. Each row carries the ability its page and API check; the people who
+ * hold it (an HR admin holds Users, Leave Types and Holidays, not Settings)
+ * are the people it is offered to, in both places (audit N91).
+ *
+ * A row's search phrases are `intent.<id>.phrases`, so "sso", "tax" or
+ * "webhooks" find it in every language the dictionaries cover.
+ */
+export const SETTINGS_GROUPS: SettingsGroup[] = [
   {
-    id: "users",
-    href: "/settings/users",
-    labelKey: "nav.users",
-    labelFallback: "Users & Access",
-    icon: Users,
-    show: (c) => c.can.viewUsers,
+    titleKey: "settings.nav.workspace",
+    titleFallback: "Workspace",
+    items: [
+      {
+        id: "settings_general",
+        href: "/settings?tab=general",
+        navHref: "/settings",
+        labelKey: "settings.tab_general",
+        labelFallback: "General",
+        icon: SlidersHorizontal,
+        show: (c) => c.can.manageSettings,
+      },
+    ],
   },
   {
-    id: "roles",
-    href: "/settings/roles",
-    labelKey: "nav.roles",
-    labelFallback: "Roles & Permissions",
-    icon: Shield,
+    titleKey: "settings.nav.configuration",
+    titleFallback: "Configuration",
+    items: [
+      {
+        id: "attendance_rules",
+        href: "/settings/attendance",
+        labelKey: "nav.attendance_rules",
+        labelFallback: "Attendance Rules",
+        icon: Clock,
+        show: (c) => c.can.manageAttendance,
+      },
+      {
+        id: "shift_rules",
+        href: "/shifts",
+        labelKey: "nav.shift_config",
+        labelFallback: "Shift Rules",
+        icon: Timer,
+        show: (c) => c.can.manageShifts,
+      },
+      {
+        id: "leave_types",
+        href: "/settings/leave-types",
+        labelKey: "nav.leave_types",
+        labelFallback: "Leave Types",
+        icon: ListChecks,
+        show: (c) => c.can.manageLeaveTypes,
+      },
+      {
+        id: "holidays",
+        href: "/settings/holidays",
+        labelKey: "nav.holidays",
+        labelFallback: "Holidays",
+        icon: Calendar,
+        show: (c) => c.can.manageHolidays,
+      },
+      {
+        id: "approval_chains",
+        href: "/settings/approval-chains",
+        labelKey: "nav.approval_chains",
+        labelFallback: "Approval chains",
+        icon: GitBranch,
+        show: (c) => c.can.manageSettings,
+      },
+      {
+        id: "exit_clearance_checklist",
+        href: "/settings/exit-clearance",
+        labelKey: "nav.exit_clearance_checklist",
+        labelFallback: "Exit checklist",
+        icon: ClipboardCheck,
+        show: (c) => c.can.manageSettings,
+      },
+      {
+        id: "payroll_rules",
+        href: "/settings/payroll",
+        labelKey: "nav.payroll_config",
+        labelFallback: "Payroll Rules",
+        icon: Coins,
+        // payroll.viewConfig reads the rules; changing them takes
+        // payroll.manageConfig, which the page checks.
+        show: (c) => c.can.viewPayrollConfig && !c.isSuperAdmin,
+      },
+      {
+        id: "opening_balances",
+        href: "/settings/opening-balances",
+        labelKey: "nav.opening_balances",
+        labelFallback: "Opening balances",
+        icon: Upload,
+        show: (c) => c.can.adjustLeaveBalance || c.can.manageLoans,
+      },
+    ],
+  },
+  {
+    titleKey: "settings.nav.access",
+    titleFallback: "Access & Security",
+    items: [
+      {
+        id: "users",
+        href: "/settings/users",
+        labelKey: "nav.users",
+        labelFallback: "Users & Access",
+        icon: UserCog,
+        // users.viewAny, which HR admins hold too; the API guards which
+        // accounts each may change (N68).
+        show: (c) => c.can.viewUsers,
+      },
+      {
+        id: "roles",
+        href: "/settings/roles",
+        labelKey: "nav.roles",
+        labelFallback: "Roles & Permissions",
+        icon: ShieldCheck,
+        show: (c) => c.can.manageSettings,
+      },
+    ],
+  },
+  {
+    titleKey: "nav.integrations",
+    titleFallback: "Integrations",
+    items: [
+      {
+        id: "api_keys",
+        href: "/settings/api-keys",
+        labelKey: "nav.api_keys",
+        labelFallback: "API Keys",
+        icon: KeyRound,
+        show: (c) => c.can.manageApiKeys,
+      },
+      {
+        id: "webhooks",
+        href: "/settings/webhooks",
+        labelKey: "nav.webhooks",
+        labelFallback: "Webhooks",
+        icon: Webhook,
+        show: (c) => c.can.manageWebhooks,
+      },
+      {
+        id: "accounting",
+        href: "/settings/accounting",
+        labelKey: "nav.accounting",
+        labelFallback: "Accounting",
+        icon: BookOpen,
+        show: (c) => c.can.viewPayrollRuns,
+      },
+      {
+        id: "notification_templates",
+        href: "/settings/notification-templates",
+        labelKey: "nav.notification_templates",
+        labelFallback: "Notification Templates",
+        icon: Mail,
+        show: (c) => c.can.manageSettings,
+      },
+      {
+        id: "scim",
+        href: "/settings/scim",
+        labelKey: "nav.scim",
+        labelFallback: "SCIM Provisioning",
+        icon: UserCog,
+        show: (c) => c.can.manageSettings,
+      },
+    ],
+  },
+  {
+    titleKey: "settings.nav.compliance",
+    titleFallback: "Compliance",
+    items: [
+      {
+        id: "audit_log",
+        href: "/settings/audit-logs",
+        labelKey: "nav.audit_log",
+        labelFallback: "Audit Log",
+        icon: ScrollText,
+        show: (c) => c.can.manageSettings,
+      },
+      {
+        id: "data_export",
+        href: "/settings/data-export",
+        labelKey: "nav.data_export",
+        labelFallback: "Data export",
+        icon: Archive,
+        show: (c) => c.can.manageSettings,
+      },
+    ],
+  },
+];
+
+/**
+ * The tabs of Settings > General beyond the first, which is the page itself
+ * (`settings_general` above). Palette only: the settings navigation lists
+ * pages, and a tab is reached from the page. `?tab=` is what
+ * `settings/page.tsx` reads, and `settings-search.test.ts` keeps the two
+ * lists equal. Each tab is on the page's own gate, `settings.manage`.
+ */
+export const SETTINGS_TABS: SettingsDestination[] = [
+  {
+    id: "settings_branding",
+    href: "/settings?tab=branding",
+    labelKey: "settings.tab_branding",
+    labelFallback: "Branding",
+    icon: Palette,
     show: (c) => c.can.manageSettings,
   },
   {
-    id: "holidays",
-    href: "/settings/holidays",
-    labelKey: "nav.holidays",
-    labelFallback: "Holidays",
-    icon: Calendar,
-    show: (c) => c.can.manageHolidays,
-  },
-  {
-    id: "approval_chains",
-    href: "/settings/approval-chains",
-    labelKey: "nav.approval_chains",
-    labelFallback: "Approval chains",
-    icon: GitBranch,
+    id: "settings_security",
+    href: "/settings?tab=security",
+    labelKey: "settings.tab_security",
+    labelFallback: "Security",
+    icon: Lock,
     show: (c) => c.can.manageSettings,
   },
   {
-    id: "exit_clearance_checklist",
-    href: "/settings/exit-clearance",
-    labelKey: "nav.exit_clearance_checklist",
-    labelFallback: "Exit checklist",
-    icon: ClipboardCheck,
-    show: (c) => c.can.manageSettings,
-  },
-  {
-    id: "leave_types",
-    href: "/settings/leave-types",
-    labelKey: "nav.leave_types",
-    labelFallback: "Leave Types",
-    icon: CalendarDays,
-    show: (c) => c.can.manageLeaveTypes,
-  },
-  {
-    id: "attendance_rules",
-    href: "/settings/attendance",
-    labelKey: "nav.attendance_rules",
-    labelFallback: "Attendance Rules",
-    icon: Clock,
-    show: (c) => c.can.manageAttendance,
-  },
-  {
-    id: "shift_rules",
-    href: "/shifts",
-    labelKey: "nav.shift_config",
-    labelFallback: "Shift Rules",
-    icon: CalendarRange,
-    show: (c) => c.can.manageShifts,
-  },
-  {
-    id: "payroll_rules",
-    href: "/settings/payroll",
-    labelKey: "nav.payroll_config",
-    labelFallback: "Payroll Rules",
-    icon: Wallet,
-    show: (c) => c.isTenantAdmin && !c.isSuperAdmin,
-  },
-  {
-    id: "api_keys",
-    href: "/settings/api-keys",
-    labelKey: "nav.api_keys",
-    labelFallback: "API Keys",
-    icon: KeyRound,
-    show: (c) => c.can.manageApiKeys,
-  },
-  {
-    id: "webhooks",
-    href: "/settings/webhooks",
-    labelKey: "nav.webhooks",
-    labelFallback: "Webhooks",
-    icon: Webhook,
-    show: (c) => c.can.manageWebhooks,
-  },
-  {
-    id: "audit_log",
-    href: "/settings/audit-logs",
-    labelKey: "nav.audit_log",
-    labelFallback: "Audit Log",
-    icon: ScrollText,
-    show: (c) => c.can.manageSettings,
-  },
-  {
-    id: "data_export",
-    href: "/settings/data-export",
-    labelKey: "nav.data_export",
-    labelFallback: "Data export",
-    icon: Download,
+    id: "settings_sso",
+    href: "/settings?tab=sso",
+    labelKey: "settings.tab_sso",
+    labelFallback: "SSO",
+    icon: Fingerprint,
     show: (c) => c.can.manageSettings,
   },
 ];
+
+/** Every settings destination the palette can offer: General, its tabs, then the pages. */
+export const SETTINGS_DESTINATIONS: SettingsDestination[] = [
+  ...SETTINGS_GROUPS[0].items,
+  ...SETTINGS_TABS,
+  ...SETTINGS_GROUPS.slice(1).flatMap((g) => g.items),
+];
+
+/** What a settings row is filed under in the palette: "Settings > Holidays". */
+export const SETTINGS_CONTEXT: DestinationContext = {
+  labelKey: "nav.settings",
+  labelFallback: "Settings",
+};
+
+/**
+ * The first page of the hub this person may open, for the sidebar's Settings
+ * row, or null when none is theirs. A page inside the hub first: only
+ * /settings/* renders the settings navigation, and Shift Rules leads to
+ * /shifts, outside it, so landing there would leave an HR admin with no way on
+ * to Leave Types, Holidays or Users (audit N98).
+ */
+export function settingsLandingFor(access: SettingsAccess): string | null {
+  const hrefs = SETTINGS_GROUPS.flatMap((g) => g.items)
+    .filter((i) => i.show(access))
+    .map((i) => i.navHref ?? i.href);
+  return hrefs.find((h) => h.startsWith("/settings")) ?? hrefs[0] ?? null;
+}
 
 // ── Quick actions ────────────────────────────────────────────────────────────
 
@@ -994,14 +1183,18 @@ export function phrasesKey(id: string): string {
  */
 export function visibleDestinations(
   ctx: NavContext,
-): Array<Destination & { context?: DestinationGroup }> {
-  const out: Array<Destination & { context?: DestinationGroup }> = [];
+): Array<Destination & { context?: DestinationContext }> {
+  const out: Array<Destination & { context?: DestinationContext }> = [];
   const seen = new Set<string>();
-  const add = (d: Destination, context?: DestinationGroup) => {
+  const add = (d: Destination, context?: DestinationContext) => {
     if (!d.show(ctx)) return;
     const href = resolveHref(d.href, ctx);
     if (seen.has(href)) return;
-    seen.add(href);
+    // The sidebar's Settings row leads to the first settings page the person
+    // holds, so for an HR admin it is /settings/holidays. It answers to
+    // "settings" alone; letting it claim that address hid Holidays from a
+    // search for "holidays".
+    if (d.id !== "settings") seen.add(href);
     out.push(context ? { ...d, context } : d);
   };
   for (const section of navSections(ctx)) {
@@ -1011,6 +1204,10 @@ export function visibleDestinations(
     }
   }
   MORE_DESTINATIONS.forEach((d) => add(d));
+  // Tenant configuration: a platform account has no organisation to configure.
+  if (!ctx.isSuperAdmin) {
+    SETTINGS_DESTINATIONS.forEach((d) => add(d, SETTINGS_CONTEXT));
+  }
   return out;
 }
 

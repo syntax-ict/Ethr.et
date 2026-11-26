@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Attendance;
 
 use App\Enums\AttendanceMode;
+use App\Enums\AttendanceStatus;
 use App\Enums\ExpectedDay;
 use App\Http\Controllers\Api\V1\Profile\ProfilePreferencesController;
 use App\Models\AttendanceRecord;
@@ -47,8 +48,15 @@ final class MyShiftService
 
         // A check-in still open from yesterday's shift (a night shift, or
         // overtime past midnight) is today's business until it is closed.
+        //
+        // A voided record is never today's record. A merged duplicate keeps
+        // its check-in and has no check-out, so it looked open: the screen
+        // said "Checked in" and offered a check-out the engine then refused,
+        // since it closes only a record that is not voided (production,
+        // 2026-11-24).
         $open = AttendanceRecord::query()
             ->where('employee_id', $employee->id)
+            ->where('status', '!=', AttendanceStatus::VOIDED)
             ->whereNotNull('check_in')
             ->whereNull('check_out')
             ->where('check_in', '>=', Carbon::now('UTC')->subHours(AttendanceRules::MAX_OPEN_HOURS))
@@ -65,6 +73,7 @@ final class MyShiftService
 
         $record = $open ?? AttendanceRecord::query()
             ->where('employee_id', $employee->id)
+            ->where('status', '!=', AttendanceStatus::VOIDED)
             ->whereDate('date', $day->format('Y-m-d'))
             ->latest('check_in')
             ->first();

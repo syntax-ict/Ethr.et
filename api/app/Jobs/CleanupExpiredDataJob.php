@@ -43,10 +43,16 @@ class CleanupExpiredDataJob implements ShouldQueue
 
         // A pushed punch already handed to the engine is kept a week for
         // anyone asking what a terminal sent. One still waiting is never
-        // deleted.
+        // deleted, and neither is one in quarantine (`failed_at`) until a
+        // person has dismissed it and a week has passed.
         $deleted += DB::table('device_inbound_punches')
             ->whereNotNull('processed_at')
+            ->whereNull('failed_at')
             ->where('processed_at', '<', now()->subDays(7))
+            ->delete();
+        $deleted += DB::table('device_inbound_punches')
+            ->whereNotNull('dismissed_at')
+            ->where('dismissed_at', '<', now()->subDays(7))
             ->delete();
 
         // Import staging data: hard delete once nobody has touched the batch

@@ -1,0 +1,16 @@
+{
+  "device": "desktop",
+  "width": 2560,
+  "height": 2200,
+  "path": "/employees",
+  "markers": [
+    {
+      "n": 1,
+      "x": 1758,
+      "y": 242,
+      "w": 400,
+      "h": 80,
+      "pin": "below"
+    }
+  ]
+}

@@ -234,8 +234,8 @@ line under the Example sheet. A native reading is owed for the am and om strings
 | `leave_types_page.working_week` | Working week | የሥራ ሳምንት |
 | `leave_types_page.working_week_admin_only` | Only an organisation admin can change the working week. | የሥራ ሳምንቱን መቀየር የሚችለው የድርጅት አስተዳዳሪ ብቻ ነው። |
 | `leave_types_page.working_week_desc` | The days a leave request counts. Holidays are not counted. | የፈቃድ ጥያቄ የሚቆጥራቸው ቀናት። በዓላት አይቆጠሩም። |
-| `offline.page_body` | No internet connection. Check your network and try again. Attendance you record offline will sync automatically when you reconnect. | የበይነመረብ ግንኙነት የለም። አውታረ መረብዎን ይፈትሹና እንደገና ይሞክሩ። ከመስመር ውጪ የመዘገቡት መገኘት ሲገናኙ በራሱ ይመሳሰላል። |
-| `offline.page_title` | You are offline | ከመስመር ውጪ ነዎት |
+| `offline.page_body` | No internet connection. Check your network and try again. Attendance you record offline will sync automatically when you reconnect. | የኢንተርኔት ግንኙነት የለም። አውታረ መረብዎን ይፈትሹና እንደገና ይሞክሩ። ከመስመር ውጭ የመዘገቡት መገኘት ሲገናኙ በራሱ ይመሳሰላል። |
+| `offline.page_title` | You are offline | ከመስመር ውጭ ነዎት |
 | `org.field.grade_name_placeholder` | G1, Manager I, Level 5... | G1፣ ሥራ አስኪያጅ I፣ ደረጃ 5… |
 | `payroll_config.fiscal_year_start` | Fiscal year starts | የበጀት ዓመቱ የሚጀምርበት |
 | `payroll_config.fiscal_year_start_help` | Meskerem for most private organisations; Hamle for government. | ለአብዛኞቹ የግል ድርጅቶች መስከረም፤ ለመንግሥት ሐምሌ። |
@@ -627,3 +627,154 @@ The Amharic drafts:
 What to check first: that "የተከፈሉ ቀኖች" ("split days") is understood as one working day recorded in two parts,
 that "አዋህድ" ("join") matches the verb the Conflicts page already uses for a merged record (`ተዋህዷል`), and that
 "ሊታዩ ይቀራሉ" ("still to look at") reads naturally in the progress line.
+
+### Archive and restore people (2026-11-24)
+
+Drafts written without a native speaker; the wording reuses the Undo dialog's "ወደ ማህደር ውሰድ" for "archive".
+
+- `employees.bulk.archive`: ወደ ማህደር ውሰድ
+- `employees.filter_archived`: ወደ ማህደር የተወሰዱ
+- `employees.archive.desc`: ወደ ማህደር መውሰድ በስህተት ለተጨመሩ መዝገቦች ነው፤ ለምሳሌ ሁለት ጊዜ ለተጨመረ ሰው። ድርጅቱን የለቀቀ ሰው መዝገቡ እንዲቀር በምትኩ የመልቀቅ ሁኔታ ሊሰጠው ይገባል። ወደ ማህደር የተወሰደ መዝገብ «ወደ ማህደር የተወሰዱ» ከሚለው እይታ መመለስ ይችላል።
+- `employees.archive.keep_hint`: ታሪክ ስላላቸው በምትኩ በሁኔታ ለውጥ ይለቃሉ።
+- `employees.archive.reason_self`: ይህ የራስዎ መዝገብ ነው
+- `employees.restore.button`: መልስ; `employees.restore.desc`: የተመለሰ ሰው ከመዝገቡና ከታሪኩ ጋር ይመለሳል፤ በእቅድዎ ውስጥ አንድ መቀመጫም ይይዛል። ወደ ማህደር ሲወሰድ የተዘጋ መግቢያ እንደተዘጋ ይቀራል።
+- The other `employees.archive.*` and `employees.restore.*` lines, `audit.action.employee.bulk_archived` and `audit.action.employee.restored`; backend `employee.bulk_archive_failed` and `employee.bulk_restore_failed`.
+
+What to check first: that "መቀመጫ" ("seat") is how a plan's employee limit is said, and that "በምትኩ የመልቀቅ ሁኔታ" ("a leaving status instead") reads as the status an employee is given when they leave, not as a place.
+
+### Add employee form: grade, probation end, pay line, leaving, inline checks (2026-11-24)
+
+Drafted in Amharic and Afaan Oromoo without a native speaker, awaiting a native reading. The English is final.
+On the Add employee form: a Grade picker and a Probation end date field in the Job card, one line that takes
+the place of Salary and TIN for someone who may not set pay, a question before a link drops an unsaved form, and
+four messages shown under a field that breaks a rule the API also checks.
+
+| What | Where | Strings |
+|---|---|---|
+| Form labels, pay line, leave question | `src/src/lib/i18n/locales/{am,om}.json`, `employee.grade`, `employee.probation_end_date`, `employee.pay_added_by_pay_manager`, `employee.leave_unsaved_title`, `_desc`, `_leave`, `_stay` | 7 each |
+| Messages under a field | `validation.badge_format`, `validation.dob_future`, `validation.dob_minimum_age`, `validation.hire_date_too_far` | 4 each |
+
+The Amharic drafts:
+
+- `employee.grade`: ደረጃ
+- `employee.probation_end_date`: የሙከራ ጊዜ ማብቂያ ቀን
+- `employee.pay_added_by_pay_manager`: ደመወዝና የግብር ከፋይ መለያ ቁጥር (TIN) የሚጨመሩት ክፍያን በሚያስተዳድር ሰው ነው።
+- `employee.leave_unsaved_title`: ሳያስቀምጡ ይውጡ?
+- `employee.leave_unsaved_desc`: ይህ ሠራተኛ አልተቀመጠም። ያስገቡት መረጃ ይጠፋል።
+- `employee.leave_unsaved_leave`: ውጣ
+- `employee.leave_unsaved_stay`: አርትዖቱን ቀጥል
+- `validation.badge_format`: ፊደላትን፣ ቁጥሮችንና ሰረዝን ብቻ ይጠቀሙ
+- `validation.dob_future`: የትውልድ ቀን ያለፈ ቀን መሆን አለበት
+- `validation.dob_minimum_age`: ሰው በቅጥር ቀኑ ቢያንስ 15 ዓመት መሆን አለበት
+- `validation.hire_date_too_far`: የቅጥር ቀን ከአንድ ዓመት በላይ ወደፊት መሆን አይችልም
+
+What to check first: that "ክፍያን በሚያስተዳድር ሰው" ("someone who manages pay") names the role HR and finance
+staff recognise, and that "የሙከራ ጊዜ" matches the probation wording used on the employee profile.
+
+### Probation end hint on the Add employee form (2026-11-24)
+
+Drafted in Amharic and Afaan Oromoo without a native speaker, awaiting a native reading. The English is final.
+One line under Probation end date: with a date that has not passed, the person starts on probation and HR is
+reminded before it ends.
+
+- `employee.probation_end_hint`: ቀኑ ገና ካላለፈ ሰውየው በሙከራ ጊዜ ይጀምራል፤ ሙከራው ከመጠናቀቁ በፊት የሰው ሀብት ክፍሉ ማሳሰቢያ ይደርሰዋል።
+
+What to check first: that "የሰው ሀብት ክፍሉ" ("the human resources unit") is the term HR staff use for themselves.
+
+### Accept differences for many people (2026-11-24)
+
+| What | Where | Strings |
+|---|---|---|
+| Review screen: accept differences dialog | `src/src/lib/i18n/locales/{am,om}.json`, `accept_differences.button`, `title`, `desc`, `people_one`, `people`, `sensitive`, `held_one`, `held`, `confirm`, `running`, `result`, `result_pay`, `failed` | 13 each |
+| Row warning: may be someone else | `api/lang/{am,om}/onboarding.php`, `migration.maybe_other_person` | 1 each |
+
+The Amharic drafts:
+
+- `accept_differences.button`: ልዩነቶችን ተቀበል
+- `accept_differences.title`: ለብዙ ሰዎች ልዩነቶችን ተቀበል
+- `accept_differences.desc`: ከዚህ ዝርዝር ጋር ለተመሳሰሉ ሁሉ የሚወሰዱትን ዝርዝሮች ይምረጡ። ዝርዝሩ እስኪጨመር ድረስ ለማንም ምንም አይጻፍም።
+- `accept_differences.sensitive`: መጀመሪያ ላይ አልተመረጠም። በአንድ መስመር የተሸጋገረ ቁጥር የአንድን ሰው ዝርዝር በሌላ ሰው ላይ ያደርጋል።
+- `accept_differences.held_one`: 1 መስመር ሌላ ሰው ሊሆን ይችላል። በራሱ መስመር ላይ እንዲወስኑ ተትቷል።
+- `accept_differences.result`: ለ:accepted ሰዎች ተቀብሏል። :out_of_reach ሰዎችን ማስተካከል አይችሉም። :held መስመሮች ለእርስዎ ተትተዋል።
+- `accept_differences.result_pay`: ለ:accepted ሰዎች ተቀብሏል። :out_of_reach ሰዎችን ማስተካከል አይችሉም። :held መስመሮች ለእርስዎ ተትተዋል። ደመወዝና TIN ለ:pay_refused ሰዎች ተትተዋል፤ ክፍያ መቀየር አይችሉም።
+- `migration.maybe_other_person` (changed 2026-11-24: the row now waits for the reviewer): በዚህ መስመር ያለው ስም በቁጥር ከተመሳሰለው ሰው ስም ጋር አንድም ቃል አይጋራም፤ ስለዚህ ይህ መስመር እርስዎን እየጠበቀ ነው፣ ለዚያ ሰው ምንም አይጻፍም። ያረጋግጡ፣ እሱ ከሆነ አዋህድን ይምረጡ።
+
+What to check first: that "ተቀበል" ("accept") is the verb the list screens already use for taking a value from the list, that "ተሸጋገረ" ("shifted") reads as a number moved down by one line, and that "ተትቷል" ("left") reads as left for the reviewer rather than abandoned. The Afaan Oromoo lines are drafts and unread.
+
+### Bulk job title, supervisor, team and cost centre; select all matching (2026-11-24)
+
+Drafts written without a native speaker. The action names reuse the labels the employee form already carries ("የስራ መደብ", "ተቆጣጣሪ", "ቡድን", "የወጪ ማዕከል") and the verb of the existing "ክፍል ቀይር".
+
+- `employees.bulk.change_position`: የስራ መደብ ቀይር
+- `employees.bulk.change_supervisor`: ተቆጣጣሪ ቀይር
+- `employees.bulk.change_team`: ቡድን ቀይር
+- `employees.bulk.change_cost_center`: የወጪ ማዕከል ቀይር
+- `employees.bulk.page_all_selected`: በዚህ ገጽ ላይ ያሉ ሁሉም :count ሰዎች ተመርጠዋል።
+- `employees.bulk.select_all_matching`: ከዚህ ማጣሪያ ጋር የሚዛመዱ ሁሉንም :total ሰዎች ምረጥ
+- `employees.bulk.all_matching_selected`: ከዚህ ማጣሪያ ጋር የሚዛመዱ ሁሉም :count ሰዎች ተመርጠዋል።
+- `employees.bulk.all_matching_capped`: ከዚህ ማጣሪያ ጋር ከሚዛመዱ :total ሰዎች መካከል የመጀመሪያዎቹ :cap ብቻ ተመርጠዋል። የቀሩትን ለመድረስ ማጣሪያውን ያጥብቡ።
+- `employees.bulk.clear_all_matching`: ይህን ገጽ ብቻ ያዝ
+- `employees.bulk.select_all_failed`: የሰዎቹን ዝርዝር መጫን አልተቻለም።
+- `employees.bulk.position_rules`: የስራ መደብ የሰውየውን መግቢያ ሌላ ሚና ሊሰጠው ይችላል። በተጠቃሚዎች ገጽ ላይ በእጅ መስጠት የሚችሉትን ሚና ብቻ ይሰጣሉ፤ የቀሩት እዚያ ይጠብቃሉ።
+- `employees.bulk.supervisor_rules`: ሰው የራሱ ተቆጣጣሪ መሆን ወይም ለሚቆጣጠረው ሰው መታዘዝ አይችልም። ይህ የሚነካው ሰው አሁን ያለውን ተቆጣጣሪ ይዞ ይቆያል።
+- `employees.bulk.partial_unsent`: :updated ሰራተኞች ተዘምነዋል። ጥያቄው ስለወደቀ :count አልተላኩም።
+- `employees.bulk.result.title`: የሆነው
+- `employees.bulk.result.summary`: :updated ተቀይረዋል፣ :unchanged አስቀድመው እንደተጠየቀው ነበሩ፣ :failed አልተቀየሩም።
+- `employees.bulk.result.failed`: አልተቀየረም
+- `employees.bulk.result.unchanged`: አስቀድሞ እንደተጠየቀው ነው
+- `employees.bulk.result.access_held`: ተቀይሯል። የመግቢያ ሚናቸው በተጠቃሚዎች ገጽ ላይ ይጠብቃል።
+- `employees.bulk.result.unsent`: ጥያቄው ስለወደቀ :count ሰዎች አልተቀየሩም። ምርጫው ጸድቷል። በዝርዝሩ ውስጥ ያግኟቸው እና እርምጃውን እንደገና ያካሂዱ።
+
+What to check first: that "ለሚቆጣጠረው ሰው መታዘዝ" ("report to the person they supervise") reads as a reporting line and not as obedience, and that "ማጣሪያውን ያጥብቡ" ("narrow the filter") is how a list filter is narrowed in the screens already shipped.
+
+### Bringing archived people back from a list (2026-11-24)
+
+| What | Where | Strings |
+|---|---|---|
+| Review screen: the action, the note and the reason | `src/src/lib/i18n/locales/{am,om}.json`, `setup2.action_restore`, `setup2.restore_note`, `setup2.restore_blocked`, `setup2.migration_done_restored` | 4 each |
+| Row warnings: why someone was not brought back | `api/lang/{am,om}/onboarding.php`, `migration.maybe_other_person_archived`, `migration.restore_refused_gone`, `_not_archived`, `_in_use`, `_no_permission`, `_no_seat`, `_number_taken`, `_failed` | 8 each |
+
+The Amharic drafts:
+
+- `setup2.action_restore`: መልስ
+- `setup2.restore_note`: ወደ ማህደር ተወስዷል። ዝርዝሩ ሲጨመር በዚህ መስመር ዝርዝሮች ይመለሳል።
+- `setup2.restore_blocked`: ከዝርዝር ሊመለስ አይችልም፦ :reasons። ሊመለስ ከሆነ ወደ ማህደር ከተወሰዱት እይታ ይመልሱት።
+- `setup2.migration_done_restored`: ፍልሰት ተጠናቅቋል፦ :created ተፈጥረዋል፣ :restored ተመልሰዋል፣ :merged ተዋህደዋል፣ :updated ተስተካክለዋል
+- `migration.maybe_other_person_archived`: በዚህ መስመር ያለው ስም በቁጥር ከተመሳሰለው ወደ ማህደር የተወሰደ ሰው ስም ጋር አንድም ቃል አይጋራም፤ ስለዚህ ይህ መስመር እርስዎን እየጠበቀ ነው፣ ማንም አይመለስም። ያረጋግጡ፣ እሱ ከሆነ መልስን ይምረጡ።
+- `migration.restore_refused_not_archived`: ይህ ሰው ወደ ማህደር አልተወሰደም፤ ስለዚህ የሚመለስ ሰው የለም። መዝገቡን ለመሙላት አዋህድን ይምረጡ።
+- `migration.restore_refused_in_use`: ይህ ሰው ከጨመረው ዝርዝር በኋላ ጥቅም ላይ ውሏል፤ ስለዚህ ከዝርዝር ሊመለስ አይችልም። ሊመለስ ከሆነ ወደ ማህደር ከተወሰዱት እይታ ይመልሱት።
+- `migration.restore_refused_no_seat`: በእቅድዎ ውስጥ መቀመጫ ስለሌለ ይህ ሰው አልተመለሰም። መቀመጫ ያስለቅቁ ወይም እቅዱን ይቀይሩ፣ ከዚያ ይህን ዝርዝር እንደገና ይጨምሩ።
+- `migration.restore_refused_number_taken`: በዚህ መስመር ያለው የሰራተኛ ቁጥር አሁን የሌላ መዝገብ ስለሆነ ይህ ሰው አልተመለሰም።
+- The other `migration.restore_refused_*` lines (`gone`, `no_permission`, `failed`).
+- `migration.restore_refused_in_use` is also the note on a row whose archived person has been used and whose name shares nothing with the line (it replaces "choose restore if it is them" there). No new string.
+
+What to check first: that "መልስ" ("restore") is the verb the Archived view already uses on its button, and that "ከጨመረው ዝርዝር በኋላ ጥቅም ላይ ውሏል" ("has been used since the list that added them") reads as work done for the person, not as a thing used up. The Afaan Oromoo lines are drafts and unread.
+
+### Reach from the lists card: a corrected file and one way in from Employees (2026-11-25)
+
+| What | Where | Strings |
+|---|---|---|
+| "Add a corrected file" on a list whose additions were undone | `src/src/lib/i18n/locales/{am,om}.json`, `migration_lists.add_corrected` | 1 each |
+| Add-employee menu item that opens the import page at the lists card | `src/src/lib/i18n/locales/{am,om}.json`, `employees.add_menu.recent_lists` | 1 each |
+
+The Amharic drafts:
+
+- `migration_lists.add_corrected`: የተስተካከለ ፋይል ያክሉ
+- `employees.add_menu.recent_lists`: በቅርቡ የጨመሯቸው ዝርዝሮች
+
+What to check first: that "የተስተካከለ ፋይል" ("a corrected file") reads as the file after fixing, not as a file that was edited by the system, and that "ያክሉ" matches the verb already used on the import screen for adding a list. The Afaan Oromoo lines are drafts and unread.
+
+### One word for an archived person on the import review screen (2026-11-26)
+
+| What | Where | Strings |
+|---|---|---|
+| The match line for a person who was archived earlier, which said "deleted" beside a sentence that said "archived" | `src/src/lib/i18n/locales/{am,om}.json`, `setup2.outcome_archived` | 1 each |
+
+The drafts:
+
+- `setup2.outcome_archived` (am): ቀደም ብሎ ወደ ማህደር የተወሰደ (was ቀደም ብሎ የተሰረዘ)
+- `setup2.outcome_archived` (om): duraan kuufame (was duraan haqame)
+
+Both come from the existing archive vocabulary (`employees.archive.col_archived`, `employees.archive.done_one`).
+
+What to check first: that "ወደ ማህደር የተወሰደ" reads as "moved to the archive, can be brought back", not as removed for good, and that "kuufame" is the word the Archived view already uses. The Afaan Oromoo line is a draft and unread.

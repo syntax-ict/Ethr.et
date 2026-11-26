@@ -11,6 +11,17 @@ declare(strict_types=1);
  * It does **not** claim these 158 bypasses are correct. Auditing each one is a
  * human job and this file is not the record of it.
  *
+ * (2026-11-23, one lookup for "this organisation's users holding these roles":
+ * the four listeners that each wrote it (`NotifyDeviceOffline`,
+ * `NotifyDeviceSyncFailed`, `NotifyPayrollProcessed`, `NotifyPayrollRunFailed`)
+ * went, and `Support/TenantRecipients` joined, 205/80. It drops only the
+ * `tenant` scope and states `tenant_id` from the caller's device or payroll run,
+ * both tenant-owned; it returns active users only.)
+ * (2026-11-21, device capture export: one more, in
+ * `Admin/AdminDeviceCaptureController`, 208/83. The platform console finds one
+ * terminal by its public id across organisations, behind `admin.manage` and the
+ * platform MFA guard, to hand over its redacted inbox; the inbox itself is read
+ * with `tenant_id` and `device_id` stated from that device.)
  * (2026-11-18, a return from a break reopens the day: two more in
  * `AttendanceEngine`, 207/82. `rejoinTarget()` finds the person's latest
  * closed record of the work day and `findByRejoinKey()` the record whose
@@ -285,6 +296,7 @@ return [
     'Console/Commands/ResetMfaCommand.php' => 1,
     'Console/Commands/SyncDevicesCommand.php' => 1,
     'Http/Controllers/Api/V1/Admin/AdminDashboardController.php' => 3,
+    'Http/Controllers/Api/V1/Admin/AdminDeviceCaptureController.php' => 1,
     // Platform-admin plan catalog. Both sites count subscriptions on one plan,
     // cross-tenant by intent, from a surface that runs with no tenant resolved
     // (EnsurePlatformContext) — where the fail-closed scope would return 0 for
@@ -340,10 +352,6 @@ return [
     'Jobs/RunDashboardDigestsJob.php' => 1,
     'Jobs/RunScheduledReportsJob.php' => 1,
     'Jobs/ScanMissingPunchesJob.php' => 1,
-    'Listeners/NotifyDeviceOffline.php' => 1,
-    'Listeners/NotifyDeviceSyncFailed.php' => 1,
-    'Listeners/NotifyPayrollProcessed.php' => 1,
-    'Listeners/NotifyPayrollRunFailed.php' => 1,
     'Listeners/PushDatabaseNotification.php' => 1,
     // Pre-authentication: the kiosk token (64 random hex, looked up by its
     // SHA-256 in the globally unique `token_hash` since 2026-11-09, and only
@@ -441,4 +449,5 @@ return [
     'Services/Webhook/WebhookDispatcher.php' => 1,
     'Support/AuditSubjects.php' => 3,
     'Support/EmployeeGaps.php' => 1,
+    'Support/TenantRecipients.php' => 1,
 ];

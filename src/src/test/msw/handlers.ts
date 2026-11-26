@@ -101,17 +101,29 @@ export function buildEmployee(
     date_of_birth: "1990-01-01",
     nationality: "Ethiopian",
     marital_status: "single",
+    address_region_code: null,
+    address_region_text: null,
+    address_sub_city_code: null,
+    address_zone_or_sub_city_text: null,
+    address_town_code: null,
+    address_town_text: null,
+    address_woreda: null,
+    address_kebele: null,
+    address_house_number: null,
     status: "active",
     hire_date: "2024-01-01",
     probation_end_date: "2024-04-01",
     confirmation_date: "2024-04-01",
     termination_date: "",
+    outside_employment_framework: false,
+    employment_framework_note: null,
     // Kept internally consistent: a photo_path implies presigned URLs, which
     // EmployeeResource always returns alongside it.
     photo_path: "employees/01HZEMPLOYEE0000000000001.jpg",
     photo_url: "https://storage.test/employees/01HZEMPLOYEE0000000000001.jpg",
     photo_thumb_url:
       "https://storage.test/employees/01HZEMPLOYEE0000000000001-150.jpg",
+    archived_at: null,
     created_at: "2024-01-01T00:00:00Z",
     updated_at: "2024-01-01T00:00:00Z",
     ...overrides,
@@ -159,6 +171,13 @@ export const handlers = [
       buildEmployee({ public_id: params.publicId as string }),
     );
   }),
+  // A form whose date can change pay asks which paid months it reaches
+  // (PaidMonthNotice); none, unless a test says otherwise.
+  http.get("*/api/v1/employees/:publicId/paid-months", () =>
+    HttpResponse.json({
+      data: { count: 0, earliest_period_start: null, latest_period_end: null },
+    }),
+  ),
   // The console's organisation page lists the feature switches for it
   // (TenantFeaturesCard); none, unless a test says otherwise.
   http.get("*/api/v1/admin/tenants/:publicId/features", () =>
@@ -177,8 +196,17 @@ export const handlers = [
   http.get("*/onboarding/migration/sources", () =>
     HttpResponse.json({ data: [] }),
   ),
-  // ...and which lists are in progress (useMigrationListsInProgress); none.
+  // Settings > Security reads the sign-in methods through the setup wizard's
+  // endpoint (LoginIdentifiersCard); email only, unless a test says otherwise.
+  http.get("*/onboarding/access", () =>
+    HttpResponse.json({
+      available: ["email", "phone", "employee_code", "username"],
+      login_identifiers: ["email"],
+      role_defaults: {},
+    }),
+  ),
+  // ...and which lists are in progress (useMigrationListsInProgress); none, and none added.
   http.get("*/onboarding/migration/batches", () =>
-    HttpResponse.json({ data: [] }),
+    HttpResponse.json({ data: [], added: [] }),
   ),
 ];

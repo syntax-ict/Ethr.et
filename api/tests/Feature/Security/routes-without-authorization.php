@@ -112,6 +112,7 @@ return [
         'App\Http\Controllers\Api\V1\TemplateController@index' => 'Deliberately public template catalogue.',
         'App\Http\Controllers\Api\V1\TemplateController@show' => 'Deliberately public template catalogue.',
         'App\Http\Controllers\Api\V1\OrganizationTypeController@index' => 'Deliberately public catalogue of organisation types, for the registration form.',
+        'App\Http\Controllers\Api\V1\LookupController@index' => 'Deliberately public pick lists: regions, sub-cities, towns and banks. Global reference rows with no tenant_id and no personal data, for the sign-up and setup forms; throttle:public-catalogue.',
         'App\Http\Controllers\Api\V1\ContactController@__invoke' => 'Deliberately public contact form, throttle:auth.',
         'App\Http\Controllers\Api\V1\Auth\LoginController@__invoke' => 'The authentication endpoint itself — the presented credential is the authority.',
         'App\Http\Controllers\Api\V1\Auth\RegisterController@__invoke' => 'Pre-authentication tenant sign-up, throttle:auth.',

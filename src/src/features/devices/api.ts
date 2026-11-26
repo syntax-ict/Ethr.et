@@ -87,6 +87,17 @@ function isPoll(
   );
 }
 
+/**
+ * Whether ETHR pulls from this device. False for a terminal that only sends,
+ * which includes ADMS: its sync, pull and history controls would do nothing.
+ * A response without the field is read from `receives_only`.
+ */
+export function isPulled(
+  device: Pick<Device, "pulled" | "receives_only">,
+): boolean {
+  return device.pulled ?? device.receives_only !== true;
+}
+
 export function useDevices(
   params?: DeviceListParams,
   options?: { refetchInterval?: number },
@@ -164,13 +175,28 @@ export function useDeviceDashboard(options?: { refetchInterval?: number }) {
   });
 }
 
-export function useDevice(publicId: string) {
+export function useDevice(
+  publicId: string,
+  options?: { refetchInterval?: number | false },
+) {
+  const interval = options?.refetchInterval || undefined;
   return useQuery<Device>({
     queryKey: keys.detail(publicId),
-    queryFn: async () => (await apiClient.get(`/devices/${publicId}`)).data,
+    // A poll is a background request, as on the dashboard: a setup wizard left
+    // open must not hold the session past the tenant's idle timeout.
+    queryFn: async ({ client, queryKey }) =>
+      (
+        await apiClient.get(
+          `/devices/${publicId}`,
+          backgroundRequest(
+            isPoll(client, queryKey, { refetchInterval: interval }),
+          ),
+        )
+      ).data,
     // A static-export shell renders before `useRouteId` has the real id;
     // without this gate its first paint fires `GET /devices/`.
     enabled: !!publicId,
+    refetchInterval: interval ?? false,
   });
 }
 
@@ -291,10 +317,40 @@ export function useTestDeviceConnection() {
   );
 }
 
+/** Add the address a refused call came from to the device's allowlist. */
+export function useAllowDeviceAddress() {
+  return useDeviceMutation(
+    async (vars: { publicId: string; ip: string }): Promise<Device> =>
+      (
+        await apiClient.post(`/devices/${vars.publicId}/allowlist`, {
+          ip: vars.ip,
+        })
+      ).data,
+  );
+}
+
+/** Why an address is being replaced: a lost one stops now, a moving one lasts a day. */
+export type TokenReason = "lost" | "moving";
+
+export interface RegeneratedToken {
+  webhook_token: string;
+  webhook_url: string | null;
+  reason: TokenReason;
+  previous_token_expires_at: string | null;
+  message: string;
+}
+
 export function useRegenerateDeviceToken() {
   return useDeviceMutation(
-    async (publicId: string) =>
-      (await apiClient.post(`/devices/${publicId}/regenerate-token`)).data,
+    async (vars: {
+      publicId: string;
+      reason: TokenReason;
+    }): Promise<RegeneratedToken> =>
+      (
+        await apiClient.post(`/devices/${vars.publicId}/regenerate-token`, {
+          reason: vars.reason,
+        })
+      ).data,
   );
 }
 
@@ -499,6 +555,8 @@ export interface UnmatchedBadge {
   match?: UnmatchedBadgeMatch | null;
   /** What the terminal calls this number; for attendance managers, when the terminal sent a name. */
   name_on_device?: string | null;
+  /** True when the badge matches one person by number and its held punches are being recorded by themselves. */
+  recording_itself?: boolean;
   /** Employees that name could be, never when the badge is already matched. */
   name_matches?: {
     employee_public_id: string;
@@ -565,3 +623,67 @@ export function useDismissUnmatchedBadge() {
       void queryClient.invalidateQueries({ queryKey: UNMATCHED_KEY }),
   });
 }
+
+// ── Punches that need attention (DeviceQuarantineController) ───────────────
+
+/**
+ * One punch a terminal sent that could not be recorded. `raw` is what the
+ * terminal sent, shown only to someone who may change the device.
+ */
+export interface QuarantinedPunch {
+  public_id: string;
+  badge: string;
+  punch_type: string;
+  occurred_raw: string;
+  /** `refused:<reason>`, `clock_ahead`, `no_time` or `error`. */
+  failure: string | null;
+  error: string | null;
+  failed_at: string | null;
+  received_at: string | null;
+  raw: string | null;
+}
+
+export type QuarantinePage = Omit<
+  components["schemas"]["LengthAwarePaginator"],
+  "data"
+> & { data: QuarantinedPunch[] };
+
+const quarantineKey = (deviceId: string) =>
+  ["devices", deviceId, "quarantine"] as const;
+
+export function useDeviceQuarantine(deviceId: string) {
+  return useQuery<QuarantinePage>({
+    queryKey: quarantineKey(deviceId),
+    queryFn: async () =>
+      (
+        await apiClient.get<QuarantinePage>(`/devices/${deviceId}/quarantine`, {
+          params: { per_page: 50 },
+        })
+      ).data,
+  });
+}
+
+function useQuarantineAction(action: "replay" | "dismiss") {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (ids: string[]) =>
+      (
+        await apiClient.post<{
+          replayed?: number;
+          skipped?: number;
+          dismissed?: number;
+        }>(`/devices/quarantine/${action}`, { ids })
+      ).data,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["devices"] });
+      if (action === "replay") {
+        void queryClient.invalidateQueries({ queryKey: ["attendance"] });
+      }
+    },
+  });
+}
+
+export const useReplayQuarantine = () => useQuarantineAction("replay");
+
+export const useDismissQuarantine = () => useQuarantineAction("dismiss");

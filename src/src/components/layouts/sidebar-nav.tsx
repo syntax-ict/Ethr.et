@@ -14,8 +14,7 @@ import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useT } from "@/lib/i18n/useT";
 import { useNavPreferences } from "@/lib/hooks/useNavPreferences";
 import { useOnboardingStatus } from "@/features/onboarding/useOnboardingStatus";
-import { useManagerDashboard } from "@/features/dashboard/api";
-import { useIntegritySummary } from "@/features/attendance/api";
+import { useNavigationBadges } from "@/features/navigation/api";
 import { useSettingsLanding } from "@/components/layouts/settings-nav";
 import {
   type Destination,
@@ -142,20 +141,19 @@ export function SidebarNav({
   const onboarding = useOnboardingStatus(isTenantAdmin && !isSuperAdmin);
 
   // Badge counts. CLAUDE.md: "Items show notification count badges where
-  // applicable (Approvals, Attendance anomalies)". Only fetched for roles that
-  // can act on the queue — and, like the onboarding query above, never for a
-  // super admin, who clears the isSupervisor level check with no tenant queue
-  // to count (the API answers 403).
-  const { data: managerData } = useManagerDashboard(
-    isSupervisor && !isSuperAdmin,
+  // applicable (Approvals, Attendance anomalies)". One small request answers
+  // both: the manager dashboard it replaced was the heaviest call in the app
+  // and ran on every page. Only fetched for people who can act on a queue, and
+  // never for a super admin, who clears the isSupervisor level check with no
+  // tenant queue to count. The endpoint answers null for a count the caller
+  // may not see, so a reviewer who is not an approver gets no Approvals badge.
+  const { data: badges } = useNavigationBadges(
+    (isSupervisor || can.viewAttendanceConflicts) && !isSuperAdmin,
   );
-  const approvalCount = managerData?.pending_approvals?.total ?? 0;
+  const approvalCount = badges?.approvals ?? 0;
   // Attendance anomalies, the other count the conventions name: punches
   // waiting for an integrity review, for those who may review them.
-  const { data: integrityData } = useIntegritySummary(
-    can.viewAttendanceConflicts && !isSuperAdmin,
-  );
-  const integrityCount = integrityData?.open ?? 0;
+  const integrityCount = badges?.attendance_integrity ?? 0;
 
   useEffect(() => {
     if (pathname && pathname !== "/dashboard") {
@@ -599,17 +597,17 @@ function NavLink({
           )}
           title={
             pinned
-              ? t("nav.unpin_favorites", "Unpin from favorites")
+              ? t("nav.unpin_favorites", "Unpin from favourites")
               : favoritesAtLimit
-                ? t("nav.favorites_full", "Favorites full (max 5)")
-                : t("nav.pin_favorites", "Pin to favorites")
+                ? t("nav.favorites_full", "Favourites full (max 5)")
+                : t("nav.pin_favorites", "Pin to favourites")
           }
           aria-label={`${
             pinned
-              ? t("nav.unpin_favorites", "Unpin from favorites")
+              ? t("nav.unpin_favorites", "Unpin from favourites")
               : favoritesAtLimit
-                ? t("nav.favorites_full", "Favorites full (max 5)")
-                : t("nav.pin_favorites", "Pin to favorites")
+                ? t("nav.favorites_full", "Favourites full (max 5)")
+                : t("nav.pin_favorites", "Pin to favourites")
           }: ${fullLabel}`}
           aria-pressed={pinned}
         >
@@ -630,8 +628,8 @@ function NavLink({
               onTogglePin();
             }}
             className="absolute right-1 flex h-6 w-6 items-center justify-center rounded-md text-sidebar-foreground/60 opacity-0 transition-all duration-150 hover:text-brand-accent group-hover/pin:opacity-100"
-            title={t("nav.pin_favorites", "Pin to favorites")}
-            aria-label={`${t("nav.pin_favorites", "Pin to favorites")}: ${fullLabel}`}
+            title={t("nav.pin_favorites", "Pin to favourites")}
+            aria-label={`${t("nav.pin_favorites", "Pin to favourites")}: ${fullLabel}`}
           >
             <Star className="h-3 w-3" />
           </button>

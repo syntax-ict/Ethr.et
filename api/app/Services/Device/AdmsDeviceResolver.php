@@ -143,6 +143,15 @@ final class AdmsDeviceResolver
         return is_array($value) && isset($value['at']) ? $value : null;
     }
 
+    public static function forgetRejection(Device $device): void
+    {
+        try {
+            Cache::forget(self::rejectionKey($device));
+        } catch (\Throwable) {
+            // A downed cache must not fail the change that fixed it.
+        }
+    }
+
     private static function rejectionKey(Device $device): string
     {
         return 'adms:rejected:'.$device->id;

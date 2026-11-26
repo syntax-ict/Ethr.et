@@ -32,11 +32,19 @@ export interface FoundGroup {
 /** Line numbers listed in full before "and N more". */
 export const LINES_SHOWN = 10;
 
+/**
+ * Kinds whose message names what the lines share, so each message is a group
+ * of its own: one name on lines 2 and 9 is not one name on lines 4 and 6.
+ */
+const GROUPED_BY_MESSAGE = new Set(["same_name_in_list"]);
+
 /** Problems and warnings are grouped by what they are about, largest group first. */
 export function groupFound(items: readonly Found[]): FoundGroup[] {
   const groups = new Map<string, FoundGroup>();
   for (const item of items) {
-    const key = `${item.column ?? ""}\u0000${item.code}`;
+    const key = GROUPED_BY_MESSAGE.has(item.code)
+      ? `${item.column ?? ""}\u0000${item.code}\u0000${item.message}`
+      : `${item.column ?? ""}\u0000${item.code}`;
     const group = groups.get(key);
     if (group) {
       if (!group.lines.includes(item.line)) group.lines.push(item.line);

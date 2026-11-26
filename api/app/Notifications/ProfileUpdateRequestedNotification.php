@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Notifications;
 
+use App\Enums\NotificationType;
 use App\Models\Employee;
 use App\Notifications\Concerns\RespectsNotificationPreferences;
 use App\Support\NotificationMessage;
@@ -22,20 +23,15 @@ class ProfileUpdateRequestedNotification extends Notification
         private readonly array $fields,
     ) {}
 
-    protected function preferenceType(): string
+    protected function preferenceType(): NotificationType
     {
-        return 'profile_update';
+        return NotificationType::PROFILE_UPDATE;
     }
 
     /** @return array<int, string> */
     public function via(object $notifiable): array
     {
-        $channels = ['database'];
-        if (config('broadcasting.default') === 'reverb') {
-            $channels[] = 'broadcast';
-        }
-
-        return $this->filterChannels($notifiable, $channels);
+        return $this->filterChannels($notifiable, ['database'], broadcast: true);
     }
 
     /** @return array<string, mixed> */

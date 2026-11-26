@@ -138,7 +138,8 @@ export interface GoLiveResult {
  */
 export type MatchOutcome =
   "matched" | "probable" | "ambiguous" | "archived" | "new" | "same_name";
-export type StagingAction = "merge" | "create" | "skip" | "defer" | "pending";
+export type StagingAction =
+  "merge" | "create" | "skip" | "defer" | "restore" | "pending";
 
 export interface StagingCandidate {
   employee_public_id: string;
@@ -185,6 +186,12 @@ export interface StagingRow {
   changes: StagedChange[];
   /** What staging noted about the row. Its number may not fit a terminal. */
   warnings?: { code: string; message: string }[];
+  /**
+   * Set when the row matched someone who is archived: whether the row can
+   * bring them back, what has used them since if not (`reasons`, as an undo
+   * names them), and whether the viewer may restore people.
+   */
+  restore?: { possible: boolean; allowed: boolean; reasons: string[] } | null;
   /** The viewer may edit the matched employee. */
   can_apply_changes: boolean;
   /** The matched employee has a change waiting for a later date. */
@@ -207,6 +214,18 @@ export interface PeopleRead {
   calendar: "ethiopian" | "gregorian";
   /** True when the column name said which calendar, over the choice. */
   calendar_from_header: boolean;
+  /**
+   * Date columns whose dates are real only in the other calendar than the
+   * one they are read in: the first such date and its line, and whether the
+   * column name set the calendar (then only the file can change it).
+   */
+  calendar_hints?: {
+    column: string;
+    calendar: "ethiopian" | "gregorian";
+    value: string;
+    line: number;
+    from_header: boolean;
+  }[];
   /** People ready who bring no hire date, so the day they are added is used. */
   without_hire_date: number;
   /** Lines that cannot be staged. `line` counts as the reader sees it. */
@@ -303,6 +322,10 @@ export interface MigrationBatch {
   summary: Record<string, number>;
   sign_in_plan?: SignInPlan | null;
   rows: StagingRow[];
+  /** When the list's additions were undone; null if they were not. */
+  undone_at?: string | null;
+  /** How many people that undo archived. */
+  undo_archived?: number;
 }
 
 /**
@@ -323,6 +346,85 @@ export interface MigrationListInProgress {
   created_by_name: string | null;
   /** The viewer started it. */
   mine: boolean;
+}
+
+/** A list that has been added, newest first: one line of "lists added in the last 30 days". */
+export interface MigrationListAdded {
+  public_id: string;
+  mode: ListMode;
+  source_type: string;
+  rows: number;
+  /** How many people it added. */
+  created: number;
+  committed_at: string | null;
+  created_by_name: string | null;
+  mine: boolean;
+  undone_at: string | null;
+}
+
+/** A person named in the preview of an undo. */
+export interface UndoPerson {
+  employee_public_id: string;
+  name: string;
+  employee_code: string | null;
+}
+
+/** Why somebody a list added is kept when it is undone. */
+export type UndoKeepReason =
+  | "attendance"
+  | "signed_in"
+  | "payroll"
+  | "leave"
+  | "overtime"
+  | "documents"
+  | "hr_records"
+  | "in_charge"
+  | "assigned"
+  | "unsure_origin";
+
+/** Who undoing a committed list would archive, and who it would keep. */
+export interface UndoPreview {
+  /** `derived`: added before ETHR recorded which people a list added. */
+  origin: "recorded" | "derived";
+  /** False: the records disagree, so nobody whose origin is unsure is archived. */
+  exact: boolean;
+  added: number;
+  already_archived: number;
+  /** Matched or updated by the list, never touched. */
+  matched: number;
+  archive_count: number;
+  /** The first 200. */
+  archive: UndoPerson[];
+  keep_count: number;
+  /** The first 200. Codes the screen does not know are possible. */
+  keep: (UndoPerson & { reasons: string[] })[];
+  /** People the reader may not archive: counted, not named. */
+  out_of_reach: number;
+  undone_at: string | null;
+}
+
+/** One slice of accepting differences for many rows, or the sum of them. */
+export interface AcceptDifferencesResult {
+  done: boolean;
+  /** The last row looked at; sent back to carry on after it. */
+  cursor: number;
+  /** Rows that had something accepted. */
+  rows: number;
+  by_field: Record<string, number>;
+  /** Rows left alone: the viewer may not edit the person. */
+  out_of_reach: number;
+  /** Rows that lost salary and TIN: the viewer may not change pay. */
+  pay_refused: number;
+  /** Rows left for the reviewer: they may be someone else. */
+  held: number;
+}
+
+export interface UndoResult {
+  done: boolean;
+  archived: number;
+  remaining: number;
+  kept: number;
+  out_of_reach: number;
 }
 
 export interface CommitResult extends MigrationLogins {

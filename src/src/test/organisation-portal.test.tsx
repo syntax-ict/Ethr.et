@@ -50,6 +50,7 @@ function organisationContext(): HostCtx {
     carryOrganisation: "acme",
     tenantRequest: { mode: "entry", slug: "acme" },
     tenantContextLoading: false,
+    hostLookupPending: false,
     tenantLookupError: null,
     tenantFieldVisible: false,
   };
@@ -339,6 +340,7 @@ describe("<OrganisationPortal> while the organisation loads", () => {
       tenantName: null,
       tenantLanding: null,
       tenantContextLoading: true,
+      hostLookupPending: false,
     });
     const client = new QueryClient({
       defaultOptions: { queries: { retry: false } },

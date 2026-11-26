@@ -46,6 +46,7 @@ beforeEach(() => {
     carryOrganisation: null,
     tenantRequest: null,
     tenantContextLoading: false,
+    hostLookupPending: false,
     tenantLookupError: null,
     tenantFieldVisible: false,
   });
@@ -107,6 +108,8 @@ describe("the text-message code page", () => {
   it("tells people both networks are accepted", () => {
     renderForm();
 
-    expect(screen.getByPlaceholderText("911234567…")).toBeInTheDocument();
+    expect(
+      screen.getByPlaceholderText("9XXXXXXXX / 7XXXXXXXX"),
+    ).toBeInTheDocument();
   });
 });

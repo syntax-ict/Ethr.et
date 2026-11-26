@@ -321,3 +321,27 @@ test('a punch in the tenant zone lands on the same rotation day payroll uses', f
     expect($zoned?->name)->toBe('Night')
         ->and($utcDate?->name)->toBe('Night');
 });
+
+test("the batched rest days answer exactly what each person's own lookup does", function () {
+    $tenant = createTenant();
+    $onRotation = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    $onFixedShift = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    $onNothing = Employee::factory()->create(['tenant_id' => $tenant->id]);
+    [$rotation] = threeDayRotation($tenant);
+    assignRotation($tenant, $rotation, Employee::class, $onRotation->id, '2026-09-05');
+    ShiftAssignment::factory()->create([
+        'tenant_id' => $tenant->id, 'shift_id' => Shift::factory()->create(['tenant_id' => $tenant->id])->id,
+        'assignable_type' => Employee::class, 'assignable_id' => $onFixedShift->id,
+        'effective_from' => '2026-09-01', 'effective_to' => null,
+    ]);
+
+    $matcher = app(ShiftMatcher::class);
+    $from = Carbon::parse('2026-09-04');
+    $to = Carbon::parse('2026-09-12');
+    $batched = $matcher->rotationRestDaysBetween(collect([$onRotation, $onFixedShift, $onNothing]), $from, $to);
+
+    foreach ([$onRotation, $onFixedShift, $onNothing] as $employee) {
+        expect($batched[$employee->id] ?? [])->toBe($matcher->rotationRestDays($employee, $from, $to));
+    }
+    expect($batched[$onRotation->id])->not->toBe([]);
+});

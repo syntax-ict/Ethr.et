@@ -1,3 +1,5 @@
+import { requestPersistentStorage } from "@/lib/persist-storage";
+
 const DB_NAME = "ethr-offline";
 const DB_VERSION = 1;
 const STORE_NAME = "attendance_queue";
@@ -15,8 +17,19 @@ export interface OfflineAttendanceRecord {
   /** The selfie, when the organisation requires one. */
   photo?: string | null;
   captured_at: string;
-  synced: 0 | 1;
+  /**
+   * 0 waiting to be sent, 1 sent, 2 refused for good: the server will never
+   * accept this punch, so it is no longer retried and is shown to the person
+   * until they remove it. public/sw.js writes the same three values.
+   */
+  synced: 0 | 1 | 2;
   sync_error?: string | null;
+  /**
+   * Set on a punch that was refused without the server naming a reason (its
+   * request was too large or invalid on its own). The screen then says why in
+   * its own words, in the person's language, instead of showing `sync_error`.
+   */
+  refused_locally?: boolean;
   /**
    * The X-Tenant header to send with it, when the host does not name the
    * organisation. The service worker reads it (see public/sw.js).
@@ -61,6 +74,7 @@ function openDB(): Promise<IDBDatabase> {
 export async function enqueueOfflineRecord(
   record: Omit<OfflineAttendanceRecord, "id" | "synced">,
 ): Promise<number> {
+  requestPersistentStorage();
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, "readwrite");
@@ -71,16 +85,43 @@ export async function enqueueOfflineRecord(
   });
 }
 
-export async function getPendingRecords(): Promise<OfflineAttendanceRecord[]> {
+async function recordsWithState(
+  state: 0 | 2,
+  employeePublicId?: string | null,
+): Promise<OfflineAttendanceRecord[]> {
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, "readonly");
     const store = tx.objectStore(STORE_NAME);
     const index = store.index("synced");
-    const req = index.getAll(0);
-    req.onsuccess = () => resolve(req.result);
+    const req = index.getAll(state);
+    req.onsuccess = () => {
+      const records = req.result as OfflineAttendanceRecord[];
+      resolve(
+        employeePublicId
+          ? records.filter((r) => r.employee_public_id === employeePublicId)
+          : records,
+      );
+    };
     req.onerror = () => reject(req.error);
   });
+}
+
+/**
+ * Punches waiting to be sent. A shared phone can hold several people's: pass
+ * the signed-in person's id to read only theirs.
+ */
+export function getPendingRecords(
+  employeePublicId?: string | null,
+): Promise<OfflineAttendanceRecord[]> {
+  return recordsWithState(0, employeePublicId);
+}
+
+/** Punches the server refused for good and the person has not removed yet. */
+export function getRefusedRecords(
+  employeePublicId?: string | null,
+): Promise<OfflineAttendanceRecord[]> {
+  return recordsWithState(2, employeePublicId);
 }
 
 export async function getAllRecords(): Promise<OfflineAttendanceRecord[]> {
@@ -131,6 +172,47 @@ export async function markSyncError(id: number, error: string): Promise<void> {
   });
 }
 
+/**
+ * Takes a punch out of the waiting list for good: it will never be sent again.
+ * `reason` is the server's sentence; omit it for a punch refused here, and the
+ * screen words it.
+ */
+export async function markRefused(
+  id: number,
+  reason?: string | null,
+): Promise<void> {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    const store = tx.objectStore(STORE_NAME);
+    const getReq = store.get(id);
+    getReq.onsuccess = () => {
+      const record = getReq.result;
+      if (record) {
+        record.synced = 2;
+        record.sync_error = reason ?? null;
+        record.refused_locally = !reason;
+        // The refused card shows type, time and reason, never the selfie.
+        record.photo = null;
+        store.put(record);
+      }
+      resolve();
+    };
+    getReq.onerror = () => reject(getReq.error);
+  });
+}
+
+/** Deletes one record, used when the person removes a refused punch. */
+export async function removeRecord(id: number): Promise<void> {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    tx.objectStore(STORE_NAME).delete(id);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
 export async function clearSyncedRecords(): Promise<void> {
   const db = await openDB();
   return new Promise((resolve, reject) => {
@@ -151,7 +233,9 @@ export async function clearSyncedRecords(): Promise<void> {
   });
 }
 
-export async function getPendingCount(): Promise<number> {
-  const records = await getPendingRecords();
+export async function getPendingCount(
+  employeePublicId?: string | null,
+): Promise<number> {
+  const records = await getPendingRecords(employeePublicId);
   return records.length;
 }

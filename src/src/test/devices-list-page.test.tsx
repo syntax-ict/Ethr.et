@@ -173,6 +173,18 @@ describe("<DevicesPage> quiet terminals", () => {
   });
 });
 
+/**
+ * Add Device opens the guided setup (device setup upgrade, PR 3). The full
+ * Register form these tests exercise is its Advanced link.
+ */
+async function openRegisterForm(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(
+    (await screen.findAllByRole("button", { name: /add device/i }))[0],
+  );
+  await user.click(await screen.findByRole("button", { name: /^advanced$/i }));
+  return screen.findByRole("dialog", { name: /register device/i });
+}
+
 // QA 2026-11-14, D-3: Register with no branch answered "The branch public id
 // field is required.", from a form that did not say a branch was needed.
 describe("<DevicesPage> register dialog", () => {
@@ -186,10 +198,7 @@ describe("<DevicesPage> register dialog", () => {
     );
     renderPage();
 
-    await userEvent.click(
-      (await screen.findAllByRole("button", { name: /add device/i }))[0],
-    );
-    const dialog = await screen.findByRole("dialog");
+    const dialog = await openRegisterForm(userEvent.setup());
 
     expect(await within(dialog).findByText("Branch *")).toBeInTheDocument();
     expect(
@@ -204,10 +213,7 @@ describe("<DevicesPage> register dialog", () => {
     serve([], [{ public_id: "B1", name: "Head office" }]);
     renderPage();
 
-    await userEvent.click(
-      (await screen.findAllByRole("button", { name: /add device/i }))[0],
-    );
-    const dialog = await screen.findByRole("dialog");
+    const dialog = await openRegisterForm(userEvent.setup());
 
     expect(
       (await within(dialog).findAllByText("Head office")).length,
@@ -216,6 +222,27 @@ describe("<DevicesPage> register dialog", () => {
       within(dialog).getByRole("button", { name: /^register$/i }),
     ).toBeEnabled();
   });
+  it("offers no Auto-Sync switch once the ZKTeco ADMS adapter is chosen", async () => {
+    serve([], [{ public_id: "B1", name: "Head office" }]);
+    renderPage();
+
+    const dialog = await openRegisterForm(userEvent.setup());
+    expect(
+      within(dialog).getByRole("switch", { name: /auto-sync/i }),
+    ).toBeInTheDocument();
+
+    await userEvent.click(
+      within(dialog).getByRole("combobox", { name: /adapter|device type/i }),
+    );
+    await userEvent.click(
+      await screen.findByRole("option", { name: /ZKTeco \(ADMS/ }),
+    );
+
+    expect(
+      within(dialog).queryByRole("switch", { name: /auto-sync/i }),
+    ).not.toBeInTheDocument();
+  });
+
   it("opens by itself when the address ends in #add, as the health dashboard's button sends it", async () => {
     serve([], [{ public_id: "B1", name: "Head office" }]);
     window.location.hash = "#add";
@@ -224,10 +251,170 @@ describe("<DevicesPage> register dialog", () => {
 
       const dialog = await screen.findByRole("dialog");
       expect(
-        within(dialog).getByRole("button", { name: /^register$/i }),
+        within(dialog).getByRole("heading", { name: /add a device/i }),
       ).toBeInTheDocument();
     } finally {
       window.location.hash = "";
     }
+  });
+});
+
+/*
+ * The dialog after registering follows how the terminal connects: the server
+ * says which (connection_mode), and the page shows that mode's setup instead
+ * of always showing the Hikvision push address (device setup upgrade, PR 1).
+ */
+describe("<DevicesPage> after registering", () => {
+  const REGISTERED = {
+    ...base,
+    public_id: "NEW1",
+    name: "Front door",
+    adapter_type: "hikvision",
+    status: "pending",
+    receives_only: false,
+    pulled: true,
+    connection_mode: "pull",
+    uses_webhook_token: true,
+    webhook_url:
+      "https://www.ethr.et/api/v1/devices/webhook/hikvision?token=issued-once",
+    webhook_ip_allowlist: [],
+  };
+
+  async function registerAs(created: object) {
+    serve([], [{ public_id: "B1", name: "Head office" }]);
+    server.use(
+      http.post("*/api/v1/devices", () =>
+        HttpResponse.json(created, { status: 201 }),
+      ),
+    );
+    const user = userEvent.setup();
+    renderPage();
+
+    const form = await openRegisterForm(user);
+    await user.type(within(form).getByLabelText(/device name/i), "Front door");
+    await user.type(
+      within(form).getByLabelText(/^ip address$/i),
+      "203.0.113.10",
+    );
+    await user.click(within(form).getByRole("button", { name: /^register$/i }));
+  }
+
+  it("tells a pulled terminal ETHR will call it, and shows no address", async () => {
+    await registerAs(REGISTERED);
+
+    expect(
+      await screen.findByText("ETHR will call the terminal"),
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId("issued-address")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /test connection/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows a push terminal the address it must be given", async () => {
+    await registerAs({
+      ...REGISTERED,
+      receives_only: true,
+      pulled: false,
+      connection_mode: "push",
+    });
+
+    expect(await screen.findByTestId("issued-address")).toHaveTextContent(
+      "token=issued-once",
+    );
+    expect(screen.getByText("Enter these on the terminal")).toBeInTheDocument();
+  });
+
+  it("shows an ADMS terminal the server and serial, and no token", async () => {
+    await registerAs({
+      ...REGISTERED,
+      adapter_type: "zkteco_adms",
+      serial_number: "CQZ7232460001",
+      receives_only: false,
+      pulled: false,
+      connection_mode: "adms",
+      uses_webhook_token: false,
+      adms: { server: "ethr.et", last_rejected: null },
+    });
+
+    const box = await screen.findByTestId("adms-setup");
+    expect(box).toHaveTextContent("CQZ7232460001");
+    expect(box).toHaveTextContent("ethr.et");
+    expect(screen.queryByTestId("issued-address")).not.toBeInTheDocument();
+    expect(screen.queryByText(/token=/)).not.toBeInTheDocument();
+  });
+});
+
+/*
+ * The list's Edit used to be the Register form with fewer fields: no location,
+ * commands, interval, time zone or allowlist. It is the device page's form now
+ * (device setup upgrade, PR 2), so what the page can save, the list can too.
+ */
+describe("<DevicesPage> edit", () => {
+  it("opens the full form and saves the allowlist", async () => {
+    serve(
+      [
+        {
+          ...base,
+          public_id: "PULL1",
+          name: "Main gate",
+          adapter_type: "hikvision",
+          receives_only: false,
+          pulled: true,
+          connection_mode: "pull",
+          uses_webhook_token: true,
+          accepts_commands: true,
+          commands_enabled: false,
+          timezone: null,
+          webhook_ip_allowlist: [],
+          branch_public_id: "B1",
+          status: "online",
+        },
+      ],
+      [{ public_id: "B1", name: "Head office" }],
+    );
+    let sent: Record<string, unknown> | null = null;
+    server.use(
+      http.put("*/api/v1/devices/PULL1", async ({ request }) => {
+        sent = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ ...base, public_id: "PULL1" });
+      }),
+    );
+    const user = userEvent.setup();
+    renderPage();
+
+    await screen.findByText("Main gate");
+    await user.click(screen.getByRole("button", { name: /^actions$/i }));
+    await user.click(await screen.findByRole("menuitem", { name: /^edit$/i }));
+    const dialog = await screen.findByRole("dialog");
+
+    for (const label of [
+      /^location/i,
+      /device clock time zone/i,
+      /webhook allowed ip addresses/i,
+    ]) {
+      expect(within(dialog).getByLabelText(label)).toBeInTheDocument();
+    }
+    expect(
+      within(dialog).getByRole("switch", {
+        name: /send commands to this device/i,
+      }),
+    ).toBeInTheDocument();
+
+    await user.type(
+      within(dialog).getByLabelText(/webhook allowed ip addresses/i),
+      "203.0.113.7",
+    );
+    await user.click(
+      within(dialog).getByRole("button", { name: /save changes/i }),
+    );
+
+    await vi.waitFor(() => expect(sent).not.toBeNull());
+    expect(sent).toMatchObject({
+      webhook_ip_allowlist: ["203.0.113.7"],
+      name: "Main gate",
+      branch_public_id: "B1",
+    });
+    expect(sent).not.toHaveProperty("connection_config");
   });
 });
