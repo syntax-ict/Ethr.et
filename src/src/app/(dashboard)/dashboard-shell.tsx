@@ -58,7 +58,13 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
               banners used to sit above an `h-screen` row, so whenever one
               showed, the document was taller than the window and gained its
               own scrollbar beside <main>'s. The row now takes what the
-              banners leave (`min-h-0 flex-1`). */}
+              banners leave (`min-h-0 flex-1`). A second cause: absolutely
+              positioned screen-reader text (`sr-only`) inside the page had no
+              positioned ancestor, so it sat at its place at the bottom of a
+              long page and stretched the document past the window, giving the
+              window its own scrollbar even with no banner showing. `relative`
+              on <main> makes main their containing block, so they scroll and
+              clip with it. */}
           <div className="print-shell flex h-dvh flex-col overflow-hidden bg-background">
             <OfflineBanner />
             <OfflineSyncAgent />
@@ -75,7 +81,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
                 <main
                   id="main-content"
                   tabIndex={-1}
-                  className="flex-1 overflow-y-auto focus:outline-none"
+                  className="relative flex-1 overflow-y-auto focus:outline-none"
                   role="main"
                 >
                   <PageActionsSlotProvider>
