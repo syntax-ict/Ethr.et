@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Str;
 use OpenSpout\Common\Entity\Cell;
 use OpenSpout\Common\Entity\Cell\EmptyCell;
 use OpenSpout\Common\Entity\Cell\NumericCell;
@@ -11,6 +13,7 @@ use OpenSpout\Common\Entity\Cell\StringCell;
 use OpenSpout\Common\Entity\Row;
 use OpenSpout\Common\Entity\Style\Style;
 use OpenSpout\Writer\XLSX\Entity\SheetView;
+use OpenSpout\Writer\XLSX\Options;
 use OpenSpout\Writer\XLSX\Writer;
 use RuntimeException;
 
@@ -50,13 +53,14 @@ final class Xlsx
             throw new RuntimeException('A workbook needs at least one sheet.');
         }
 
-        $path = tempnam(sys_get_temp_dir(), 'ethr-xlsx-');
-        if ($path === false) {
-            throw new RuntimeException('A temporary file could not be created for the workbook.');
-        }
+        // Under storage, not the system temp directory: the host's open_basedir
+        // can refuse the latter, and a refused tempnam() is an ErrorException.
+        $folder = storage_path('framework/xlsx');
+        File::ensureDirectoryExists($folder);
+        $path = $folder.DIRECTORY_SEPARATOR.'ethr-xlsx-'.Str::random(24).'.xlsx';
 
         try {
-            $writer = new Writer;
+            $writer = new Writer(new Options(tempFolder: $folder));
             $writer->openToFile($path);
 
             $bold = (new Style)->withFontBold(true);

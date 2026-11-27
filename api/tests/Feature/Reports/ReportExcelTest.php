@@ -115,6 +115,9 @@ test('an ad hoc report is an Excel file with a bold frozen header and the rows o
         ->and(array_values($book['xml'])[0])->toContain('state="frozen"')
         ->and(array_values($book['xml'])[0])->not->toContain('<f>');
 
+    // Nothing is left behind where the workbook was made.
+    expect(glob(storage_path('framework/xlsx/*')) ?: [])->toBe([]);
+
     $csv = test()->postJson(xlUrl($tenant, 'export'), ['source' => 'employees', 'columns' => ['name', 'email'], 'sort_by' => 'name', 'format' => 'csv'])->getContent();
     expect(substr_count($csv, "\n") + 1)->toBe(count($sheet));
 });
