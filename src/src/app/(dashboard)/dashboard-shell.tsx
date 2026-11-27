@@ -54,7 +54,6 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
           <KeyboardShortcuts />
           <PunchReminders />
           <ImpersonationBanner />
-          <OfflineSyncAgent />
           {/* The banners and the shell share one viewport-high column. The
               banners used to sit above an `h-screen` row, so whenever one
               showed, the document was taller than the window and gained its
@@ -62,6 +61,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
               banners leave (`min-h-0 flex-1`). */}
           <div className="print-shell flex h-dvh flex-col overflow-hidden bg-background">
             <OfflineBanner />
+            <OfflineSyncAgent />
             <PausedFeaturesBanner />
             <div className="flex min-h-0 flex-1">
               <AppSidebar />
