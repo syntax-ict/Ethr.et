@@ -2590,7 +2590,7 @@
   "devices_page.unmatched.confirm_no_punches": "አሁን ለዚህ ባጅ የተያዘ መገኘት የለም። የባጅ ቁጥሩ ብቻ ከዚህ ሰው ጋር ይገናኛል።",
   "devices_page.unmatched.confirm_warnings": "ከመቀጠልዎ በፊት ያረጋግጡ",
   "devices_page.unmatched.confirm_acknowledge": "እነዚህን አረጋግጫለሁ፣ ትክክለኛው ሰው ይህ ነው",
-  "devices_page.unmatched.confirm_button": "አረጋግጠህ መድብ",
+  "devices_page.unmatched.confirm_button": "አረጋግጥና መድብ",
   "devices_page.unmatched.warn_moves_from": "ይህ ባጅ አሁን ከ:name ጋር ተገናኝቷል፣ ከእሳቸው ይወሰዳል",
   "devices_page.unmatched.warn_moves_from_other": "ይህ ባጅ አሁን ከሌላ ሠራተኛ ጋር ተገናኝቷል፣ ከእሳቸው ይወሰዳል",
   "devices_page.update_failed": "መሣሪያ ማዘመን አልተሳካም",
