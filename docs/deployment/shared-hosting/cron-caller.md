@@ -275,6 +275,8 @@ account** — the endpoint is the instrument. See
 | **404** | `CRON_TOKEN` is unset, shorter than 32 characters, or did not match. **Deliberately indistinguishable from "no such route"**, so that an unconfigured deployment does not advertise these endpoints. So: **a 404 here means check the token first**, not that the deploy is broken |
 | **429** | More than 10 requests a minute from one IP (`Limit::perMinute(10)->by(ip)`) |
 
+Scheduled commands run as child processes of the PHP binary that `App\Support\PhpCli` resolves (PHP_BINARY under the CLI, the PHP install directory under FPM); set `CRON_PHP_BINARY` to an absolute path to override it, and a failing child now reports its last output and turns `/api/v1/health` unhealthy for 30 minutes.
+
 ## 5 · What to watch afterwards
 
 Covered in full by [`../../operations/QUEUE-MONITORING.md`](../../operations/QUEUE-MONITORING.md)
