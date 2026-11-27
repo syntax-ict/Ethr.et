@@ -10,6 +10,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Access\PositionAccess;
 use App\Services\CurrentTenant;
+use App\Support\Access\TitleAccessHealth;
 use App\Support\HealthSignals;
 use App\Support\RoleAssignment;
 use Illuminate\Console\Command;
@@ -24,17 +25,33 @@ class WatchHeldTitleAccessCommand extends Command
     public function handle(PositionAccess $access, CurrentTenant $current): int
     {
         $told = 0;
+        $scanned = 0;
+        $waitingTotal = 0;
+        $adminsTotal = 0;
+        $heldTotal = 0;
+        $rememberedTotal = 0;
 
         // Each organisation is set as the current tenant here and everything
         // read inside it goes through the tenant scope: the sweep drops no
         // scope of its own. One organisation that fails is reported and the
         // rest still run.
-        Tenant::operational()->each(function (Tenant $tenant) use ($access, $current, &$told): void {
+        Tenant::operational()->each(function (Tenant $tenant) use ($access, $current, &$told, &$scanned, &$waitingTotal, &$adminsTotal, &$heldTotal, &$rememberedTotal): void {
+            // Counted before the work, so an organisation whose own try block
+            // throws still shows as scanned.
+            $scanned++;
+
             try {
                 $current->set($tenant);
 
-                $waiting = $this->waiting($access);
-                $key = "title-access:told:{$tenant->id}";
+                $found = $this->waiting($access);
+                $waiting = $found['pairs'];
+                $adminsTotal += $found['admins'];
+                $heldTotal += $found['held'];
+                $waitingTotal += count($waiting);
+                // The v2 key exists because the first release's listener failed on
+                // every job while the sweep remembered those accounts as told, so
+                // a new key announces them once.
+                $key = "title-access:told:v2:{$tenant->id}";
                 $before = $this->remembered($key);
 
                 $new = array_diff_key($waiting, array_flip($before));
@@ -60,12 +77,17 @@ class WatchHeldTitleAccessCommand extends Command
                 }
 
                 $this->remember($key, $remember);
+                $rememberedTotal += count($remember);
             } catch (Throwable $e) {
                 report($e);
             } finally {
                 $current->forget();
             }
         });
+
+        // Written even when nothing was found: a sweep that ran and found
+        // nothing must read differently from a sweep that never ran.
+        TitleAccessHealth::recordSweep($scanned, $adminsTotal, $heldTotal, $waitingTotal, $told, $rememberedTotal);
 
         $this->info("Told the admins about accounts waiting in {$told} organisation(s).");
 
@@ -79,7 +101,15 @@ class WatchHeldTitleAccessCommand extends Command
      * is still new when someone who may give the role joins (the listener
      * tells only those who may).
      *
-     * @return array<string, true>
+     * `held` counts what heldQuery() yielded before any may-change test, and
+     * `admins` the active admins, so the health signal can tell "nothing was
+     * held" from "held, but nobody may act". There is deliberately no early
+     * return when there are no admins: it would stop heldQuery() running and
+     * leave `held` meaningless in exactly the case it is read for. With no
+     * admins `contains()` is false for every row, so `pairs` is empty as it
+     * would have been.
+     *
+     * @return array{pairs: array<string, true>, held: int, admins: int}
      */
     private function waiting(PositionAccess $access): array
     {
@@ -88,15 +118,13 @@ class WatchHeldTitleAccessCommand extends Command
             ->where('status', 'active')
             ->get();
 
-        if ($admins->isEmpty()) {
-            return [];
-        }
-
         $waiting = [];
+        $held = 0;
 
-        $access->heldQuery()->with('employee.position')->chunkById(200, function ($users) use ($access, $admins, &$waiting): void {
+        $access->heldQuery()->with('employee.position')->chunkById(200, function ($users) use ($access, $admins, &$waiting, &$held): void {
             /** @var User $user */
             foreach ($users as $user) {
+                $held++;
                 $to = $access->previewRole($user);
 
                 if ($to !== null && $user->role !== $to
@@ -106,7 +134,7 @@ class WatchHeldTitleAccessCommand extends Command
             }
         });
 
-        return $waiting;
+        return ['pairs' => $waiting, 'held' => $held, 'admins' => $admins->count()];
     }
 
     /**

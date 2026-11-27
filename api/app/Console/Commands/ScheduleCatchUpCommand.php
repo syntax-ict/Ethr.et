@@ -4,13 +4,20 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Services\Observability\QueueHealth;
 use App\Support\HealthSignals;
+use App\Support\PhpCli;
 use Cron\CronExpression;
 use DateTimeZone;
+use Illuminate\Console\Application;
 use Illuminate\Console\Command;
+use Illuminate\Console\Scheduling\CallbackEvent;
+use Illuminate\Console\Scheduling\Event;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Str;
 use RuntimeException;
 use Throwable;
 
@@ -74,7 +81,11 @@ final class ScheduleCatchUpCommand extends Command
 
             $this->line(sprintf('%s Running [%s]', $now->format('Y-m-d H:i'), $event->getSummaryForDisplay()));
 
+            $captured = null;
+
             try {
+                $this->useConfiguredPhpBinary($event);
+                $captured = $this->captureDefaultOutput($event);
                 $event->run($this->laravel);
                 $ran++;
 
@@ -86,8 +97,18 @@ final class ScheduleCatchUpCommand extends Command
                 // schedule:run reads the exit code; this replacement did not.
                 if (is_int($event->exitCode) && $event->exitCode !== 0) {
                     $failed = true;
+                    $tail = $this->outputTail($captured);
                     $this->error(sprintf('  failed: exit code %d', $event->exitCode));
-                    report(new RuntimeException(sprintf('Scheduled task [%s] exited %d.', $event->getSummaryForDisplay(), $event->exitCode)));
+                    if ($tail !== '') {
+                        $this->error('  output: '.$tail);
+                    }
+                    app(QueueHealth::class)->recordTaskFailure($event->getSummaryForDisplay(), $event->exitCode);
+                    report(new RuntimeException(sprintf(
+                        'Scheduled task [%s] exited %d.%s',
+                        $event->getSummaryForDisplay(),
+                        $event->exitCode,
+                        $tail === '' ? '' : ' Output: '.$tail,
+                    )));
                 }
             } catch (Throwable $e) {
                 // One failing task must not stop the rest, or a broken report
@@ -95,6 +116,12 @@ final class ScheduleCatchUpCommand extends Command
                 $failed = true;
                 report($e);
                 $this->error(sprintf('  failed: %s', $e->getMessage()));
+                app(QueueHealth::class)->recordTaskFailure($event->getSummaryForDisplay(), null);
+            } finally {
+                if ($captured !== null) {
+                    $event->output = $captured['original'];
+                    @unlink($captured['path']);
+                }
             }
         }
 
@@ -105,6 +132,84 @@ final class ScheduleCatchUpCommand extends Command
         }
 
         return $failed ? self::FAILURE : self::SUCCESS;
+    }
+
+    /**
+     * Run a `Schedule::command` child with the PHP binary PhpCli resolves.
+     *
+     * Laravel builds `'php' 'artisan' ...` with the bare word under PHP-FPM,
+     * and the shell then finds a different PHP. Only the prefix Laravel itself
+     * put there is replaced; any other command is left as written.
+     */
+    private function useConfiguredPhpBinary(Event $event): void
+    {
+        if ($event instanceof CallbackEvent || ! is_string($event->command)) {
+            return;
+        }
+
+        $prefix = Application::phpBinary().' ';
+
+        if (str_starts_with($event->command, $prefix)) {
+            $event->command = escapeshellarg(PhpCli::binary()).' '.substr($event->command, strlen($prefix));
+        }
+    }
+
+    /**
+     * Point an event whose output goes to the null device at a file of this run.
+     *
+     * @return array{path: string, original: string|null}|null
+     */
+    private function captureDefaultOutput(Event $event): ?array
+    {
+        if ($event instanceof CallbackEvent || $event->output !== $event->getDefaultOutput()) {
+            return null;
+        }
+
+        try {
+            $directory = storage_path('framework/schedule');
+            File::ensureDirectoryExists($directory);
+            $path = $directory.DIRECTORY_SEPARATOR.'ethr-sched-'.Str::random(16).'.log';
+
+            if (file_put_contents($path, '') === false) {
+                return null;
+            }
+        } catch (Throwable) {
+            return null;
+        }
+
+        $original = $event->output;
+        $event->output = $path;
+        $event->shouldAppendOutput = false;
+
+        return ['path' => $path, 'original' => $original];
+    }
+
+    /**
+     * The last 1,000 bytes of a captured child's output, trimmed.
+     *
+     * @param  array{path: string, original: string|null}|null  $captured
+     */
+    private function outputTail(?array $captured): string
+    {
+        if ($captured === null || ! is_file($captured['path'])) {
+            return '';
+        }
+
+        $size = (int) filesize($captured['path']);
+        $handle = @fopen($captured['path'], 'rb');
+
+        if ($handle === false) {
+            return '';
+        }
+
+        if ($size > 1000) {
+            fseek($handle, -1000, SEEK_END);
+        }
+
+        $text = (string) stream_get_contents($handle);
+        fclose($handle);
+
+        return trim(mb_scrub($text));
     }
 
     /** Exclusive start of the window: the last run, bounded; the previous minute on a first run. */

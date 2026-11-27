@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Notifications\TitleAccessHeldNotification;
 use App\Services\Access\PositionAccess;
 use App\Services\CurrentTenant;
+use App\Support\Access\TitleAccessHealth;
 use App\Support\RoleAssignment;
 use Illuminate\Contracts\Queue\ShouldQueue;
 
@@ -18,7 +19,12 @@ class NotifyTitleAccessHeld implements ShouldQueue
 {
     public string $queue = 'notifications';
 
-    public function handle(TitleAccessHeld $event, PositionAccess $access, CurrentTenant $current): void
+    public function __construct(
+        private readonly PositionAccess $access,
+        private readonly CurrentTenant $current,
+    ) {}
+
+    public function handle(TitleAccessHeld $event): void
     {
         $tenant = Tenant::query()->find($event->tenantId);
 
@@ -30,15 +36,20 @@ class NotifyTitleAccessHeld implements ShouldQueue
         // the sweep stated and reads only through the tenant scope: it drops no
         // scope of its own. It forgets it again, because the next job on this
         // worker is another organisation's.
-        $current->set($tenant);
+        $this->current->set($tenant);
+
+        $heldCount = 0;
+        $notified = 0;
 
         try {
             // The queue drains later than the sweep ran: an account that was
             // applied in between is not waiting any more.
-            $held = $access->heldQuery()
+            $held = $this->access->heldQuery()
                 ->whereIn('users.id', $event->userIds)
                 ->with('employee.position')
                 ->get();
+
+            $heldCount = $held->count();
 
             if ($held->isEmpty()) {
                 return;
@@ -55,18 +66,23 @@ class NotifyTitleAccessHeld implements ShouldQueue
             // organisation admin. A notice to someone who cannot act on it
             // would point at a page where nothing is theirs to do.
             foreach ($candidates as $candidate) {
-                $count = $held->filter(function (User $account) use ($candidate, $access): bool {
-                    $to = $access->previewRole($account);
+                $count = $held->filter(function (User $account) use ($candidate): bool {
+                    $to = $this->access->previewRole($account);
 
                     return $to !== null && RoleAssignment::mayChange($candidate, $account, $to);
                 })->count();
 
                 if ($count > 0) {
                     $candidate->notify(new TitleAccessHeldNotification($count));
+                    $notified++;
                 }
             }
         } finally {
-            $current->forget();
+            // In the finally so a notify that throws still leaves the counts of
+            // what was reached; held above zero with notified at zero is a
+            // listener that found the accounts and told nobody.
+            TitleAccessHealth::recordNotice($heldCount, $notified);
+            $this->current->forget();
         }
     }
 }

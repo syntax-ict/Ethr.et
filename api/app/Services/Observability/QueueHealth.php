@@ -60,6 +60,11 @@ class QueueHealth
     /** Kept well beyond any plausible staleness threshold so absence means "never ran", not "expired". */
     private const HEARTBEAT_TTL_SECONDS = 86400;
 
+    private const TASK_FAILURE_KEY = 'ethr:schedule:last_task_failure';
+
+    /** A recorded task failure counts as a problem for this long. */
+    private const TASK_FAILURE_WINDOW_SECONDS = 1800;
+
     private const DRAIN_KEY = 'ethr:queue:last_drain_at';
 
     private const EXTERNAL_TICK_KEY = 'ethr:cron:last_external_tick_at';
@@ -85,6 +90,41 @@ class QueueHealth
     public function lastDrain(): ?Carbon
     {
         return $this->readMoment(self::DRAIN_KEY);
+    }
+
+    /**
+     * Record that a scheduled child process failed (ScheduleCatchUpCommand).
+     * The heartbeat is an in-process callback, so it stays green while every
+     * `Schedule::command` child exits non-zero; this is what says otherwise.
+     * Name and exit code only: the health endpoint is public.
+     */
+    public function recordTaskFailure(string $task, ?int $exitCode): void
+    {
+        HealthSignals::store()->put(self::TASK_FAILURE_KEY, [
+            'task' => $task,
+            'exit_code' => $exitCode,
+            'at' => now()->toIso8601String(),
+        ], self::TICK_TTL_SECONDS);
+    }
+
+    /** @return array{task: string, exit_code: int|null, at: Carbon}|null */
+    public function lastTaskFailure(): ?array
+    {
+        $value = HealthSignals::store()->get(self::TASK_FAILURE_KEY);
+
+        if (! is_array($value) || ! isset($value['task'], $value['at'])) {
+            return null;
+        }
+
+        try {
+            return [
+                'task' => (string) $value['task'],
+                'exit_code' => isset($value['exit_code']) ? (int) $value['exit_code'] : null,
+                'at' => Carbon::parse($value['at']),
+            ];
+        } catch (Throwable) {
+            return null;
+        }
     }
 
     /** Record that the scheduler ran. Called once a minute by routes/console.php. */
@@ -179,6 +219,17 @@ class QueueHealth
             $problems[] = 'scheduler has never run — is the external cron caller configured (CRON_TOKEN and base URL)?';
         } elseif ($ageSeconds > $schedulerStaleSeconds) {
             $problems[] = sprintf('scheduler last ran %ds ago (threshold %ds)', $ageSeconds, $schedulerStaleSeconds);
+        }
+
+        $failure = $this->lastTaskFailure();
+
+        if ($failure !== null && $failure['at']->diffInSeconds(now()) <= self::TASK_FAILURE_WINDOW_SECONDS) {
+            $problems[] = sprintf(
+                'scheduled task "%s" failed%s at %s',
+                $failure['task'],
+                $failure['exit_code'] === null ? '' : sprintf(' (exit %d)', $failure['exit_code']),
+                $failure['at']->toIso8601String(),
+            );
         }
 
         // ── Queues ───────────────────────────────────────────────────────────

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 use App\Enums\UserRole;
 use App\Events\TitleAccessHeld;
-use App\Listeners\NotifyTitleAccessHeld;
 use App\Models\Employee;
 use App\Models\Position;
 use App\Models\Tenant;
@@ -12,6 +11,7 @@ use App\Models\User;
 use App\Notifications\TitleAccessHeldNotification;
 use App\Services\Access\PositionAccess;
 use App\Services\CurrentTenant;
+use App\Support\Access\TitleAccessHealth;
 use App\Support\HealthSignals;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Event;
@@ -50,11 +50,7 @@ function heldNoticeSweep(): void
 function heldNoticeDeliver(Tenant $tenant, array $userIds): void
 {
     app()->forgetScopedInstances();
-    app(NotifyTitleAccessHeld::class)->handle(
-        new TitleAccessHeld($tenant->id, $userIds),
-        app(PositionAccess::class),
-        app(CurrentTenant::class),
-    );
+    event(new TitleAccessHeld($tenant->id, $userIds));
 }
 
 /** An organisation with an admin who may give any role a title gives. */
@@ -279,5 +275,135 @@ describe('the notice', function () {
 
         expect($notification->toArray($admin)['message'])->toContain('1 account is waiting');
         expect((new TitleAccessHeldNotification(3))->toArray($admin)['message'])->toContain('3 accounts are waiting');
+    });
+});
+
+describe('the sweep and the listener together', function () {
+    it('tells the admin when the sweep finds a held account, with the event sent through the dispatcher', function () {
+        Notification::fake();
+        $tenant = createTenant();
+        $admin = createUser(['role' => UserRole::TENANT_ADMIN], $tenant);
+        heldNoticeAccount($tenant);
+
+        heldNoticeSweep();
+
+        Notification::assertSentTo($admin, TitleAccessHeldNotification::class);
+    });
+});
+
+// The sweep wrote nothing and logged nothing, so a notice that never arrived
+// could not be placed. These four readings are the ones the signals separate.
+describe('the signals the sweep and the listener leave', function () {
+    it('records a sweep that found one waiting account and dispatched for it', function () {
+        Event::fake([TitleAccessHeld::class]);
+        $tenant = heldNoticeOrganisation();
+        heldNoticeAccount($tenant);
+
+        heldNoticeSweep();
+
+        $signal = TitleAccessHealth::snapshot();
+        expect($signal['last_sweep_at'])->not->toBeNull()
+            ->and($signal['admins'])->toBe(1)
+            ->and($signal['held'])->toBe(1)
+            ->and($signal['waiting'])->toBe(1)
+            ->and($signal['dispatched'])->toBe(1)
+            ->and($signal['remembered'])->toBe(1);
+    });
+
+    it('reads waiting 1, dispatched 0, remembered 1 on a second sweep with nothing new', function () {
+        Event::fake([TitleAccessHeld::class]);
+        $tenant = heldNoticeOrganisation();
+        heldNoticeAccount($tenant);
+
+        heldNoticeSweep();
+        heldNoticeSweep();
+
+        $signal = TitleAccessHealth::snapshot();
+        expect($signal['waiting'])->toBe(1)
+            ->and($signal['dispatched'])->toBe(0)
+            ->and($signal['remembered'])->toBe(1);
+    });
+
+    it('records a sweep that found nothing, apart from one that never ran', function () {
+        expect(TitleAccessHealth::snapshot()['last_sweep_at'])->toBeNull();
+
+        Event::fake([TitleAccessHeld::class]);
+        heldNoticeOrganisation();
+
+        heldNoticeSweep();
+
+        $signal = TitleAccessHealth::snapshot();
+        expect($signal['last_sweep_at'])->not->toBeNull()
+            ->and($signal['waiting'])->toBe(0)
+            ->and($signal['dispatched'])->toBe(0);
+    });
+
+    it('reads held 1 and waiting 0 when the account is held but no admin may give the role', function () {
+        Event::fake([TitleAccessHeld::class]);
+        $tenant = createTenant();
+        createUser(['role' => UserRole::HR_ADMIN], $tenant);
+        heldNoticeAccount($tenant, 'hr_admin');
+
+        heldNoticeSweep();
+
+        $signal = TitleAccessHealth::snapshot();
+        expect($signal['admins'])->toBe(1)
+            ->and($signal['held'])->toBe(1)
+            ->and($signal['waiting'])->toBe(0)
+            ->and($signal['dispatched'])->toBe(0);
+    });
+
+    it('still reads held when the organisation has no active admin at all', function () {
+        Event::fake([TitleAccessHeld::class]);
+        $tenant = createTenant();
+        heldNoticeAccount($tenant);
+
+        heldNoticeSweep();
+
+        $signal = TitleAccessHealth::snapshot();
+        expect($signal['admins'])->toBe(0)
+            ->and($signal['held'])->toBe(1)
+            ->and($signal['waiting'])->toBe(0);
+    });
+
+    it('records the listener held and notified counts once the event is delivered', function () {
+        Notification::fake();
+        $tenant = heldNoticeOrganisation();
+        $held = heldNoticeAccount($tenant);
+
+        heldNoticeDeliver($tenant, [$held->id]);
+
+        $signal = TitleAccessHealth::snapshot();
+        expect($signal['last_notice_at'])->not->toBeNull()
+            ->and($signal['notice_held'])->toBe(1)
+            ->and($signal['notice_notified'])->toBeGreaterThanOrEqual(1);
+    });
+
+    it('records held 1 and notified 0 when no admin may give the role', function () {
+        Notification::fake();
+        $tenant = createTenant();
+        createUser(['role' => UserRole::HR_ADMIN], $tenant);
+        $held = heldNoticeAccount($tenant, 'hr_admin');
+
+        heldNoticeDeliver($tenant, [$held->id]);
+
+        $signal = TitleAccessHealth::snapshot();
+        expect($signal['notice_held'])->toBe(1)
+            ->and($signal['notice_notified'])->toBe(0);
+        Notification::assertNothingSent();
+    });
+
+    it('records held 0 and notified 0 when the account was applied while the event waited', function () {
+        Notification::fake();
+        $tenant = heldNoticeOrganisation();
+        $held = heldNoticeAccount($tenant);
+        $held->update(['role' => UserRole::HR_ADMIN]);
+
+        heldNoticeDeliver($tenant, [$held->id]);
+
+        $signal = TitleAccessHealth::snapshot();
+        expect($signal['last_notice_at'])->not->toBeNull()
+            ->and($signal['notice_held'])->toBe(0)
+            ->and($signal['notice_notified'])->toBe(0);
     });
 });

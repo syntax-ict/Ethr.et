@@ -4,16 +4,17 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\User\Concerns;
 
-use App\Enums\OrgScope;
 use App\Models\CustomRole;
-use App\Models\Permission;
 use App\Models\User;
+use App\Support\CustomRoleAssignment;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
  * A custom role may be assigned only if it is this tenant's, and only by
- * someone who already holds everything it grants (audit N87).
+ * someone who may give it: whoever can edit roles (`settings.manage`), or
+ * someone who already holds everything it grants (audit N87;
+ * `CustomRoleAssignment` states the rule and why).
  *
  * Before: `exists:custom_roles,public_id` passed another tenant's role, which
  * the scoped lookup then resolved to null, so an update silently cleared the
@@ -61,10 +62,7 @@ trait ValidatesCustomRoleAssignment
             return;
         }
 
-        $granted = Permission::permissionsForCustomRole($role->id);
-        $reach = OrgScope::tryFrom((string) $role->org_scope) ?? OrgScope::SELF;
-        if (array_diff($granted, $actor->permissionNames()) !== []
-            || $reach->breadth() > $actor->orgScope()->breadth()) {
+        if (! CustomRoleAssignment::mayAssign($actor, $role)) {
             $validator->errors()->add('custom_role_id', __('user.errors.role_above_your_level'));
         }
     }

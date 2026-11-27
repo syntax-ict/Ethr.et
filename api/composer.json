@@ -18,6 +18,7 @@
         "lbuchs/webauthn": "^2.2",
         "league/flysystem-aws-s3-v3": "^3.35",
         "minishlink/web-push": "^11.0",
+        "openspout/openspout": "^5.3",
         "pragmarx/google2fa": "^9.0",
         "sentry/sentry-laravel": "^4.27"
     },

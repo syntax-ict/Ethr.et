@@ -27,7 +27,9 @@ import {
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -51,6 +53,7 @@ import {
   useResetUserMfa,
   useSendInvitations,
   useApplyTitleAccess,
+  useAssignableRoles,
   type TenantUser,
   type UpdateUserPayload,
   type UserRole,
@@ -60,6 +63,7 @@ import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { SearchInput } from "@/components/shared/search-input";
 import { PaginationControls } from "@/components/shared/pagination-controls";
 import { usePermissions } from "@/lib/hooks/usePermissions";
+import { useCurrentUser } from "@/features/auth/api";
 import { OwnershipCard } from "@/features/settings/components/ownership-card";
 import { useQueryFilters } from "@/lib/hooks/useQueryFilters";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
@@ -82,6 +86,11 @@ const ROLES = [
 type EditableStatus = NonNullable<UpdateUserPayload["status"]>;
 
 const STATUSES: EditableStatus[] = ["active", "inactive", "suspended"];
+
+// A Radix Select cannot hold an empty value, so "no custom role" and "any
+// custom role" each get a name of their own.
+const NO_CUSTOM_ROLE = "__none__";
+const ANY_CUSTOM_ROLE = "__any__";
 
 // The shared registry has no `invited` (it would fall to neutral); an account
 // waiting on its invitation reads as information, as it did before.
@@ -138,7 +147,12 @@ export default function UsersSettingsPage() {
   // screen read only the first page, so accounts past the 25th could not be
   // edited, re-invited or removed (audit N68).
   const [page, setPage] = useState(1);
-  const filters = useQueryFilters({ q: "", status: "", title: "" });
+  const filters = useQueryFilters({
+    q: "",
+    status: "",
+    title: "",
+    custom_role: "",
+  });
   const search = filters.values.q;
   const notActivatedOnly = filters.values.status === "invited";
   const differsOnly = filters.values.title === "held";
@@ -147,6 +161,7 @@ export default function UsersSettingsPage() {
     search: search || undefined,
     status: notActivatedOnly ? "invited" : undefined,
     titleAccess: differsOnly ? "held" : undefined,
+    customRole: filters.values.custom_role || undefined,
   });
   const applyTitle = useApplyTitleAccess();
   const invite = useInviteUser();
@@ -156,6 +171,10 @@ export default function UsersSettingsPage() {
   const resetMfa = useResetUserMfa();
   const sendInvitations = useSendInvitations();
   const { can } = usePermissions();
+  const me = useCurrentUser().data;
+  // Whoever may edit accounts may give a custom role; the read is theirs, not
+  // Settings > Roles, which only the organisation admin may open.
+  const assignable = useAssignableRoles(can.updateUsers);
   // The bulk send in progress on this screen, if any.
   const [batch, setBatch] = useState<string | null>(null);
 
@@ -184,6 +203,16 @@ export default function UsersSettingsPage() {
   const [deleteUser, setDeleteUser] = useState<TenantUser | null>(null);
   const [mfaUser, setMfaUser] = useState<TenantUser | null>(null);
   const [confirmFollow, setConfirmFollow] = useState(false);
+  // The server refuses a change to your own custom role, so the dialog does
+  // not offer one on your own row.
+  const ownRow = editUser !== null && me?.public_id === editUser.public_id;
+  const customRoles = assignable.data ?? [];
+  const roleFilter = filters.values.custom_role;
+
+  // What a custom role reaches, said beside its name so a custom "Department
+  // admin" is not read as the built-in one.
+  const reachLabel = (scope: string) =>
+    t(`roles_page.scope_${scope}`, scope.replace(/_/g, " "));
 
   const [form, setForm] = useState({
     email: "",
@@ -201,7 +230,14 @@ export default function UsersSettingsPage() {
     role: UserRole;
     status: EditableStatus | null;
     follows: boolean;
-  }>({ username: "", role: "employee", status: "active", follows: false });
+    customRole: string;
+  }>({
+    username: "",
+    role: "employee",
+    status: "active",
+    follows: false,
+    customRole: NO_CUSTOM_ROLE,
+  });
 
   // The two dialogs are the forms: the invitation is dirty once anything is
   // typed or the role is moved off the default, the edit once a field differs
@@ -216,7 +252,9 @@ export default function UsersSettingsPage() {
           editForm.role !== editUser.role ||
           editForm.status !==
             (editUser.status === "invited" ? null : editUser.status) ||
-          editForm.follows !== editUser.role_follows_position)),
+          editForm.follows !== editUser.role_follows_position ||
+          editForm.customRole !==
+            (editUser.custom_role?.public_id ?? NO_CUSTOM_ROLE))),
   );
   const { announceSaved, announceError } = useSaveStatus();
 
@@ -226,6 +264,7 @@ export default function UsersSettingsPage() {
       role: u.role,
       status: u.status === "invited" ? null : u.status,
       follows: u.role_follows_position,
+      customRole: u.custom_role?.public_id ?? NO_CUSTOM_ROLE,
     });
     setEditUser(u);
   }
@@ -269,7 +308,7 @@ export default function UsersSettingsPage() {
 
   const roleLabel = (r: string) => t(`role.${r}`, r.replace(/_/g, " "));
 
-  // Switching an account on to its job title applies at once, so when that
+  // Switching an account on to its position applies at once, so when that
   // would change its role the person is asked first.
   function savePressed() {
     const preview = editUser?.title_preview;
@@ -307,6 +346,16 @@ export default function UsersSettingsPage() {
           ...(editForm.status !== null && editForm.status !== editUser.status
             ? { status: editForm.status }
             : {}),
+          ...(!ownRow &&
+          editForm.customRole !==
+            (editUser.custom_role?.public_id ?? NO_CUSTOM_ROLE)
+            ? {
+                custom_role_id:
+                  editForm.customRole === NO_CUSTOM_ROLE
+                    ? null
+                    : editForm.customRole,
+              }
+            : {}),
         },
       });
       toast.success(t("users_page.updated", "User updated"));
@@ -322,7 +371,7 @@ export default function UsersSettingsPage() {
     try {
       await applyTitle.mutateAsync(u.public_id);
       toast.success(
-        t("users_page.title_applied", "Role updated from the job title"),
+        t("users_page.title_applied", "Role updated from the position"),
       );
     } catch (e) {
       toastError(e, t("common.error", "Something went wrong"));
@@ -401,8 +450,46 @@ export default function UsersSettingsPage() {
               setPage(1);
             }}
           >
-            {t("users_page.differs_from_title", "Differs from job title")}
+            {t("users_page.differs_from_title", "Differs from position")}
           </Button>
+          {(customRoles.length > 0 || roleFilter !== "") && (
+            <Select
+              value={roleFilter || ANY_CUSTOM_ROLE}
+              onValueChange={(v) => {
+                filters.set({ custom_role: v === ANY_CUSTOM_ROLE ? "" : v });
+                setPage(1);
+              }}
+            >
+              <SelectTrigger
+                className="h-9 w-52"
+                aria-label={t(
+                  "users_page.filter_custom_role",
+                  "Filter by custom role",
+                )}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ANY_CUSTOM_ROLE}>
+                  {t("users_page.any_custom_role", "Any custom role")}
+                </SelectItem>
+                {roleFilter !== "" &&
+                  !customRoles.some((r) => r.public_id === roleFilter) && (
+                    <SelectItem value={roleFilter}>
+                      {users.find(
+                        (u) => u.custom_role?.public_id === roleFilter,
+                      )?.custom_role?.name ??
+                        t("users_page.one_custom_role", "One custom role")}
+                    </SelectItem>
+                  )}
+                {customRoles.map((r) => (
+                  <SelectItem key={r.public_id} value={r.public_id}>
+                    {r.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </FilterBar>
 
         {usersQuery.isLoading ? (
@@ -483,14 +570,39 @@ export default function UsersSettingsPage() {
                       </span>
                       {u.role_follows_position && (
                         <span className="block text-xs text-muted-foreground">
-                          {t("users_page.from_title", "From job title")}
+                          {t("users_page.from_title", "From position")}
                         </span>
+                      )}
+                      {u.custom_role && (
+                        <Badge
+                          variant={
+                            u.custom_role.is_active === false
+                              ? "outline"
+                              : "secondary"
+                          }
+                          className="mt-1 block w-fit max-w-full truncate text-caption"
+                          title={
+                            u.custom_role.is_active === false
+                              ? t(
+                                  "users_page.custom_role_off_title",
+                                  "Inactive custom role: it grants nothing, so the built-in role applies",
+                                )
+                              : t(
+                                  "users_page.custom_role_badge_title",
+                                  "Custom role: its permissions replace the built-in role's",
+                                )
+                          }
+                        >
+                          {u.custom_role.name}
+                          {u.custom_role.is_active === false &&
+                            ` (${t("roles_page.inactive", "Inactive")})`}
+                        </Badge>
                       )}
                       {u.title_role && u.title_role !== u.role && (
                         <span className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                           {t(
                             "users_page.title_gives",
-                            "Job title gives :role. Waiting for someone who may give that role.",
+                            "Position gives :role. Waiting for someone who may give that role.",
                             {
                               role: t(
                                 `role.${u.title_role}`,
@@ -749,7 +861,7 @@ export default function UsersSettingsPage() {
                         onClick={() => setEditForm({ ...editForm, follows })}
                       >
                         {follows
-                          ? t("users_page.follows_title", "Follows job title")
+                          ? t("users_page.follows_title", "Follows position")
                           : t("users_page.set_by_hand", "Set by hand")}
                       </Button>
                     ))}
@@ -759,7 +871,7 @@ export default function UsersSettingsPage() {
                       {editUser.title_preview.position
                         ? t(
                             "users_page.title_preview",
-                            "Job title :title gives :role",
+                            "Position :title gives :role",
                             {
                               title: editUser.title_preview.position,
                               role: roleLabel(editUser.title_preview.role),
@@ -767,7 +879,7 @@ export default function UsersSettingsPage() {
                           )
                         : t(
                             "users_page.title_preview_none",
-                            "No job title, so this gives :role",
+                            "No position, so this gives :role",
                             { role: roleLabel(editUser.title_preview.role) },
                           )}
                     </p>
@@ -795,6 +907,82 @@ export default function UsersSettingsPage() {
                   </SelectContent>
                 </Select>
               </div>
+              {!ownRow && (
+                <div>
+                  <Label htmlFor="edit-custom-role">
+                    {t("users_page.custom_role", "Custom role")}
+                  </Label>
+                  <Select
+                    value={editForm.customRole}
+                    onValueChange={(v) =>
+                      setEditForm({ ...editForm, customRole: v })
+                    }
+                  >
+                    <SelectTrigger id="edit-custom-role" className="mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NO_CUSTOM_ROLE}>
+                        {t(
+                          "users_page.custom_role_none",
+                          "None (built-in role only)",
+                        )}
+                      </SelectItem>
+                      <SelectGroup>
+                        <SelectLabel>
+                          {t("users_page.custom_roles_group", "Custom roles")}
+                        </SelectLabel>
+                        {editUser?.custom_role &&
+                          !customRoles.some(
+                            (r) =>
+                              r.public_id === editUser.custom_role?.public_id,
+                          ) && (
+                            <SelectItem value={editUser.custom_role.public_id}>
+                              {editUser.custom_role.is_active === false
+                                ? t(
+                                    "users_page.custom_role_current_off",
+                                    ":name (inactive, grants nothing)",
+                                    { name: editUser.custom_role.name },
+                                  )
+                                : t(
+                                    "users_page.custom_role_current",
+                                    ":name (current, not available to give)",
+                                    { name: editUser.custom_role.name },
+                                  )}
+                            </SelectItem>
+                          )}
+                        {customRoles.map((r) => (
+                          <SelectItem key={r.public_id} value={r.public_id}>
+                            {r.name}
+                            <span className="ml-2 text-xs text-muted-foreground">
+                              {reachLabel(r.org_scope)}
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                  {editForm.customRole !== NO_CUSTOM_ROLE && (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      {editUser?.custom_role?.is_active === false &&
+                      editForm.customRole === editUser.custom_role.public_id
+                        ? t(
+                            "users_page.custom_role_note_off",
+                            "This custom role is inactive, so it grants nothing and the built-in role applies.",
+                          )
+                        : editForm.follows
+                          ? t(
+                              "users_page.custom_role_note_follows",
+                              "The custom role's permissions replace the built-in role's. While it is set, the position does not change the built-in role. Remove the custom role to have the position apply again.",
+                            )
+                          : t(
+                              "users_page.custom_role_note",
+                              "The custom role's permissions replace the built-in role's while it is set.",
+                            )}
+                    </p>
+                  )}
+                </div>
+              )}
               <div>
                 <Label htmlFor="edit-status">
                   {t("common.status", "Status")}
@@ -833,11 +1021,11 @@ export default function UsersSettingsPage() {
           </DialogContent>
         </Dialog>
 
-        {/* Following the job title would change this role: say how, first */}
+        {/* Following the position would change this role: say how, first */}
         <ConfirmDialog
           open={confirmFollow && !!editUser?.title_preview}
           onOpenChange={setConfirmFollow}
-          title={t("users_page.follow_confirm_title", "Follow the job title?")}
+          title={t("users_page.follow_confirm_title", "Follow the position?")}
           description={
             editUser?.title_preview
               ? t(
@@ -846,7 +1034,7 @@ export default function UsersSettingsPage() {
                     : "users_page.follow_confirm_held",
                   editUser.title_preview.applies
                     ? ":name's role changes from :from to :to."
-                    : ":name keeps :from until someone who may give :to applies it. It will show under Differs from job title.",
+                    : ":name keeps :from until someone who may give :to applies it. It will show under Differs from position.",
                   {
                     name:
                       editUser.employee?.name ??
@@ -862,7 +1050,7 @@ export default function UsersSettingsPage() {
           confirmLabel={
             editUser?.title_preview?.applies
               ? t("users_page.follow_confirm_change", "Change role")
-              : t("users_page.follow_confirm_follow", "Follow job title")
+              : t("users_page.follow_confirm_follow", "Follow the position")
           }
           cancelLabel={t("users_page.keep_editing", "Keep editing")}
           loading={update.isPending}

@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Enums\AttendanceStatus;
 use App\Enums\EmployeeStatus;
 use App\Enums\LeaveStatus;
+use App\Enums\TimesheetCode;
 use App\Enums\UserRole;
 use App\Models\AttendanceRecord;
 use App\Models\Department;
@@ -267,7 +268,10 @@ test('totals and department subtotals cover everyone matched, not the page', fun
 test('the shift and employment status filters narrow the people, and the totals with them', function () {
     ['tenant' => $tenant, 'employee' => $employee, 'shift' => $shift] = mtFortnight();
     $other = Shift::factory()->create(['tenant_id' => $tenant->id, 'name' => 'Late Shift', 'start_time' => '14:00', 'end_time' => '22:00']);
-    $left = Employee::factory()->create(['tenant_id' => $tenant->id, 'hire_date' => '2025-01-01', 'status' => EmployeeStatus::CONFIRMED]);
+    // Named rather than left to the factory. The report orders by name and the
+    // assertion below reads the first row, so a faker name sorting before
+    // "Abebe Kebede" put the other person there and failed the run.
+    $left = Employee::factory()->create(['tenant_id' => $tenant->id, 'hire_date' => '2025-01-01', 'name' => 'Zenebe Tadesse', 'status' => EmployeeStatus::CONFIRMED]);
     actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
 
     $morning = test()->getJson(mtUrl($tenant, 'timesheet', 'from=2026-10-12&to=2026-10-25&shift='.$shift->public_id))->assertOk();
@@ -462,4 +466,63 @@ test('the exports name the new columns in the reader\'s language', function () {
             expect(Lang::has('report.fields.'.$field, $locale))->toBeTrue("$locale is missing report.fields.$field");
         }
     }
+});
+
+test('the letters the server prints are the ones the grid\'s legend lists, in the same order', function () {
+    $letters = array_map(
+        fn (TimesheetCode $code): string => $code->short(),
+        [
+            TimesheetCode::PRESENT, TimesheetCode::LATE, TimesheetCode::EARLY_LEAVE, TimesheetCode::MISSING_PUNCH,
+            TimesheetCode::ABSENT, TimesheetCode::ANNUAL_LEAVE, TimesheetCode::SICK_LEAVE, TimesheetCode::MATERNITY_LEAVE,
+            TimesheetCode::OTHER_LEAVE, TimesheetCode::FIELD_DUTY, TimesheetCode::HALF_DAY_LEAVE, TimesheetCode::HOLIDAY,
+            TimesheetCode::REST_DAY,
+        ],
+    );
+
+    // src/src/features/reports/timesheet/codes.ts lists the same thirteen, and
+    // src/src/test/reports-timesheet-screen.test.tsx pins its side of this.
+    expect($letters)->toBe(['P', 'L', 'E', 'M', 'A', 'AL', 'SL', 'ML', 'OL', 'FD', '½', 'H', 'R']);
+});
+
+test('the four related reports are standard, and each runs as written', function (string $key) {
+    ['tenant' => $tenant] = mtFortnight();
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+    $presets = test()->getJson(mtUrl($tenant, 'presets'))->assertOk()->json('presets');
+    $preset = collect($presets)->firstWhere('key', $key);
+
+    expect($preset)->not->toBeNull()
+        ->and($preset['standard'])->toBeTrue()
+        ->and($preset['source'])->toBe('timesheet');
+
+    // Run exactly what the Quick reports card runs, for the fortnight.
+    $config = [...$preset['config'], 'filters' => ['from' => '2026-10-12', 'to' => '2026-10-25']];
+    $response = test()->postJson(mtUrl($tenant, 'generate'), $config)->assertOk();
+
+    expect($response->json('total'))->toBeGreaterThan(0)
+        ->and(array_keys($response->json('data.0')))->each->toBeIn($config['columns'] ?? array_keys($response->json('data.0')));
+})->with(['late_and_early', 'overtime_by_rate', 'missing_punches', 'attendance_by_department']);
+
+test('the late and early report orders by the minutes and carries the deduction beside them', function () {
+    ['tenant' => $tenant] = mtFortnight();
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+    $preset = collect(test()->getJson(mtUrl($tenant, 'presets'))->json('presets'))->firstWhere('key', 'late_and_early');
+    $row = test()->postJson(mtUrl($tenant, 'generate'), [...$preset['config'], 'filters' => ['from' => '2026-10-12', 'to' => '2026-10-25']])
+        ->assertOk()->json('data.0');
+
+    expect($row)->toMatchArray(['late_days' => 1, 'late_minutes' => 40, 'early_days' => 1, 'early_minutes' => 90, 'lateness_deduct_minutes' => 0]);
+});
+
+test('the overtime by rate report separates the rates payroll pays', function () {
+    ['tenant' => $tenant] = mtFortnight();
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+    $preset = collect(test()->getJson(mtUrl($tenant, 'presets'))->json('presets'))->firstWhere('key', 'overtime_by_rate');
+    $row = test()->postJson(mtUrl($tenant, 'generate'), [...$preset['config'], 'filters' => ['from' => '2026-10-12', 'to' => '2026-10-25']])
+        ->assertOk()->json('data.0');
+
+    expect($row['overtime_normal_hours'])->toEqual(2.6)
+        ->and($row['overtime_rest_day_hours'])->toEqual(3)
+        ->and($row['overtime_holiday_hours'])->toEqual(0);
 });

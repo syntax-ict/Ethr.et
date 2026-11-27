@@ -462,6 +462,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
     Route::prefix('users')->group(function () {
         Route::get('/', [UserController::class, 'index']);
         Route::post('/', [UserController::class, 'store']);
+        Route::get('/assignable-roles', [UserController::class, 'assignableRoles']);
         Route::post('/invitations', [InvitationController::class, 'store']);
         Route::get('/invitations/{batch}', [InvitationController::class, 'show']);
         Route::patch('/{user}', [UserController::class, 'update']);
@@ -855,6 +856,12 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
             ->middleware(RequiresFeature::class.':reports')
             ->middleware('throttle:reports');
         Route::get('/timesheet', [ReportController::class, 'timesheet'])
+            ->middleware(RequiresFeature::class.':reports')
+            ->middleware('throttle:reports');
+        Route::get('/timesheet/pdf', [ReportController::class, 'timesheetPdf'])
+            ->middleware(RequiresFeature::class.':reports')
+            ->middleware('throttle:reports');
+        Route::get('/timesheet/xlsx', [ReportController::class, 'timesheetXlsx'])
             ->middleware(RequiresFeature::class.':reports')
             ->middleware('throttle:reports');
         Route::post('/export', [ReportController::class, 'export'])

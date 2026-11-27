@@ -726,3 +726,55 @@ Drafts written without a native speaker. The action names reuse the labels the e
 - `employees.bulk.result.unsent`: ጥያቄው ስለወደቀ :count ሰዎች አልተቀየሩም። ምርጫው ጸድቷል። በዝርዝሩ ውስጥ ያግኟቸው እና እርምጃውን እንደገና ያካሂዱ።
 
 What to check first: that "ለሚቆጣጠረው ሰው መታዘዝ" ("report to the person they supervise") reads as a reporting line and not as obedience, and that "ማጣሪያውን ያጥብቡ" ("narrow the filter") is how a list filter is narrowed in the screens already shipped.
+
+### Bringing archived people back from a list (2026-11-24)
+
+| What | Where | Strings |
+|---|---|---|
+| Review screen: the action, the note and the reason | `src/src/lib/i18n/locales/{am,om}.json`, `setup2.action_restore`, `setup2.restore_note`, `setup2.restore_blocked`, `setup2.migration_done_restored` | 4 each |
+| Row warnings: why someone was not brought back | `api/lang/{am,om}/onboarding.php`, `migration.maybe_other_person_archived`, `migration.restore_refused_gone`, `_not_archived`, `_in_use`, `_no_permission`, `_no_seat`, `_number_taken`, `_failed` | 8 each |
+
+The Amharic drafts:
+
+- `setup2.action_restore`: መልስ
+- `setup2.restore_note`: ወደ ማህደር ተወስዷል። ዝርዝሩ ሲጨመር በዚህ መስመር ዝርዝሮች ይመለሳል።
+- `setup2.restore_blocked`: ከዝርዝር ሊመለስ አይችልም፦ :reasons። ሊመለስ ከሆነ ወደ ማህደር ከተወሰዱት እይታ ይመልሱት።
+- `setup2.migration_done_restored`: ፍልሰት ተጠናቅቋል፦ :created ተፈጥረዋል፣ :restored ተመልሰዋል፣ :merged ተዋህደዋል፣ :updated ተስተካክለዋል
+- `migration.maybe_other_person_archived`: በዚህ መስመር ያለው ስም በቁጥር ከተመሳሰለው ወደ ማህደር የተወሰደ ሰው ስም ጋር አንድም ቃል አይጋራም፤ ስለዚህ ይህ መስመር እርስዎን እየጠበቀ ነው፣ ማንም አይመለስም። ያረጋግጡ፣ እሱ ከሆነ መልስን ይምረጡ።
+- `migration.restore_refused_not_archived`: ይህ ሰው ወደ ማህደር አልተወሰደም፤ ስለዚህ የሚመለስ ሰው የለም። መዝገቡን ለመሙላት አዋህድን ይምረጡ።
+- `migration.restore_refused_in_use`: ይህ ሰው ከጨመረው ዝርዝር በኋላ ጥቅም ላይ ውሏል፤ ስለዚህ ከዝርዝር ሊመለስ አይችልም። ሊመለስ ከሆነ ወደ ማህደር ከተወሰዱት እይታ ይመልሱት።
+- `migration.restore_refused_no_seat`: በእቅድዎ ውስጥ መቀመጫ ስለሌለ ይህ ሰው አልተመለሰም። መቀመጫ ያስለቅቁ ወይም እቅዱን ይቀይሩ፣ ከዚያ ይህን ዝርዝር እንደገና ይጨምሩ።
+- `migration.restore_refused_number_taken`: በዚህ መስመር ያለው የሰራተኛ ቁጥር አሁን የሌላ መዝገብ ስለሆነ ይህ ሰው አልተመለሰም።
+- The other `migration.restore_refused_*` lines (`gone`, `no_permission`, `failed`).
+- `migration.restore_refused_in_use` is also the note on a row whose archived person has been used and whose name shares nothing with the line (it replaces "choose restore if it is them" there). No new string.
+
+What to check first: that "መልስ" ("restore") is the verb the Archived view already uses on its button, and that "ከጨመረው ዝርዝር በኋላ ጥቅም ላይ ውሏል" ("has been used since the list that added them") reads as work done for the person, not as a thing used up. The Afaan Oromoo lines are drafts and unread.
+
+### Reach from the lists card: a corrected file and one way in from Employees (2026-11-25)
+
+| What | Where | Strings |
+|---|---|---|
+| "Add a corrected file" on a list whose additions were undone | `src/src/lib/i18n/locales/{am,om}.json`, `migration_lists.add_corrected` | 1 each |
+| Add-employee menu item that opens the import page at the lists card | `src/src/lib/i18n/locales/{am,om}.json`, `employees.add_menu.recent_lists` | 1 each |
+
+The Amharic drafts:
+
+- `migration_lists.add_corrected`: የተስተካከለ ፋይል ያክሉ
+- `employees.add_menu.recent_lists`: በቅርቡ የጨመሯቸው ዝርዝሮች
+
+What to check first: that "የተስተካከለ ፋይል" ("a corrected file") reads as the file after fixing, not as a file that was edited by the system, and that "ያክሉ" matches the verb already used on the import screen for adding a list. The Afaan Oromoo lines are drafts and unread.
+
+### One word for an archived person on the import review screen (2026-11-26)
+
+| What | Where | Strings |
+|---|---|---|
+| The match line for a person who was archived earlier, which said "deleted" beside a sentence that said "archived" | `src/src/lib/i18n/locales/{am,om}.json`, `setup2.outcome_archived` | 1 each |
+
+The drafts:
+
+- `setup2.outcome_archived` (am): ቀደም ብሎ ወደ ማህደር የተወሰደ (was ቀደም ብሎ የተሰረዘ)
+- `setup2.outcome_archived` (om): duraan kuufame (was duraan haqame)
+
+Both come from the existing archive vocabulary (`employees.archive.col_archived`, `employees.archive.done_one`).
+
+What to check first: that "ወደ ማህደር የተወሰደ" reads as "moved to the archive, can be brought back", not as removed for good, and that "kuufame" is the word the Archived view already uses. The Afaan Oromoo line is a draft and unread.

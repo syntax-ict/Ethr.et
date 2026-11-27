@@ -49,6 +49,7 @@ class UserResource extends JsonResource
             'custom_role' => $this->whenLoaded('customRole', fn () => $this->customRole ? [
                 'public_id' => $this->customRole->public_id,
                 'name' => $this->customRole->name,
+                'is_active' => (bool) $this->customRole->is_active,
             ] : null),
             'employee' => $this->whenLoaded('employee', fn () => $this->employee ? [
                 'public_id' => $this->employee->public_id,

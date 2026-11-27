@@ -2651,6 +2651,51 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/reports/timesheet/pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The monthly timesheet as a PDF: A4 landscape, the grid, the summary, the
+         *     totals, the legend, the rules applied and the signature lines, in the
+         *     reader's language and calendar. The same filters as the grid, and the
+         *     same people it shows; a list longer than a printed sheet holds is a 422
+         *     that says how to narrow it
+         */
+        get: operations["report.timesheetPdf"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/reports/timesheet/xlsx": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The same timesheet as an Excel workbook: a sheet of the days and a
+         *     sheet of the summary, for the same people and by the same filters as the
+         *     PDF. A list longer than the screen's own limit is a 422 that says how
+         *     to narrow it
+         */
+        get: operations["report.timesheetXlsx"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/reports/export": {
         parameters: {
             query?: never;
@@ -9252,6 +9297,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/users/assignable-roles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The custom roles the signed-in person may give, for the Users page's
+         *     picker. Settings > Roles needs `settings.manage`, which an HR admin does
+         *     not hold, so this is the read for someone who may only assign
+         */
+        get: operations["user.assignableRoles"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/users/{user}": {
         parameters: {
             query?: never;
@@ -11095,7 +11161,7 @@ export interface components {
             /** @enum {string} */
             sort_dir?: "asc" | "desc";
             /** @enum {string} */
-            format?: "csv" | "pdf";
+            format?: "csv" | "pdf" | "xlsx";
             columns?: string[];
             filters?: {
                 /** Format: date */
@@ -14481,7 +14547,7 @@ export interface components {
         /** UpdateStagingRowRequest */
         UpdateStagingRowRequest: {
             /** @enum {string} */
-            action: "merge" | "create" | "skip" | "defer";
+            action: "merge" | "create" | "skip" | "defer" | "restore";
             /**
              * @description Lets a reviewer pick which candidate an "ambiguous" row merges
              *     with — resolved tenant-scoped in the controller, same as every
@@ -14696,6 +14762,7 @@ export interface components {
             custom_role?: {
                 public_id: string;
                 name: string;
+                is_active: boolean;
             } | null;
             employee?: {
                 public_id: string;
@@ -22662,6 +22729,72 @@ export interface operations {
             422: components["responses"]["ValidationException"];
         };
     };
+    "report.timesheetPdf": {
+        parameters: {
+            query?: {
+                from?: string | null;
+                to?: string | null;
+                month?: string | null;
+                department?: string | null;
+                branch?: string | null;
+                shift?: string | null;
+                employment_status?: components["schemas"]["EmployeeStatus"] | null;
+                page?: number;
+                per_page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    "Content-Disposition"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": string;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "report.timesheetXlsx": {
+        parameters: {
+            query?: {
+                from?: string | null;
+                to?: string | null;
+                month?: string | null;
+                department?: string | null;
+                branch?: string | null;
+                shift?: string | null;
+                employment_status?: components["schemas"]["EmployeeStatus"] | null;
+                page?: number;
+                per_page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    "Content-Disposition"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": string;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
     "report.export": {
         parameters: {
             query?: never;
@@ -22682,6 +22815,7 @@ export interface operations {
                 };
                 content: {
                     "application/pdf": string;
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": string;
                     "text/csv": string;
                 };
             };
@@ -30005,6 +30139,11 @@ export interface operations {
                                 taken: boolean;
                             }[];
                             warnings: unknown[];
+                            restore: {
+                                possible: boolean;
+                                allowed: boolean;
+                                reasons: string[];
+                            } | null;
                             can_apply_changes: boolean;
                             scheduled_action: boolean;
                             processed_at: string | null;
@@ -30153,6 +30292,11 @@ export interface operations {
                                 taken: boolean;
                             }[];
                             warnings: unknown[];
+                            restore: {
+                                possible: boolean;
+                                allowed: boolean;
+                                reasons: string[];
+                            } | null;
                             can_apply_changes: boolean;
                             scheduled_action: boolean;
                             processed_at: string | null;
@@ -30415,6 +30559,11 @@ export interface operations {
                                 taken: boolean;
                             }[];
                             warnings: unknown[];
+                            restore: {
+                                possible: boolean;
+                                allowed: boolean;
+                                reasons: string[];
+                            } | null;
                             can_apply_changes: boolean;
                             scheduled_action: boolean;
                             processed_at: string | null;
@@ -30498,6 +30647,11 @@ export interface operations {
                             taken: boolean;
                         }[];
                         warnings: unknown[];
+                        restore: {
+                            possible: boolean;
+                            allowed: boolean;
+                            reasons: string[];
+                        } | null;
                         can_apply_changes: boolean;
                         scheduled_action: boolean;
                         processed_at: string | null;
@@ -30709,6 +30863,7 @@ export interface operations {
                             created: number;
                             merged: number;
                             updated: number;
+                            restored: number;
                             skipped: number;
                             deferred: number;
                         };
@@ -35860,6 +36015,20 @@ export interface operations {
                                 other_bytes: number;
                             } | null;
                         };
+                        sweeps: {
+                            title_access: {
+                                last_sweep_at: string | null;
+                                tenants_scanned: number | null;
+                                admins: number | null;
+                                held: number | null;
+                                waiting: number | null;
+                                dispatched: number | null;
+                                remembered: number | null;
+                                last_notice_at: string | null;
+                                notice_held: number | null;
+                                notice_notified: number | null;
+                            };
+                        };
                     };
                 };
             };
@@ -40570,13 +40739,38 @@ export interface operations {
                             punches: string;
                             first_seen: string;
                             last_seen: string;
-                            match: unknown;
+                            match: {
+                                [key: string]: unknown;
+                            } | null;
                             recording_itself: boolean;
                             name_on_device: string | null;
                             name_matches: {
                                 employee_public_id: string;
                                 employee_name: string;
-                                department: string | null;
+                                department: string;
+                                fit: string;
+                                identity: {
+                                    employee_code: string | null;
+                                    department: string | null;
+                                    position: string | null;
+                                    branch: string | null;
+                                    hire_date: string;
+                                    status: string;
+                                    badge_number: string | null;
+                                    warnings: ({
+                                        /** @constant */
+                                        code: "other_badge";
+                                        value: string;
+                                    } | {
+                                        /** @constant */
+                                        code: "hired_after";
+                                        value: Record<string, never> | null;
+                                    } | {
+                                        /** @constant */
+                                        code: "own_attendance";
+                                        value: number;
+                                    })[];
+                                } | null;
                             }[];
                         }[];
                     };
@@ -40651,6 +40845,11 @@ export interface operations {
                 search?: string;
                 "filter[role]"?: string;
                 "filter[status]"?: string;
+                /**
+                 * @description A public id, read through the tenant scope: another organisation's
+                 *      role finds no one rather than raising an error.
+                 */
+                "filter[custom_role]"?: string;
                 per_page?: number;
             };
             header?: never;
@@ -40667,6 +40866,11 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: (components["schemas"]["UserResource"] & {
+                            custom_role: {
+                                public_id: string;
+                                name: string;
+                                is_active: boolean;
+                            } | null;
                             employee: {
                                 public_id: string;
                                 name: string;
@@ -40747,6 +40951,35 @@ export interface operations {
             422: components["responses"]["ValidationException"];
         };
     };
+    "user.assignableRoles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            public_id: string;
+                            name: string;
+                            description: string;
+                            org_scope: string;
+                            permissions_count: number;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
     "user.destroy": {
         parameters: {
             query?: never;
@@ -40820,6 +41053,11 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserResource"] & {
+                        custom_role: {
+                            public_id: string;
+                            name: string;
+                            is_active: boolean;
+                        } | null;
                         employee: {
                             public_id: string;
                             name: string;
@@ -40898,6 +41136,11 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserResource"] & {
+                        custom_role: {
+                            public_id: string;
+                            name: string;
+                            is_active: boolean;
+                        } | null;
                         employee: {
                             public_id: string;
                             name: string;

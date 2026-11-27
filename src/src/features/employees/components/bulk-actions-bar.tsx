@@ -296,7 +296,7 @@ export function BulkActionsBar({
   const titles: Record<BulkField, string> = {
     department_id: t("employees.bulk.change_department", "Change department"),
     branch_id: t("employees.bulk.change_branch", "Change branch"),
-    position_id: t("employees.bulk.change_position", "Change job title"),
+    position_id: t("employees.bulk.change_position", "Change position"),
     supervisor_id: t("employees.bulk.change_supervisor", "Change supervisor"),
     team_id: t("employees.bulk.change_team", "Change team"),
     cost_center_id: t(
@@ -313,7 +313,7 @@ export function BulkActionsBar({
     ),
     position_id: t(
       "employees.bulk.position_rules",
-      "A job title can give a person's login a different role. You give only the roles you could give on the Users page, and the rest wait there.",
+      "A position can give a person's login a different role. You give only the roles you could give on the Users page, and the rest wait there.",
     ),
     supervisor_id: t(
       "employees.bulk.supervisor_rules",

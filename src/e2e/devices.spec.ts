@@ -46,7 +46,13 @@ test.describe("Device form", () => {
     page,
   }) => {
     await page.goto("/devices");
+    // Add Device opens the guided setup (device setup PR 3); the full form
+    // this journey drives is its Advanced link.
     await page.getByRole("button", { name: "Add Device" }).click();
+    await page
+      .getByRole("dialog", { name: "Add a device" })
+      .getByRole("button", { name: "Advanced", exact: true })
+      .click();
 
     const form = page.getByRole("dialog", { name: "Register Device" });
     await expect(form).toBeVisible();

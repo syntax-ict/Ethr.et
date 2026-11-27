@@ -13722,7 +13722,13 @@
                                                     "last_seen": {
                                                         "type": "string"
                                                     },
-                                                    "match": [],
+                                                    "match": {
+                                                        "type": [
+                                                            "object",
+                                                            "null"
+                                                        ],
+                                                        "additionalProperties": []
+                                                    },
                                                     "recording_itself": {
                                                         "type": "boolean"
                                                     },
@@ -13744,16 +13750,130 @@
                                                                     "type": "string"
                                                                 },
                                                                 "department": {
+                                                                    "type": "string"
+                                                                },
+                                                                "fit": {
+                                                                    "type": "string"
+                                                                },
+                                                                "identity": {
                                                                     "type": [
-                                                                        "string",
+                                                                        "object",
                                                                         "null"
+                                                                    ],
+                                                                    "properties": {
+                                                                        "employee_code": {
+                                                                            "type": [
+                                                                                "string",
+                                                                                "null"
+                                                                            ]
+                                                                        },
+                                                                        "department": {
+                                                                            "type": [
+                                                                                "string",
+                                                                                "null"
+                                                                            ]
+                                                                        },
+                                                                        "position": {
+                                                                            "type": [
+                                                                                "string",
+                                                                                "null"
+                                                                            ]
+                                                                        },
+                                                                        "branch": {
+                                                                            "type": [
+                                                                                "string",
+                                                                                "null"
+                                                                            ]
+                                                                        },
+                                                                        "hire_date": {
+                                                                            "type": "string"
+                                                                        },
+                                                                        "status": {
+                                                                            "type": "string"
+                                                                        },
+                                                                        "badge_number": {
+                                                                            "type": [
+                                                                                "string",
+                                                                                "null"
+                                                                            ]
+                                                                        },
+                                                                        "warnings": {
+                                                                            "type": "array",
+                                                                            "items": {
+                                                                                "anyOf": [
+                                                                                    {
+                                                                                        "type": "object",
+                                                                                        "properties": {
+                                                                                            "code": {
+                                                                                                "type": "string",
+                                                                                                "const": "other_badge"
+                                                                                            },
+                                                                                            "value": {
+                                                                                                "type": "string"
+                                                                                            }
+                                                                                        },
+                                                                                        "required": [
+                                                                                            "code",
+                                                                                            "value"
+                                                                                        ]
+                                                                                    },
+                                                                                    {
+                                                                                        "type": "object",
+                                                                                        "properties": {
+                                                                                            "code": {
+                                                                                                "type": "string",
+                                                                                                "const": "hired_after"
+                                                                                            },
+                                                                                            "value": {
+                                                                                                "type": [
+                                                                                                    "object",
+                                                                                                    "null"
+                                                                                                ]
+                                                                                            }
+                                                                                        },
+                                                                                        "required": [
+                                                                                            "code",
+                                                                                            "value"
+                                                                                        ]
+                                                                                    },
+                                                                                    {
+                                                                                        "type": "object",
+                                                                                        "properties": {
+                                                                                            "code": {
+                                                                                                "type": "string",
+                                                                                                "const": "own_attendance"
+                                                                                            },
+                                                                                            "value": {
+                                                                                                "type": "integer"
+                                                                                            }
+                                                                                        },
+                                                                                        "required": [
+                                                                                            "code",
+                                                                                            "value"
+                                                                                        ]
+                                                                                    }
+                                                                                ]
+                                                                            }
+                                                                        }
+                                                                    },
+                                                                    "required": [
+                                                                        "employee_code",
+                                                                        "department",
+                                                                        "position",
+                                                                        "branch",
+                                                                        "hire_date",
+                                                                        "status",
+                                                                        "badge_number",
+                                                                        "warnings"
                                                                     ]
                                                                 }
                                                             },
                                                             "required": [
                                                                 "employee_public_id",
                                                                 "employee_name",
-                                                                "department"
+                                                                "department",
+                                                                "fit",
+                                                                "identity"
                                                             ]
                                                         }
                                                     }
@@ -27477,6 +27597,31 @@
                                                         "type": "array",
                                                         "items": []
                                                     },
+                                                    "restore": {
+                                                        "type": [
+                                                            "object",
+                                                            "null"
+                                                        ],
+                                                        "properties": {
+                                                            "possible": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "allowed": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "reasons": {
+                                                                "type": "array",
+                                                                "items": {
+                                                                    "type": "string"
+                                                                }
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "possible",
+                                                            "allowed",
+                                                            "reasons"
+                                                        ]
+                                                    },
                                                     "can_apply_changes": {
                                                         "type": "boolean"
                                                     },
@@ -27502,6 +27647,7 @@
                                                     "action",
                                                     "changes",
                                                     "warnings",
+                                                    "restore",
                                                     "can_apply_changes",
                                                     "scheduled_action",
                                                     "processed_at"
@@ -27763,6 +27909,9 @@
                                                 "updated": {
                                                     "type": "integer"
                                                 },
+                                                "restored": {
+                                                    "type": "integer"
+                                                },
                                                 "skipped": {
                                                     "type": "integer"
                                                 },
@@ -27774,6 +27923,7 @@
                                                 "created",
                                                 "merged",
                                                 "updated",
+                                                "restored",
                                                 "skipped",
                                                 "deferred"
                                             ]
@@ -28876,6 +29026,31 @@
                                                         "type": "array",
                                                         "items": []
                                                     },
+                                                    "restore": {
+                                                        "type": [
+                                                            "object",
+                                                            "null"
+                                                        ],
+                                                        "properties": {
+                                                            "possible": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "allowed": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "reasons": {
+                                                                "type": "array",
+                                                                "items": {
+                                                                    "type": "string"
+                                                                }
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "possible",
+                                                            "allowed",
+                                                            "reasons"
+                                                        ]
+                                                    },
                                                     "can_apply_changes": {
                                                         "type": "boolean"
                                                     },
@@ -28901,6 +29076,7 @@
                                                     "action",
                                                     "changes",
                                                     "warnings",
+                                                    "restore",
                                                     "can_apply_changes",
                                                     "scheduled_action",
                                                     "processed_at"
@@ -29442,6 +29618,31 @@
                                                                 "type": "array",
                                                                 "items": []
                                                             },
+                                                            "restore": {
+                                                                "type": [
+                                                                    "object",
+                                                                    "null"
+                                                                ],
+                                                                "properties": {
+                                                                    "possible": {
+                                                                        "type": "boolean"
+                                                                    },
+                                                                    "allowed": {
+                                                                        "type": "boolean"
+                                                                    },
+                                                                    "reasons": {
+                                                                        "type": "array",
+                                                                        "items": {
+                                                                            "type": "string"
+                                                                        }
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "possible",
+                                                                    "allowed",
+                                                                    "reasons"
+                                                                ]
+                                                            },
                                                             "can_apply_changes": {
                                                                 "type": "boolean"
                                                             },
@@ -29467,6 +29668,7 @@
                                                             "action",
                                                             "changes",
                                                             "warnings",
+                                                            "restore",
                                                             "can_apply_changes",
                                                             "scheduled_action",
                                                             "processed_at"
@@ -29696,6 +29898,31 @@
                                             "type": "array",
                                             "items": []
                                         },
+                                        "restore": {
+                                            "type": [
+                                                "object",
+                                                "null"
+                                            ],
+                                            "properties": {
+                                                "possible": {
+                                                    "type": "boolean"
+                                                },
+                                                "allowed": {
+                                                    "type": "boolean"
+                                                },
+                                                "reasons": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string"
+                                                    }
+                                                }
+                                            },
+                                            "required": [
+                                                "possible",
+                                                "allowed",
+                                                "reasons"
+                                            ]
+                                        },
                                         "can_apply_changes": {
                                             "type": "boolean"
                                         },
@@ -29721,6 +29948,7 @@
                                         "action",
                                         "changes",
                                         "warnings",
+                                        "restore",
                                         "can_apply_changes",
                                         "scheduled_action",
                                         "processed_at"
@@ -38553,6 +38781,11 @@
                                     "type": "string"
                                 }
                             },
+                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
                             "text/csv": {
                                 "schema": {
                                     "type": "string"
@@ -40368,6 +40601,284 @@
                                         "status",
                                         "with_pay"
                                     ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
+        "/reports/timesheet/pdf": {
+            "get": {
+                "x-abilities": [
+                    "read",
+                    "reports"
+                ],
+                "operationId": "report.timesheetPdf",
+                "summary": "The monthly timesheet as a PDF: A4 landscape, the grid, the summary, the\ntotals, the legend, the rules applied and the signature lines, in the\nreader's language and calendar. The same filters as the grid, and the\nsame people it shows; a list longer than a printed sheet holds is a 422\nthat says how to narrow it",
+                "tags": [
+                    "Dashboards & Reporting"
+                ],
+                "parameters": [
+                    {
+                        "name": "from",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "to",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "month",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "department",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "maxLength": 64
+                        }
+                    },
+                    {
+                        "name": "branch",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "maxLength": 64
+                        }
+                    },
+                    {
+                        "name": "shift",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "maxLength": 64
+                        }
+                    },
+                    {
+                        "name": "employment_status",
+                        "in": "query",
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "$ref": "#/components/schemas/EmployeeStatus"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 100
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/pdf": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Content-Disposition": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
+        "/reports/timesheet/xlsx": {
+            "get": {
+                "x-abilities": [
+                    "read",
+                    "reports"
+                ],
+                "operationId": "report.timesheetXlsx",
+                "summary": "The same timesheet as an Excel workbook: a sheet of the days and a\nsheet of the summary, for the same people and by the same filters as the\nPDF. A list longer than the screen's own limit is a 422 that says how\nto narrow it",
+                "tags": [
+                    "Dashboards & Reporting"
+                ],
+                "parameters": [
+                    {
+                        "name": "from",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "to",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "month",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "department",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "maxLength": 64
+                        }
+                    },
+                    {
+                        "name": "branch",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "maxLength": 64
+                        }
+                    },
+                    {
+                        "name": "shift",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "maxLength": 64
+                        }
+                    },
+                    {
+                        "name": "employment_status",
+                        "in": "query",
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "$ref": "#/components/schemas/EmployeeStatus"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 100
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Content-Disposition": {
+                                "schema": {
+                                    "type": "string"
                                 }
                             }
                         }
@@ -53467,7 +53978,8 @@
                         "type": "string",
                         "enum": [
                             "csv",
-                            "pdf"
+                            "pdf",
+                            "xlsx"
                         ]
                     },
                     "columns": {
@@ -62891,7 +63403,8 @@
                             "merge",
                             "create",
                             "skip",
-                            "defer"
+                            "defer",
+                            "restore"
                         ]
                     },
                     "employee_public_id": {

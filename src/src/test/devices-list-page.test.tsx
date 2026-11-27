@@ -173,6 +173,18 @@ describe("<DevicesPage> quiet terminals", () => {
   });
 });
 
+/**
+ * Add Device opens the guided setup (device setup upgrade, PR 3). The full
+ * Register form these tests exercise is its Advanced link.
+ */
+async function openRegisterForm(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(
+    (await screen.findAllByRole("button", { name: /add device/i }))[0],
+  );
+  await user.click(await screen.findByRole("button", { name: /^advanced$/i }));
+  return screen.findByRole("dialog", { name: /register device/i });
+}
+
 // QA 2026-11-14, D-3: Register with no branch answered "The branch public id
 // field is required.", from a form that did not say a branch was needed.
 describe("<DevicesPage> register dialog", () => {
@@ -186,10 +198,7 @@ describe("<DevicesPage> register dialog", () => {
     );
     renderPage();
 
-    await userEvent.click(
-      (await screen.findAllByRole("button", { name: /add device/i }))[0],
-    );
-    const dialog = await screen.findByRole("dialog");
+    const dialog = await openRegisterForm(userEvent.setup());
 
     expect(await within(dialog).findByText("Branch *")).toBeInTheDocument();
     expect(
@@ -204,10 +213,7 @@ describe("<DevicesPage> register dialog", () => {
     serve([], [{ public_id: "B1", name: "Head office" }]);
     renderPage();
 
-    await userEvent.click(
-      (await screen.findAllByRole("button", { name: /add device/i }))[0],
-    );
-    const dialog = await screen.findByRole("dialog");
+    const dialog = await openRegisterForm(userEvent.setup());
 
     expect(
       (await within(dialog).findAllByText("Head office")).length,
@@ -220,10 +226,7 @@ describe("<DevicesPage> register dialog", () => {
     serve([], [{ public_id: "B1", name: "Head office" }]);
     renderPage();
 
-    await userEvent.click(
-      (await screen.findAllByRole("button", { name: /add device/i }))[0],
-    );
-    const dialog = await screen.findByRole("dialog");
+    const dialog = await openRegisterForm(userEvent.setup());
     expect(
       within(dialog).getByRole("switch", { name: /auto-sync/i }),
     ).toBeInTheDocument();
@@ -248,7 +251,7 @@ describe("<DevicesPage> register dialog", () => {
 
       const dialog = await screen.findByRole("dialog");
       expect(
-        within(dialog).getByRole("button", { name: /^register$/i }),
+        within(dialog).getByRole("heading", { name: /add a device/i }),
       ).toBeInTheDocument();
     } finally {
       window.location.hash = "";
@@ -287,10 +290,7 @@ describe("<DevicesPage> after registering", () => {
     const user = userEvent.setup();
     renderPage();
 
-    await user.click(
-      (await screen.findAllByRole("button", { name: /add device/i }))[0],
-    );
-    const form = await screen.findByRole("dialog");
+    const form = await openRegisterForm(user);
     await user.type(within(form).getByLabelText(/device name/i), "Front door");
     await user.type(
       within(form).getByLabelText(/^ip address$/i),

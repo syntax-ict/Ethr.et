@@ -30,7 +30,7 @@ return [
         'letterhead_po_box' => 'በሰነዶች ላይ የሚታተም ፖ.ሣ.ቁ.',
         'device_silence_alerts' => 'የመሣሪያ ዝምታ ማሳወቂያ',
         'device_silence_adms_minutes' => 'የመሣሪያ ዝምታ ደቂቃዎች',
-        'device_silence_push_grace_minutes' => 'የመሣሪያ ዝምታ የትዕግሥት ደቂቃዎች',
+        'device_silence_push_grace_minutes' => 'የመሣሪያ ዝምታ የእፎይታ ደቂቃዎች',
         'invitation_reminders' => 'የግብዣ ማስታወሻዎች',
         'password_policy' => 'የይለፍ ቃል ደንቦች',
         'activation_code_hours' => 'የማግበሪያ ኮድ የአገልግሎት ጊዜ',

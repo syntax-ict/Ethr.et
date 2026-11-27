@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +11,7 @@ import { apiErrorMessage } from "@/lib/api/error-message";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useT } from "@/lib/i18n/useT";
+import { MigrationUndoButton } from "./migration-undo";
 import {
   useDiscardMigrationList,
   useMigrationListsAdded,
@@ -40,6 +42,7 @@ export function MigrationListsInProgress({
   openingId = null,
   openingText = null,
   disabled = false,
+  onAddCorrected,
 }: {
   onOpen: (list: OpenableList) => void;
   /** The list being opened, while it is; its button says how far matching got. */
@@ -47,6 +50,13 @@ export function MigrationListsInProgress({
   openingText?: string | null;
   /** Something else on the screen is busy with a list. */
   disabled?: boolean;
+  /**
+   * Starts a fresh list in place of one that was undone. Offered only on an
+   * undone row, and only when the page can take the admin to its paste box.
+   * It carries nothing from the undone list: the corrected file brings the
+   * archived people back by number.
+   */
+  onAddCorrected?: () => void;
 }) {
   const { t } = useT();
   const { can } = usePermissions();
@@ -57,8 +67,21 @@ export function MigrationListsInProgress({
   const discard = useDiscardMigrationList();
   const lists = query.data ?? [];
   const added = addedQuery.data ?? [];
+  const shown = lists.length > 0 || added.length > 0;
 
-  if (lists.length === 0 && added.length === 0) return null;
+  // "Lists you added recently" on the Employees menu links here with a hash.
+  // The card appears only once its request lands, after the browser has
+  // already looked for the anchor, so it is scrolled to when it first shows.
+  useEffect(() => {
+    if (!shown || typeof window === "undefined") return;
+    if (window.location.hash === "#recent-lists") {
+      document
+        .getElementById("recent-lists")
+        ?.scrollIntoView?.({ behavior: "smooth", block: "start" });
+    }
+  }, [shown]);
+
+  if (!shown) return null;
 
   const modeLabel = (mode: MigrationListInProgress["mode"]) =>
     mode === "complete"
@@ -155,7 +178,7 @@ export function MigrationListsInProgress({
   }
 
   return (
-    <Card>
+    <Card id="recent-lists" className="scroll-mt-20">
       <CardContent className="space-y-3 p-4">
         {lists.length > 0 && (
           <div>
@@ -271,7 +294,32 @@ export function MigrationListsInProgress({
                       {peopleAddedLabel(list.created)}
                     </p>
                   </div>
-                  <div className="flex shrink-0 gap-2">
+                  <div className="flex shrink-0 flex-wrap gap-2">
+                    {list.undone_at === null && (
+                      <MigrationUndoButton
+                        batchId={list.public_id}
+                        batch={{
+                          status: "committed",
+                          mode: list.mode,
+                          undone_at: list.undone_at,
+                          undo_archived: undefined,
+                        }}
+                      />
+                    )}
+                    {list.undone_at !== null && onAddCorrected && (
+                      <Button
+                        size="sm"
+                        onClick={onAddCorrected}
+                        disabled={
+                          disabled || openingId !== null || discard.isPending
+                        }
+                      >
+                        {t(
+                          "migration_lists.add_corrected",
+                          "Add a corrected file",
+                        )}
+                      </Button>
+                    )}
                     <Button
                       size="sm"
                       variant="outline"
