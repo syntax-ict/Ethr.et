@@ -136,11 +136,14 @@ export function AppHeader() {
           is never narrower than its contents, so a long name or another
           language cannot push the icons over the search; the title column
           gives way first. Below lg it stays a row: logo, then the icons.
-          The search stops at 28rem: each icon or word added to the actions
-          comes out of the title column, and at 1280px the Amharic title
-          "Add Employee" is the first to clip (Get help cost 6px; naming the
-          language and calendar in words cost 6px more). */}
-      <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center border-b border-border bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(16rem,28rem)_minmax(max-content,1fr)] lg:gap-4 lg:px-6 xl:gap-6">
+          The search is a button that opens the palette, so its width is the
+          cheapest thing here: it reaches 28rem only from 88rem of window, and
+          below that it gives its width to the page title (16rem at 76rem and
+          narrower). A grid sizes the search to its maximum before the title
+          gets anything, so with a fixed 28rem the title was cut at every width
+          from 1024px to about 1300px: "M." for the Afaan Oromoo "Meeshaalee"
+          at 1280px, and no title at all at 1024px in any language. */}
+      <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center border-b border-border bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(16rem,clamp(16rem,calc(100vw_-_60rem),28rem))_minmax(max-content,1fr)] lg:gap-4 lg:px-6 xl:gap-6">
         {/* Left: mobile logo / Desktop breadcrumbs. The hamburger that lived
             here was the second of two controls opening the same navigation —
             the bottom bar's More is the documented, thumb-reachable one, and
