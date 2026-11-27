@@ -453,7 +453,7 @@ Insights → Reports → Builder:
 2. Choose columns
 3. Add filters (status and unit for employees; a period or a date range, and unit, for attendance, timesheet, absences and payroll; the year for leave), and optional grouping and sorting
 4. **Run Preview**
-5. **Download CSV**, or **Save as template**
+5. **Download CSV** or **Download Excel**, or **Save as template**
 
 A report shows at most 1,000 rows on screen and in a file, the newest first, and says so when it has cut any. Group totals are counted over every matching row, not only the rows shown. If a very large report cannot be totalled in time, the result says its totals are partial.
 
@@ -461,7 +461,7 @@ Changing the settings after a preview marks the preview out of date; run it agai
 
 **Period.** Instead of fixed dates a report can use a rolling period: yesterday, the last 7 days, this month, last month, the last 3 or 12 months, this fiscal year or last fiscal year. Months are months of the organization's calendar, and the fiscal year starts in the month set under Payroll Rules. A rolling period is worked out each time the report runs. The monthly timesheet covers at most 31 days, so it takes only yesterday, the last 7 days, this month and last month; the absences report covers at most the newest 92 days of the period chosen.
 
-The API's export endpoint also produces PDF. CSV and PDF are the only formats; there is no Excel export.
+**Download Excel** makes a workbook of the same rows and columns as the CSV, cut at the same 1,000 rows and saying so on its last line. The heading row is bold and stays in view as you scroll, money and counts are numbers a column can add up, and dates read in your calendar, with the Ethiopian date in a column of its own for a reader on that calendar, as in the CSV. The API's export endpoint also produces PDF. CSV, PDF and Excel are the formats; a very large file made in the background, and Excel by email on a schedule, come in a later release.
 
 ### Scheduled Reports
 
@@ -495,13 +495,14 @@ The monthly timesheet reads the same figures payroll reads, so the two cannot di
 - Totals and the status are shown for up to 200 people. For a longer list the sheet still pages through everyone, says so, and shows no status: choose a department, branch or shift to narrow it.
 - On a phone, each person is a card with the month as a strip of days; tapping a day opens the same drawer.
 - **Download CSV** saves the page as it reads, a code a day; **Print** prints the sheet from the browser.
-- **Download PDF** makes the sheet for the wall and the file: A4 landscape, the organization's letterhead, the title in English and in Amharic, the period in your calendar, who made it and when, the status, the filters and the shifts. The days come first (one column a day, weekends shaded, paid days boxed), then the summary on its own page, then department totals, the legend of codes, how it was counted, and **Prepared by**, **Checked by** and **Approved by** lines with a box for the stamp. It holds up to 50 people: for more, choose a department, branch or shift and the message tells you so. Excel comes with the queued files in a later release.
+- **Download PDF** makes the sheet for the wall and the file: A4 landscape, the organization's letterhead, the title in English and in Amharic, the period in your calendar, who made it and when, the status, the filters and the shifts. The days come first (one column a day, weekends shaded, paid days boxed), then the summary on its own page, then department totals, the legend of codes, how it was counted, and **Prepared by**, **Checked by** and **Approved by** lines with a box for the stamp. It holds up to 50 people: for more, choose a department, branch or shift and the message tells you so.
+- **Download Excel** makes a workbook with two sheets for the same people and filters: **Days** (a row a person, a column a day, with the organization, the title, the period in both calendars and the time it was made above it, the headings bold and kept in view) and **Summary** (the figures payroll reads as numbers, department totals and a grand total). It holds up to 200 people, the sheet's own limit: for more, choose a department, branch or shift and the message tells you so.
 
 Through the API, `GET /reports/timesheet` returns a page of people with one cell per day, the totals over everyone the filters match, department subtotals, the rules applied and the status. The Builder's "Monthly timesheet" source carries the same figures as columns.
 
 ### Quick Reports
 
-The **Quick Reports** tab lists ready-made reports: the standard ones, and those recommended for the organization's type and working pattern (for example staffing by grade for a government office, overtime by department for a factory on shifts). A month picker in your calendar applies to the timesheet, attendance, absence and payroll reports. Each can be downloaded as CSV.
+The **Quick Reports** tab lists ready-made reports: the standard ones, and those recommended for the organization's type and working pattern (for example staffing by grade for a government office, overtime by department for a factory on shifts). A month picker in your calendar applies to the timesheet, attendance, absence and payroll reports. Each can be downloaded as CSV or as Excel.
 
 Four reports built on the monthly timesheet's figures are standard for every organization, each for the month chosen above them: **Late and early leave** (late days and early departures with their minutes, and the lateness payroll will deduct), **Overtime by rate** (hours in each rate payroll pays, the unapproved hours and the days over the legal limit), **Missing punches** (who has a day with a punch still to fix, and who has no attendance), and **Attendance by department** (present, late, absent and leave days and the hours short, totalled per department). They read the same figures as the timesheet and payroll, so they agree with both. Daily attendance is the Attendance page, the absences and leave balances reports are above, and a raw punch log per device is on the Devices page.
 
