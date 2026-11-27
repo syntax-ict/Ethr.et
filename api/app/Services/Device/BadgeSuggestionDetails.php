@@ -6,7 +6,9 @@ namespace App\Services\Device;
 
 use App\Enums\AttendanceStatus;
 use App\Models\Employee;
+use App\Models\Tenant;
 use App\Models\UnmatchedDevicePunch;
+use App\Support\TenantTime;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -23,6 +25,10 @@ use Illuminate\Support\Facades\DB;
  *  - `other_badge`: they already carry another badge number (the value).
  *  - `hired_after`: their hire date is after the first day this badge punched
  *    (the value is that day), so the punches would fall before they started.
+ *    It is left out when the hire date is the same calendar day, in the
+ *    organisation's own time zone, as the day the record was created: that
+ *    date is then taken to be a placeholder filled in by an import, not a real
+ *    start date. A person entered on their true first day loses the warning too.
  *  - `own_attendance`: they already have attendance of their own on days this
  *    badge punched (the value is how many days), so replaying could double up.
  */
@@ -33,6 +39,9 @@ final class BadgeSuggestionDetails
 
     /** @var array<string, Employee> */
     private array $people = [];
+
+    /** @var array<int, string> tenant id => time zone name, read once per organisation */
+    private array $zones = [];
 
     /** @var array<string, list<string>> badge key => the days (Y-m-d) it punched on */
     private array $days = [];
@@ -63,6 +72,15 @@ final class BadgeSuggestionDetails
                 });
         }
 
+        if ($this->people !== []) {
+            Tenant::query()
+                ->whereIn('id', array_values(array_unique(array_map(fn (Employee $e): int => (int) $e->tenant_id, $this->people))))
+                ->get()
+                ->each(function (Tenant $tenant): void {
+                    $this->zones[(int) $tenant->id] = TenantTime::zone($tenant);
+                });
+        }
+
         $this->readDays($badges, $tenantIds);
         $this->readAttendance($tenantIds);
     }
@@ -90,7 +108,7 @@ final class BadgeSuggestionDetails
 
         $first = $days === [] ? null : min($days);
         $hired = $employee->hire_date?->format('Y-m-d');
-        if ($first !== null && $hired !== null && $hired > $first) {
+        if ($first !== null && $hired !== null && $hired > $first && ! $this->hiredOnImportDay($employee, $hired)) {
             $warnings[] = ['code' => 'hired_after', 'value' => $first];
         }
 
@@ -109,6 +127,17 @@ final class BadgeSuggestionDetails
             'badge_number' => $theirs === '' ? null : $theirs,
             'warnings' => $warnings,
         ];
+    }
+
+    private function hiredOnImportDay(Employee $employee, string $hired): bool
+    {
+        if ($employee->created_at === null) {
+            return false;
+        }
+
+        $zone = $this->zones[(int) $employee->tenant_id] ?? TenantTime::zone(null);
+
+        return $employee->created_at->copy()->setTimezone($zone)->format('Y-m-d') === $hired;
     }
 
     private static function key(int $deviceId, string $badge): string
