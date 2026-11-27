@@ -1144,6 +1144,8 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
                 ->middleware('throttle:backup-storage-test');
             Route::post('/backups/key', [BackupStorageController::class, 'revealKey'])
                 ->middleware('throttle:backup-key');
+            Route::post('/backups/run', [BackupStorageController::class, 'run'])
+                ->middleware('throttle:backup-run');
 
             // Google Drive, the fallback destination. The OAuth return is the
             // console page itself, which posts `code` and `state` to

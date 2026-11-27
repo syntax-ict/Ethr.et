@@ -8492,5 +8492,16 @@
   "device_wizard.done_intro": "Next, bring the people onto it.",
   "device_wizard.done_no_roster": "This terminal cannot be asked who is enrolled on it. Give each employee the badge number they use on the terminal, on their profile.",
   "device_wizard.open_device": "Open the device page",
-  "device_wizard.push_quarantined": "It reached ETHR but could not be recorded. The device page says why, under Punches that need attention."
+  "device_wizard.push_quarantined": "It reached ETHR but could not be recorded. The device page says why, under Punches that need attention.",
+  "admin_backups.run_title": "Back up now",
+  "admin_backups.run_help": "Take a backup without waiting for the nightly run. If off-host storage is on, an encrypted copy is uploaded as well.",
+  "admin_backups.run_button": "Back up now",
+  "admin_backups.run_running": "Backing up. Keep this page open.",
+  "admin_backups.run_confirm_title": "Back up now?",
+  "admin_backups.run_confirm_body": "This takes a full backup of the database and documents on this server. When off-host storage is on, an encrypted copy is uploaded too. It can take a few minutes.",
+  "admin_backups.run_confirm": "Back up now",
+  "admin_backups.run_done": "Backup created on this server.",
+  "admin_backups.run_done_copied": "Backup created and copied off the host.",
+  "admin_backups.run_failed": "The backup did not complete.",
+  "admin_backups.run_no_answer": "The server did not answer in time. Check the last backup time above before trying again."
 }

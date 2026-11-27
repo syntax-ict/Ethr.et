@@ -8,8 +8,8 @@ use App\Http\Requests\Maintenance\CreatePlatformAdminRequest;
 use App\Http\Requests\Maintenance\RestoreBackupRequest;
 use App\Services\Backup\AuditLogIntegrity;
 use App\Services\Backup\BackupService;
+use App\Support\MaintenanceLock;
 use Dedoc\Scramble\Attributes\ExcludeRouteFromDocs;
-use Illuminate\Contracts\Cache\LockProvider;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
@@ -263,10 +263,7 @@ class MaintenanceController
      */
     private function exclusively(string $task, callable $work): JsonResponse
     {
-        $store = Cache::store((string) config('maintenance.cache_store', 'file'))->getStore();
-        abort_unless($store instanceof LockProvider, 500, 'The maintenance cache store cannot hold a lock.');
-
-        $lock = $store->lock('maintenance:run', (int) config('maintenance.lock_seconds', 300));
+        $lock = MaintenanceLock::make();
 
         if (! $lock->get()) {
             return response()->json(['task' => $task, 'status' => 'already-running'], 409);

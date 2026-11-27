@@ -128,6 +128,40 @@ export function useTestBackupStorage() {
   );
 }
 
+/** What the server's run of `ethr:backup` said, beside the refreshed page state. */
+export interface BackupRunOutcome {
+  ok: boolean;
+  exit_code: number | null;
+  output: string;
+  off_host_copied: boolean;
+}
+
+/**
+ * Back up now. A real backup plus an upload outlasts the client's 30 second
+ * default, so this call waits longer. The page still decides success from the
+ * re-read health (`last_backup_at` moving), never from this response alone: a
+ * timeout on a backup the server finishes is not a failure.
+ */
+export const BACKUP_RUN_TIMEOUT_MS = 600000;
+
+export function useRunBackup() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () =>
+      (
+        await apiClient.post<BackupConsoleState & { run: BackupRunOutcome }>(
+          "/admin/backups/run",
+          undefined,
+          { timeout: BACKUP_RUN_TIMEOUT_MS },
+        )
+      ).data,
+    onSettled: async () => {
+      await qc.invalidateQueries({ queryKey: KEY });
+      void qc.invalidateQueries({ queryKey: ["admin", "operations"] });
+    },
+  });
+}
+
 /** Shows the archive key once; the server records each time it is shown. */
 export function useRevealBackupKey() {
   const qc = useQueryClient();

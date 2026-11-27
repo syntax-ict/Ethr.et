@@ -8492,5 +8492,16 @@
   "device_wizard.done_intro": "Itti aansuun namoota teerminaalicha irratti galchaa.",
   "device_wizard.done_no_roster": "Teerminaalichi eenyu irratti galmaa'e jedhamee gaafatamuu hin danda'u. Hojjetaa hundumaaf lakkoofsa baajii teerminaala irratti itti fayyadamu, profaayila isaa irratti kenniif.",
   "device_wizard.open_device": "Fuula meeshaa bani",
-  "device_wizard.push_quarantined": "ETHR bira ga'eera, garuu galmaa'uu hin dandeenye. Sababa isaa fuulli meeshaa Galmeewwan xiyyeeffannoo barbaadan jalatti agarsiisa."
+  "device_wizard.push_quarantined": "ETHR bira ga'eera, garuu galmaa'uu hin dandeenye. Sababa isaa fuulli meeshaa Galmeewwan xiyyeeffannoo barbaadan jalatti agarsiisa.",
+  "admin_backups.run_title": "Amma kuusaa fudhadhu",
+  "admin_backups.run_help": "Hojii halkanii osoo hin eegin kuusaa fudhadhu. Kuusaan sarvara alaa yoo banamee ta'e, garagalchi iccitiin cufame ni ol-fe'ama.",
+  "admin_backups.run_button": "Amma kuusaa fudhadhu",
+  "admin_backups.run_running": "Kuusaa fudhachaa jira. Fuulli kun banamee haa turu.",
+  "admin_backups.run_confirm_title": "Amma kuusaa fudhatamu?",
+  "admin_backups.run_confirm_body": "Kuusaan kun kuusaa daataa fi sanadoota sarvara kana irra jiran guutummaatti fudhata. Kuusaan sarvara alaa yoo banamee ta'e, garagalchi iccitiin cufame ni ol-fe'ama. Daqiiqaa muraasa fudhachuu danda'a.",
+  "admin_backups.run_confirm": "Kuusaa fudhadhu",
+  "admin_backups.run_done": "Kuusaan sarvara kana irratti uumameera.",
+  "admin_backups.run_done_copied": "Kuusaan uumamee sarvara alatti garagalfameera.",
+  "admin_backups.run_failed": "Kuusaan hin xumuramne.",
+  "admin_backups.run_no_answer": "Sarvarichi yeroo isaatti deebii hin kenne. Irra deebi'uu dura yeroo kuusaa dhumaa gubbaa ilaalaa."
 }
