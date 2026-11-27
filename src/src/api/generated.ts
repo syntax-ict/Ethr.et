@@ -35931,6 +35931,8 @@ export interface operations {
                             title_access: {
                                 last_sweep_at: string | null;
                                 tenants_scanned: number | null;
+                                admins: number | null;
+                                held: number | null;
                                 waiting: number | null;
                                 dispatched: number | null;
                                 remembered: number | null;

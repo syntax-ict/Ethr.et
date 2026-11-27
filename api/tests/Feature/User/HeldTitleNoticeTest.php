@@ -303,6 +303,8 @@ describe('the signals the sweep and the listener leave', function () {
 
         $signal = TitleAccessHealth::snapshot();
         expect($signal['last_sweep_at'])->not->toBeNull()
+            ->and($signal['admins'])->toBe(1)
+            ->and($signal['held'])->toBe(1)
             ->and($signal['waiting'])->toBe(1)
             ->and($signal['dispatched'])->toBe(1)
             ->and($signal['remembered'])->toBe(1);
@@ -334,6 +336,34 @@ describe('the signals the sweep and the listener leave', function () {
         expect($signal['last_sweep_at'])->not->toBeNull()
             ->and($signal['waiting'])->toBe(0)
             ->and($signal['dispatched'])->toBe(0);
+    });
+
+    it('reads held 1 and waiting 0 when the account is held but no admin may give the role', function () {
+        Event::fake([TitleAccessHeld::class]);
+        $tenant = createTenant();
+        createUser(['role' => UserRole::HR_ADMIN], $tenant);
+        heldNoticeAccount($tenant, 'hr_admin');
+
+        heldNoticeSweep();
+
+        $signal = TitleAccessHealth::snapshot();
+        expect($signal['admins'])->toBe(1)
+            ->and($signal['held'])->toBe(1)
+            ->and($signal['waiting'])->toBe(0)
+            ->and($signal['dispatched'])->toBe(0);
+    });
+
+    it('still reads held when the organisation has no active admin at all', function () {
+        Event::fake([TitleAccessHeld::class]);
+        $tenant = createTenant();
+        heldNoticeAccount($tenant);
+
+        heldNoticeSweep();
+
+        $signal = TitleAccessHealth::snapshot();
+        expect($signal['admins'])->toBe(0)
+            ->and($signal['held'])->toBe(1)
+            ->and($signal['waiting'])->toBe(0);
     });
 
     it('records the listener held and notified counts once the event is delivered', function () {

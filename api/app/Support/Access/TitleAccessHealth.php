@@ -24,6 +24,10 @@ final class TitleAccessHealth
 
     private const SCANNED = 'ethr:title-access:tenants_scanned';
 
+    private const ADMINS = 'ethr:title-access:admins';
+
+    private const HELD = 'ethr:title-access:held';
+
     private const WAITING = 'ethr:title-access:waiting';
 
     private const DISPATCHED = 'ethr:title-access:dispatched';
@@ -38,11 +42,21 @@ final class TitleAccessHealth
 
     private const TTL = 2592000;
 
-    public static function recordSweep(int $tenantsScanned, int $waiting, int $dispatched, int $remembered): void
+    /**
+     * `waiting` is counted after the admins' may-change test, so on its own a
+     * zero has three causes. Read with the two counts before it:
+     * `admins` 0 and `held` 0, the sweep's own queries found nothing at all;
+     * `admins` above 0 and `held` 0, heldQuery() behaves differently here than
+     * over HTTP; `held` above 0 and `waiting` 0, every admin was refused;
+     * `waiting` above 0 and `dispatched` 0, the told-memory already holds it.
+     */
+    public static function recordSweep(int $tenantsScanned, int $admins, int $held, int $waiting, int $dispatched, int $remembered): void
     {
         self::write([
             self::SWEEP_AT => now()->toIso8601String(),
             self::SCANNED => $tenantsScanned,
+            self::ADMINS => $admins,
+            self::HELD => $held,
             self::WAITING => $waiting,
             self::DISPATCHED => $dispatched,
             self::REMEMBERED => $remembered,
@@ -77,7 +91,7 @@ final class TitleAccessHealth
      * Nulls when the cache cannot be read: the operations centre already
      * reports a broken cache store, and must not fail on the way to saying so.
      *
-     * @return array{last_sweep_at: string|null, tenants_scanned: int|null, waiting: int|null, dispatched: int|null, remembered: int|null, last_notice_at: string|null, notice_held: int|null, notice_notified: int|null}
+     * @return array{last_sweep_at: string|null, tenants_scanned: int|null, admins: int|null, held: int|null, waiting: int|null, dispatched: int|null, remembered: int|null, last_notice_at: string|null, notice_held: int|null, notice_notified: int|null}
      */
     public static function snapshot(): array
     {
@@ -104,6 +118,8 @@ final class TitleAccessHealth
         return [
             'last_sweep_at' => $text(self::SWEEP_AT),
             'tenants_scanned' => $count(self::SCANNED),
+            'admins' => $count(self::ADMINS),
+            'held' => $count(self::HELD),
             'waiting' => $count(self::WAITING),
             'dispatched' => $count(self::DISPATCHED),
             'remembered' => $count(self::REMEMBERED),

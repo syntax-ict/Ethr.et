@@ -76,6 +76,8 @@ function status(overrides: Partial<OperationsStatus> = {}): OperationsStatus {
       title_access: {
         last_sweep_at: NOW,
         tenants_scanned: 3,
+        admins: 4,
+        held: 0,
         waiting: 0,
         dispatched: 0,
         remembered: 0,
