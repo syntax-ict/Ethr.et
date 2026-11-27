@@ -34,6 +34,7 @@ it('makes the person who registers the owner', function () {
         'organization_name' => 'Abay Trading', 'subdomain' => 'abay-owner', 'admin_name' => 'Selam Bekele',
         'admin_email' => 'selam@abay-owner.example', 'admin_phone' => '0912345678',
         'password' => 'SecurePass123!', 'password_confirmation' => 'SecurePass123!', 'organization_type' => 'general',
+        'accept_terms' => true,
     ])->assertCreated();
 
     $tenant = Tenant::query()->where('subdomain', 'abay-owner')->sole();

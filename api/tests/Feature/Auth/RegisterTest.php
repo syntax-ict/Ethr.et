@@ -2,8 +2,10 @@
 
 declare(strict_types=1);
 
+use App\Models\AuditLog;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Support\LegalDocuments;
 
 describe('POST /api/v1/auth/register', function () {
     it('registers a new tenant and admin user', function () {
@@ -15,6 +17,7 @@ describe('POST /api/v1/auth/register', function () {
             'admin_phone' => '+251911234567',
             'password' => 'SecurePass123!',
             'password_confirmation' => 'SecurePass123!',
+            'accept_terms' => true,
             'organization_type' => 'general',
         ];
 
@@ -49,6 +52,7 @@ describe('POST /api/v1/auth/register', function () {
             'admin_phone' => '0912345678',
             'password' => 'SecurePass123!',
             'password_confirmation' => 'SecurePass123!',
+            'accept_terms' => true,
         ];
 
         $this->postJson('/api/v1/auth/register', $payload)
@@ -65,7 +69,59 @@ describe('POST /api/v1/auth/register', function () {
                 'admin_name',
                 'admin_email',
                 'password',
+                'accept_terms',
             ]);
+    });
+
+    it('refuses a sign-up that does not accept the terms and the privacy policy', function (mixed $accept) {
+        $payload = [
+            'organization_name' => 'Unagreed Corp',
+            'subdomain' => 'unagreed-corp',
+            'admin_name' => 'Admin',
+            'admin_email' => 'admin@unagreed.com',
+            'admin_phone' => '0912345678',
+            'password' => 'SecurePass123!',
+            'password_confirmation' => 'SecurePass123!',
+        ];
+
+        if ($accept !== 'absent') {
+            $payload['accept_terms'] = $accept;
+        }
+
+        $this->postJson('/api/v1/auth/register', $payload)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['accept_terms']);
+
+        $this->assertDatabaseMissing('tenants', ['subdomain' => 'unagreed-corp']);
+    })->with(['absent', false, 'no', 0]);
+
+    it('records which version of the terms was accepted, when, by whom and from where', function () {
+        $this->postJson('/api/v1/auth/register', [
+            'organization_name' => 'Agreed Corp',
+            'subdomain' => 'agreed-corp',
+            'admin_name' => 'Admin',
+            'admin_email' => 'admin@agreed.com',
+            'admin_phone' => '0912345678',
+            'password' => 'SecurePass123!',
+            'password_confirmation' => 'SecurePass123!',
+            'accept_terms' => true,
+        ], ['REMOTE_ADDR' => '196.188.10.20'])->assertCreated();
+
+        $tenant = Tenant::query()->where('subdomain', 'agreed-corp')->firstOrFail();
+        $owner = User::withoutGlobalScopes()->where('email', 'admin@agreed.com')->firstOrFail();
+
+        expect($tenant->terms_accepted_version)->toBe(LegalDocuments::VERSION)
+            ->and($tenant->terms_accepted_at)->not->toBeNull()
+            ->and($tenant->terms_accepted_by)->toBe($owner->id);
+
+        $audit = AuditLog::withoutGlobalScopes()
+            ->where('tenant_id', $tenant->id)
+            ->where('action', 'tenant.terms_accepted')
+            ->sole();
+
+        expect($audit->payload['version'])->toBe(LegalDocuments::VERSION)
+            ->and($audit->payload['documents'])->toBe(['terms', 'privacy'])
+            ->and($audit->ip_address)->toBe('196.188.10.20');
     });
 
     it('validates password confirmation', function () {
@@ -77,6 +133,7 @@ describe('POST /api/v1/auth/register', function () {
             'admin_phone' => '0912345678',
             'password' => 'SecurePass123!',
             'password_confirmation' => 'DifferentPass!',
+            'accept_terms' => true,
         ];
 
         $this->postJson('/api/v1/auth/register', $payload)
@@ -93,6 +150,7 @@ describe('POST /api/v1/auth/register', function () {
             'admin_phone' => '0912345678',
             'password' => 'SecurePass123!',
             'password_confirmation' => 'SecurePass123!',
+            'accept_terms' => true,
         ];
 
         $this->postJson('/api/v1/auth/register', $payload)
@@ -109,6 +167,7 @@ describe('POST /api/v1/auth/register', function () {
             'admin_phone' => '09112345',
             'password' => 'SecurePass123!',
             'password_confirmation' => 'SecurePass123!',
+            'accept_terms' => true,
         ];
 
         $this->postJson('/api/v1/auth/register', $payload)
@@ -125,6 +184,7 @@ describe('POST /api/v1/auth/register', function () {
             'admin_phone' => '0912345678',
             'password' => 'SecurePass123!',
             'password_confirmation' => 'SecurePass123!',
+            'accept_terms' => true,
         ];
 
         $this->postJson('/api/v1/auth/register', $payload)->assertCreated();
@@ -145,6 +205,7 @@ describe('POST /api/v1/auth/register', function () {
             'admin_phone' => '0912 345 678',
             'password' => 'SecurePass123!',
             'password_confirmation' => 'SecurePass123!',
+            'accept_terms' => true,
         ];
 
         $this->postJson('/api/v1/auth/register', $payload)->assertCreated();
@@ -168,6 +229,7 @@ describe('POST /api/v1/auth/register', function () {
             'admin_phone' => '0912345678',
             'password' => 'short',
             'password_confirmation' => 'short',
+            'accept_terms' => true,
         ];
 
         $this->postJson('/api/v1/auth/register', $payload)
@@ -184,6 +246,7 @@ describe('POST /api/v1/auth/register', function () {
             'admin_phone' => '0912345678',
             'password' => 'SecurePass123!',
             'password_confirmation' => 'SecurePass123!',
+            'accept_terms' => true,
         ];
 
         $response = $this->postJson('/api/v1/auth/register', $payload);
@@ -202,6 +265,7 @@ describe('POST /api/v1/auth/register', function () {
             'admin_phone' => '0912345678',
             'password' => 'SecurePass123!',
             'password_confirmation' => 'SecurePass123!',
+            'accept_terms' => true,
             'organization_type' => $type,
         ]);
 
@@ -233,6 +297,7 @@ describe('POST /api/v1/auth/register', function () {
             'admin_phone' => '0912345678',
             'password' => 'SecurePass123!',
             'password_confirmation' => 'SecurePass123!',
+            'accept_terms' => true,
         ], $headers)->assertCreated();
 
         $tenant = Tenant::query()->where('subdomain', 'language-test')->sole();
@@ -259,6 +324,7 @@ describe('POST /api/v1/auth/register', function () {
             'admin_phone' => '0912345678',
             'password' => 'SecurePass123!',
             'password_confirmation' => 'SecurePass123!',
+            'accept_terms' => true,
         ])->assertCreated();
     });
 });

@@ -72,6 +72,7 @@ class RegisterTenantRequest extends FormRequest
             'password' => ['required', 'string', new PasswordPolicy, 'confirmed'],
             'organization_type' => ['nullable', 'string', 'max:50'],
             'organization_kind' => ['nullable', 'string', Rule::exists('organization_types', 'code')->where('is_active', true)],
+            'accept_terms' => ['accepted'],
         ];
     }
 
@@ -112,6 +113,7 @@ class RegisterTenantRequest extends FormRequest
             'subdomain.regex' => 'Subdomain must contain only lowercase letters, numbers, and hyphens.',
             'subdomain.not_in' => 'That subdomain is reserved. Please choose another.',
             'admin_phone.regex' => 'Enter a valid Ethiopian phone number, e.g. 0912345678 or +251912345678.',
+            'accept_terms.accepted' => __('auth.accept_terms_required'),
         ];
     }
 }

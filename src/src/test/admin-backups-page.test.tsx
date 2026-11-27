@@ -34,6 +34,8 @@ const STORAGE: BackupStorageState = {
   access_key_id: "AKIAEXAMPLE",
   secret_set: true,
   path_style: true,
+  located_in_ethiopia: true,
+  located_confirmed_at: NOW,
   verified: false,
   verified_at: null,
   last_test_at: NOW,
@@ -69,6 +71,7 @@ function state(
     available: false,
     blocker: "off_host_switched_off",
     keep: 14,
+    residency_enforced: false,
     storage: STORAGE,
     key: { revealed_at: null, saved_at: null },
     google_drive: DRIVE_UNSET,
@@ -176,6 +179,55 @@ describe("Backups page", () => {
     await waitFor(() => expect(saved).not.toBeNull());
     expect(saved?.secret_access_key ?? null).toBeNull();
     expect(saved?.bucket).toBe("ethr-backups");
+  });
+
+  it("sends where the storage is, and shows the server's refusal under it", async () => {
+    server.use(
+      http.get("*/api/v1/admin/backups", () =>
+        HttpResponse.json(
+          state({
+            residency_enforced: true,
+            storage: { ...STORAGE, located_in_ethiopia: false },
+          }),
+        ),
+      ),
+      http.put("*/api/v1/admin/backups/storage", async ({ request }) => {
+        saved = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(
+          {
+            title: "Validation Failed",
+            errors: {
+              located_in_ethiopia: [
+                "In production, backups may be stored only in Ethiopia.",
+              ],
+            },
+          },
+          { status: 422 },
+        );
+      }),
+    );
+    const user = userEvent.setup();
+
+    renderPage();
+
+    const located = await screen.findByRole("checkbox", {
+      name: /this storage is in ethiopia/i,
+    });
+    expect(located).not.toBeChecked();
+    expect(screen.getByText(/^required\./i)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /save storage/i }));
+
+    await waitFor(() => expect(saved).not.toBeNull());
+    expect(saved?.located_in_ethiopia).toBe(false);
+    expect(
+      await screen.findByText(/may be stored only in ethiopia/i),
+    ).toBeInTheDocument();
+
+    saved = null;
+    await user.click(located);
+    await user.click(screen.getByRole("button", { name: /save storage/i }));
+    await waitFor(() => expect(saved?.located_in_ethiopia).toBe(true));
   });
 
   it("shows what the storage answered to the last test", async () => {

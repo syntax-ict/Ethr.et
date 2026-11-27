@@ -80,13 +80,13 @@ describe("Legal documents", () => {
     // defect that once turned "2026-10-01" into "30 Sept 2026" behind UTC.
     // en-GB abbreviates September as "Sept", not "Sep"; asserted as rendered
     // rather than as assumed.
-    expect(screen.getByText("16 Sept 2026")).toBeInTheDocument();
+    expect(screen.getByText("25 Nov 2026")).toBeInTheDocument();
 
     // The <time> element carries the unformatted value, so the date stays
     // machine-readable however it is displayed.
-    const time = screen.getByText("16 Sept 2026");
+    const time = screen.getByText("25 Nov 2026");
     expect(time.tagName).toBe("TIME");
-    expect(time).toHaveAttribute("dateTime", "2026-09-16");
+    expect(time).toHaveAttribute("dateTime", "2026-11-25");
   });
 
   describe("the privacy policy's factual claims", () => {
@@ -104,14 +104,52 @@ describe("Legal documents", () => {
       ).toBeInTheDocument();
     });
 
-    it("admits there is no automated retention rather than implying one", () => {
+    it("states the automatic deletions the code performs, and no others", () => {
       render(<LegalDocumentView document={privacyEn} />);
 
-      // Nothing in api/ prunes or expires any table. A policy that quoted a
-      // retention period would be describing a control that does not exist —
-      // the specific failure docs/README.md warns about.
+      // Each figure is a constant in api/: PhotoRetention (7 days default,
+      // 90 max), PresenceChecks::RETENTION_DAYS (90), CleanupExpiredDataJob
+      // (notifications 90, device punches 7), TenantExport::EXPIRES_DAYS (7).
+      // docs/legal/RETENTION-SCHEDULE.md is the long form. Until 2026-11-25
+      // this page said nothing was deleted automatically, which had stopped
+      // being true; a retention claim must move with the code either way.
       expect(
-        screen.getByText(/does not currently delete any category of data/i),
+        screen.getByText(/seven days unless it chooses otherwise/i),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          /Location checks taken during a shift, after ninety days/i,
+        ),
+      ).toBeInTheDocument();
+      // The records kept on purpose are named as kept, not given a period
+      // nothing enforces.
+      expect(
+        screen.getByText(/kept on purpose, without an automatic end/i),
+      ).toBeInTheDocument();
+    });
+
+    it("says where the data is held, and that terminals keep the templates", () => {
+      render(<LegalDocumentView document={privacyEn} />);
+
+      // Hosting: docs/deployment/host-evidence. Templates: AdmsProtocol counts
+      // them and stores only the count.
+      expect(screen.getByText(/hosted in Ethiopia/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          /templates enrolled on an attendance terminal stay on the terminal/i,
+        ),
+      ).toBeInTheDocument();
+    });
+
+    it("says that sign-up records which version of these terms was accepted", () => {
+      render(<LegalDocumentView document={privacyEn} />);
+
+      // AuthService::registerTenant writes tenants.terms_accepted_version and
+      // a tenant.terms_accepted audit row, which carries the IP and browser.
+      expect(
+        screen.getByText(
+          /which version of these terms and of this policy you accepted/i,
+        ),
       ).toBeInTheDocument();
     });
 

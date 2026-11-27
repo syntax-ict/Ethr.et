@@ -39,6 +39,7 @@ test('every api route passes through the global limiter', function () {
             'api/v1/maintenance/backups',
             'api/v1/maintenance/backup',
             'api/v1/maintenance/restore',
+            'api/v1/maintenance/erase-organisation',
             'api/v1/maintenance/{task}',
         ]);
 });

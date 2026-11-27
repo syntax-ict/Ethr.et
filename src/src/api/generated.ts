@@ -12465,6 +12465,8 @@ export interface components {
             password: string;
             organization_type?: string | null;
             organization_kind?: string | null;
+            /** @enum {unknown} */
+            accept_terms?: "yes" | "on" | "1" | 1 | "true" | true;
             password_confirmation: string;
         };
         /** RejectCorrectionRequest */
@@ -12653,6 +12655,7 @@ export interface components {
             access_key_id: string;
             secret_access_key?: string | null;
             path_style: boolean;
+            located_in_ethiopia: boolean;
         };
         /**
          * SaveImportMappingRequest
@@ -19906,6 +19909,7 @@ export interface operations {
                         available: boolean;
                         blocker: string | null;
                         keep: number;
+                        residency_enforced: boolean;
                         storage: {
                             endpoint: string;
                             region: string;
@@ -19913,6 +19917,8 @@ export interface operations {
                             access_key_id: string;
                             secret_set: boolean;
                             path_style: boolean;
+                            located_in_ethiopia: boolean;
+                            located_confirmed_at: string | null;
                             verified: boolean;
                             verified_at: string | null;
                             last_test_at: string | null;
@@ -19998,6 +20004,7 @@ export interface operations {
                         available: boolean;
                         blocker: string | null;
                         keep: number;
+                        residency_enforced: boolean;
                         storage: {
                             endpoint: string;
                             region: string;
@@ -20005,6 +20012,8 @@ export interface operations {
                             access_key_id: string;
                             secret_set: boolean;
                             path_style: boolean;
+                            located_in_ethiopia: boolean;
+                            located_confirmed_at: string | null;
                             verified: boolean;
                             verified_at: string | null;
                             last_test_at: string | null;
@@ -20118,6 +20127,7 @@ export interface operations {
                         available: boolean;
                         blocker: string | null;
                         keep: number;
+                        residency_enforced: boolean;
                         storage: {
                             endpoint: string;
                             region: string;
@@ -20125,6 +20135,8 @@ export interface operations {
                             access_key_id: string;
                             secret_set: boolean;
                             path_style: boolean;
+                            located_in_ethiopia: boolean;
+                            located_confirmed_at: string | null;
                             verified: boolean;
                             verified_at: string | null;
                             last_test_at: string | null;
@@ -20211,6 +20223,7 @@ export interface operations {
                         available: boolean;
                         blocker: string | null;
                         keep: number;
+                        residency_enforced: boolean;
                         storage: {
                             endpoint: string;
                             region: string;
@@ -20218,6 +20231,8 @@ export interface operations {
                             access_key_id: string;
                             secret_set: boolean;
                             path_style: boolean;
+                            located_in_ethiopia: boolean;
+                            located_confirmed_at: string | null;
                             verified: boolean;
                             verified_at: string | null;
                             last_test_at: string | null;
@@ -20307,6 +20322,7 @@ export interface operations {
                         available: boolean;
                         blocker: string | null;
                         keep: number;
+                        residency_enforced: boolean;
                         storage: {
                             endpoint: string;
                             region: string;
@@ -20314,6 +20330,8 @@ export interface operations {
                             access_key_id: string;
                             secret_set: boolean;
                             path_style: boolean;
+                            located_in_ethiopia: boolean;
+                            located_confirmed_at: string | null;
                             verified: boolean;
                             verified_at: string | null;
                             last_test_at: string | null;
@@ -20424,6 +20442,7 @@ export interface operations {
                         available: boolean;
                         blocker: string | null;
                         keep: number;
+                        residency_enforced: boolean;
                         storage: {
                             endpoint: string;
                             region: string;
@@ -20431,6 +20450,8 @@ export interface operations {
                             access_key_id: string;
                             secret_set: boolean;
                             path_style: boolean;
+                            located_in_ethiopia: boolean;
+                            located_confirmed_at: string | null;
                             verified: boolean;
                             verified_at: string | null;
                             last_test_at: string | null;
@@ -20519,6 +20540,7 @@ export interface operations {
                         available: boolean;
                         blocker: string | null;
                         keep: number;
+                        residency_enforced: boolean;
                         storage: {
                             endpoint: string;
                             region: string;
@@ -20526,6 +20548,8 @@ export interface operations {
                             access_key_id: string;
                             secret_set: boolean;
                             path_style: boolean;
+                            located_in_ethiopia: boolean;
+                            located_confirmed_at: string | null;
                             verified: boolean;
                             verified_at: string | null;
                             last_test_at: string | null;
@@ -20615,6 +20639,7 @@ export interface operations {
                         available: boolean;
                         blocker: string | null;
                         keep: number;
+                        residency_enforced: boolean;
                         storage: {
                             endpoint: string;
                             region: string;
@@ -20622,6 +20647,8 @@ export interface operations {
                             access_key_id: string;
                             secret_set: boolean;
                             path_style: boolean;
+                            located_in_ethiopia: boolean;
+                            located_confirmed_at: string | null;
                             verified: boolean;
                             verified_at: string | null;
                             last_test_at: string | null;
@@ -20708,6 +20735,7 @@ export interface operations {
                         available: boolean;
                         blocker: string | null;
                         keep: number;
+                        residency_enforced: boolean;
                         storage: {
                             endpoint: string;
                             region: string;
@@ -20715,6 +20743,8 @@ export interface operations {
                             access_key_id: string;
                             secret_set: boolean;
                             path_style: boolean;
+                            located_in_ethiopia: boolean;
+                            located_confirmed_at: string | null;
                             verified: boolean;
                             verified_at: string | null;
                             last_test_at: string | null;
@@ -35127,6 +35157,8 @@ export interface operations {
                         showcase_consented_at: string | null;
                         showcase_hidden: boolean;
                         showcase_established: boolean;
+                        terms_accepted_version: string | null;
+                        terms_accepted_at: string | null;
                         deleted_at: string | null;
                         usage: {
                             employees: string;

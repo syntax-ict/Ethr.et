@@ -79,6 +79,7 @@ function state(drive: BackupDriveState): BackupConsoleState {
     available: false,
     blocker: "off_host_not_configured",
     keep: 14,
+    residency_enforced: false,
     storage: null,
     key: null,
     google_drive: drive,
@@ -213,6 +214,22 @@ describe("Google Drive card", () => {
     expect(
       await screen.findByRole("switch", { name: /use google drive/i }),
     ).toBeEnabled();
+  });
+
+  it("in production, says Drive takes no copies and keeps the switch off", async () => {
+    // BackupResidency: Drive stores outside Ethiopia (Proclamation 1321/2024
+    // Art. 22), so production blocks it however ready it is.
+    serve({ ...VERIFIED, blocker: "off_host_outside_ethiopia" });
+
+    renderPage();
+
+    expect(
+      await screen.findByRole("switch", { name: /use google drive/i }),
+    ).toBeDisabled();
+    expect(
+      screen.getByText(/does not copy backups to google drive/i),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/can still be restored/i)).toBeInTheDocument();
   });
 
   it("shows the key only when asked for", async () => {
