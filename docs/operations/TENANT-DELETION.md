@@ -180,10 +180,11 @@ returned in the answer: the organisation's id, address and name before
 erasure, when it was deleted and erased, rows per table, files, what was kept
 and why, and when the backups rotate out.
 
-**Not proven yet on MariaDB.** The suite runs it on SQLite
-(`api/tests/Feature/Tenancy/OrganisationErasureTest.php`), which also proves
-another organisation is left untouched to the row. Run `./scripts/gates.sh
-mysql` before the first real erasure, and take a backup first.
+**Tested on both engines, never yet on real data.**
+`api/tests/Feature/Tenancy/OrganisationErasureTest.php` passed 13 of 13 on
+SQLite and on MariaDB 10.11 (`phpunit.mysql.xml`) on 2026-11-27. It also
+proves that another organisation is left untouched to the row. Take a backup
+before the first real erasure.
 
 ## Organisation types
 
