@@ -35927,6 +35927,18 @@ export interface operations {
                                 other_bytes: number;
                             } | null;
                         };
+                        sweeps: {
+                            title_access: {
+                                last_sweep_at: string | null;
+                                tenants_scanned: number | null;
+                                waiting: number | null;
+                                dispatched: number | null;
+                                remembered: number | null;
+                                last_notice_at: string | null;
+                                notice_held: number | null;
+                                notice_notified: number | null;
+                            };
+                        };
                     };
                 };
             };

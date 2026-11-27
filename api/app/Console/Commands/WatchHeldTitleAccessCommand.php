@@ -10,6 +10,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Access\PositionAccess;
 use App\Services\CurrentTenant;
+use App\Support\Access\TitleAccessHealth;
 use App\Support\HealthSignals;
 use App\Support\RoleAssignment;
 use Illuminate\Console\Command;
@@ -24,16 +25,24 @@ class WatchHeldTitleAccessCommand extends Command
     public function handle(PositionAccess $access, CurrentTenant $current): int
     {
         $told = 0;
+        $scanned = 0;
+        $waitingTotal = 0;
+        $rememberedTotal = 0;
 
         // Each organisation is set as the current tenant here and everything
         // read inside it goes through the tenant scope: the sweep drops no
         // scope of its own. One organisation that fails is reported and the
         // rest still run.
-        Tenant::operational()->each(function (Tenant $tenant) use ($access, $current, &$told): void {
+        Tenant::operational()->each(function (Tenant $tenant) use ($access, $current, &$told, &$scanned, &$waitingTotal, &$rememberedTotal): void {
+            // Counted before the work, so an organisation whose own try block
+            // throws still shows as scanned.
+            $scanned++;
+
             try {
                 $current->set($tenant);
 
                 $waiting = $this->waiting($access);
+                $waitingTotal += count($waiting);
                 // The v2 key exists because the first release's listener failed on
                 // every job while the sweep remembered those accounts as told, so
                 // a new key announces them once.
@@ -63,12 +72,17 @@ class WatchHeldTitleAccessCommand extends Command
                 }
 
                 $this->remember($key, $remember);
+                $rememberedTotal += count($remember);
             } catch (Throwable $e) {
                 report($e);
             } finally {
                 $current->forget();
             }
         });
+
+        // Written even when nothing was found: a sweep that ran and found
+        // nothing must read differently from a sweep that never ran.
+        TitleAccessHealth::recordSweep($scanned, $waitingTotal, $told, $rememberedTotal);
 
         $this->info("Told the admins about accounts waiting in {$told} organisation(s).");
 
