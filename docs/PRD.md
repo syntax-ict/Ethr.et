@@ -224,7 +224,7 @@ ETHR is an enterprise-grade, multi-tenant, offline-first Human Capital Managemen
 | FR-12.1 | KPI dashboard | P1 | Headcount, attendance %, payroll cost, overtime %, turnover. < 1.5s load. |
 | FR-12.2 | Department/branch comparison | P1 | Sortable table, drill-down to detail. |
 | FR-12.3 | Dynamic report builder | P1 | 4 data sources. Filters, grouping, aggregation. |
-| FR-12.4 | Export to PDF/Excel/CSV | P1 | From report builder and list pages. |
+| FR-12.4 | Export to PDF/Excel/CSV | P1 | From report builder and list pages. Excel delivered 2026-11-27 for the report builder, quick reports and the monthly timesheet (BASELINE section 25bk); list pages and a queued file for a long report are Reports step 4b. |
 | FR-12.5 | Scheduled reports | P2 | Recurring email delivery. |
 | FR-12.6 | Pre-built reports | P1 | 8 templates: attendance, payroll, leave, directory, OT, tax, pension, hires/exits. |
 

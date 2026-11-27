@@ -2674,6 +2674,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/reports/timesheet/xlsx": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The same timesheet as an Excel workbook: a sheet of the days and a
+         *     sheet of the summary, for the same people and by the same filters as the
+         *     PDF. A list longer than the screen's own limit is a 422 that says how
+         *     to narrow it
+         */
+        get: operations["report.timesheetXlsx"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/reports/export": {
         parameters: {
             query?: never;
@@ -11139,7 +11161,7 @@ export interface components {
             /** @enum {string} */
             sort_dir?: "asc" | "desc";
             /** @enum {string} */
-            format?: "csv" | "pdf";
+            format?: "csv" | "pdf" | "xlsx";
             columns?: string[];
             filters?: {
                 /** Format: date */
@@ -12421,6 +12443,8 @@ export interface components {
             password: string;
             organization_type?: string | null;
             organization_kind?: string | null;
+            /** @enum {unknown} */
+            accept_terms?: "yes" | "on" | "1" | 1 | "true" | true;
             password_confirmation: string;
         };
         /** RejectCorrectionRequest */
@@ -12609,6 +12633,7 @@ export interface components {
             access_key_id: string;
             secret_access_key?: string | null;
             path_style: boolean;
+            located_in_ethiopia: boolean;
         };
         /**
          * SaveImportMappingRequest
@@ -19862,6 +19887,7 @@ export interface operations {
                         available: boolean;
                         blocker: string | null;
                         keep: number;
+                        residency_enforced: boolean;
                         storage: {
                             endpoint: string;
                             region: string;
@@ -19869,6 +19895,8 @@ export interface operations {
                             access_key_id: string;
                             secret_set: boolean;
                             path_style: boolean;
+                            located_in_ethiopia: boolean;
+                            located_confirmed_at: string | null;
                             verified: boolean;
                             verified_at: string | null;
                             last_test_at: string | null;
@@ -19954,6 +19982,7 @@ export interface operations {
                         available: boolean;
                         blocker: string | null;
                         keep: number;
+                        residency_enforced: boolean;
                         storage: {
                             endpoint: string;
                             region: string;
@@ -19961,6 +19990,8 @@ export interface operations {
                             access_key_id: string;
                             secret_set: boolean;
                             path_style: boolean;
+                            located_in_ethiopia: boolean;
+                            located_confirmed_at: string | null;
                             verified: boolean;
                             verified_at: string | null;
                             last_test_at: string | null;
@@ -20074,6 +20105,7 @@ export interface operations {
                         available: boolean;
                         blocker: string | null;
                         keep: number;
+                        residency_enforced: boolean;
                         storage: {
                             endpoint: string;
                             region: string;
@@ -20081,6 +20113,8 @@ export interface operations {
                             access_key_id: string;
                             secret_set: boolean;
                             path_style: boolean;
+                            located_in_ethiopia: boolean;
+                            located_confirmed_at: string | null;
                             verified: boolean;
                             verified_at: string | null;
                             last_test_at: string | null;
@@ -20167,6 +20201,7 @@ export interface operations {
                         available: boolean;
                         blocker: string | null;
                         keep: number;
+                        residency_enforced: boolean;
                         storage: {
                             endpoint: string;
                             region: string;
@@ -20174,6 +20209,8 @@ export interface operations {
                             access_key_id: string;
                             secret_set: boolean;
                             path_style: boolean;
+                            located_in_ethiopia: boolean;
+                            located_confirmed_at: string | null;
                             verified: boolean;
                             verified_at: string | null;
                             last_test_at: string | null;
@@ -20263,6 +20300,7 @@ export interface operations {
                         available: boolean;
                         blocker: string | null;
                         keep: number;
+                        residency_enforced: boolean;
                         storage: {
                             endpoint: string;
                             region: string;
@@ -20270,6 +20308,8 @@ export interface operations {
                             access_key_id: string;
                             secret_set: boolean;
                             path_style: boolean;
+                            located_in_ethiopia: boolean;
+                            located_confirmed_at: string | null;
                             verified: boolean;
                             verified_at: string | null;
                             last_test_at: string | null;
@@ -20380,6 +20420,7 @@ export interface operations {
                         available: boolean;
                         blocker: string | null;
                         keep: number;
+                        residency_enforced: boolean;
                         storage: {
                             endpoint: string;
                             region: string;
@@ -20387,6 +20428,8 @@ export interface operations {
                             access_key_id: string;
                             secret_set: boolean;
                             path_style: boolean;
+                            located_in_ethiopia: boolean;
+                            located_confirmed_at: string | null;
                             verified: boolean;
                             verified_at: string | null;
                             last_test_at: string | null;
@@ -20475,6 +20518,7 @@ export interface operations {
                         available: boolean;
                         blocker: string | null;
                         keep: number;
+                        residency_enforced: boolean;
                         storage: {
                             endpoint: string;
                             region: string;
@@ -20482,6 +20526,8 @@ export interface operations {
                             access_key_id: string;
                             secret_set: boolean;
                             path_style: boolean;
+                            located_in_ethiopia: boolean;
+                            located_confirmed_at: string | null;
                             verified: boolean;
                             verified_at: string | null;
                             last_test_at: string | null;
@@ -20571,6 +20617,7 @@ export interface operations {
                         available: boolean;
                         blocker: string | null;
                         keep: number;
+                        residency_enforced: boolean;
                         storage: {
                             endpoint: string;
                             region: string;
@@ -20578,6 +20625,8 @@ export interface operations {
                             access_key_id: string;
                             secret_set: boolean;
                             path_style: boolean;
+                            located_in_ethiopia: boolean;
+                            located_confirmed_at: string | null;
                             verified: boolean;
                             verified_at: string | null;
                             last_test_at: string | null;
@@ -20664,6 +20713,7 @@ export interface operations {
                         available: boolean;
                         blocker: string | null;
                         keep: number;
+                        residency_enforced: boolean;
                         storage: {
                             endpoint: string;
                             region: string;
@@ -20671,6 +20721,8 @@ export interface operations {
                             access_key_id: string;
                             secret_set: boolean;
                             path_style: boolean;
+                            located_in_ethiopia: boolean;
+                            located_confirmed_at: string | null;
                             verified: boolean;
                             verified_at: string | null;
                             last_test_at: string | null;
@@ -22710,6 +22762,39 @@ export interface operations {
             422: components["responses"]["ValidationException"];
         };
     };
+    "report.timesheetXlsx": {
+        parameters: {
+            query?: {
+                from?: string | null;
+                to?: string | null;
+                month?: string | null;
+                department?: string | null;
+                branch?: string | null;
+                shift?: string | null;
+                employment_status?: components["schemas"]["EmployeeStatus"] | null;
+                page?: number;
+                per_page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    "Content-Disposition"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": string;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
     "report.export": {
         parameters: {
             query?: never;
@@ -22730,6 +22815,7 @@ export interface operations {
                 };
                 content: {
                     "application/pdf": string;
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": string;
                     "text/csv": string;
                 };
             };
@@ -35049,6 +35135,8 @@ export interface operations {
                         showcase_consented_at: string | null;
                         showcase_hidden: boolean;
                         showcase_established: boolean;
+                        terms_accepted_version: string | null;
+                        terms_accepted_at: string | null;
                         deleted_at: string | null;
                         usage: {
                             employees: string;

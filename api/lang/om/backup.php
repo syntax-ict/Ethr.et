@@ -9,4 +9,6 @@ return [
     'drive_exchange_failed' => 'Google seensicha hin simanne: :reason',
     'drive_no_refresh_token' => 'Google ETHR\'f hayyama yeroo dheeraa hin kennine. ETHR myaccount.google.com/permissions irraa balleessiitii irra deebi\'ii wal-qabsiisi.',
     'drive_folder_failed' => 'Wal-qabateera, garuu galmee kuusaa dhuunfaa Google Drive keessatti uumuun hin danda\'amne: :reason',
+    'storage_must_be_in_ethiopia' => 'Sirna hojii irratti, kuusaan deeggarsaa (backup) Itoophiyaa keessatti qofa kaa\'amuu danda\'a (Labsii 1321/2024 Kew. 22). Kuusaan kun Itoophiyaa keessa jiraachuu isaa mirkaneessi, ykn kuusaa Itoophiyaa keessa jiru filadhu.',
+    'drive_outside_ethiopia' => 'Google Drive faayiloota Itoophiyaa alatti kuusa; kanaaf sirni hojii deeggarsa gara isaatti hin garagalchu (Labsii 1321/2024 Kew. 22). Kuusaawwan duraan Drive irra jiran ammas deebi\'anii fayyadamuu ni danda\'u.',
 ];

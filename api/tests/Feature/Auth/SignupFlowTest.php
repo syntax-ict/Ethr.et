@@ -46,6 +46,7 @@ describe('registration provisions tenant', function () {
             'admin_phone' => '0912345678',
             'password' => 'password123',
             'password_confirmation' => 'password123',
+            'accept_terms' => true,
         ]);
 
         $response->assertCreated();
@@ -64,6 +65,7 @@ describe('registration provisions tenant', function () {
             'admin_phone' => '0912345678',
             'password' => 'password123',
             'password_confirmation' => 'password123',
+            'accept_terms' => true,
         ]);
 
         $response->assertCreated();
@@ -74,6 +76,8 @@ describe('registration provisions tenant', function () {
     });
 
     it('rejects duplicate email in same tenant', function () {
+        // The first registration must succeed, or the second is refused for
+        // the wrong reason and this test proves nothing about duplicates.
         $this->postJson('/api/v1/auth/register', [
             'organization_name' => 'First Corp',
             'subdomain' => 'firstcorp',
@@ -82,7 +86,8 @@ describe('registration provisions tenant', function () {
             'admin_phone' => '0912345678',
             'password' => 'password123',
             'password_confirmation' => 'password123',
-        ]);
+            'accept_terms' => true,
+        ])->assertCreated();
 
         $response = $this->postJson('/api/v1/auth/register', [
             'organization_name' => 'Second Corp',
@@ -92,6 +97,7 @@ describe('registration provisions tenant', function () {
             'admin_phone' => '0912345678',
             'password' => 'password123',
             'password_confirmation' => 'password123',
+            'accept_terms' => true,
         ]);
 
         $response->assertUnprocessable();

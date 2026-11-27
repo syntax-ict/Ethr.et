@@ -302,6 +302,70 @@ describe("Registration form (S07)", () => {
     ).toBeInTheDocument();
   });
 
+  it("holds Create until the terms are accepted, links to both documents, and sends the acceptance", async () => {
+    mockSubdomain(true);
+    let sent: Record<string, unknown> | null = null;
+    server.use(
+      http.post("*/api/v1/auth/register", async ({ request }) => {
+        sent = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({}, { status: 201 });
+      }),
+    );
+    const { container } = renderRegister();
+
+    fireEvent.change(field(container, "org_name"), {
+      target: { value: "Acme Corp" },
+    });
+    await chooseKind(container);
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /Next/i })).not.toBeDisabled(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Next/i }));
+
+    fireEvent.change(await screen.findByLabelText(/Full Name/i), {
+      target: { value: "Test Admin" },
+    });
+    fireEvent.change(screen.getByLabelText(/Email Address/i), {
+      target: { value: "admin@acme.et" },
+    });
+    fireEvent.change(screen.getByLabelText("Phone"), {
+      target: { value: "0912345678" },
+    });
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /Next/i })).not.toBeDisabled(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Next/i }));
+
+    fireEvent.change(await screen.findByLabelText("Password"), {
+      target: { value: "Abcdefgh1!" },
+    });
+    fireEvent.change(screen.getByLabelText("Confirm Password"), {
+      target: { value: "Abcdefgh1!" },
+    });
+
+    const create = screen.getByRole("button", { name: /create free account/i });
+    const accept = screen.getByRole("checkbox", {
+      name: /i agree to the terms of service and the privacy policy/i,
+    });
+    // A password alone no longer opens the door.
+    expect(accept).not.toBeChecked();
+    expect(create).toBeDisabled();
+
+    // Each document opens beside the form, so what was typed survives.
+    const terms = screen.getByRole("link", { name: "Terms of Service" });
+    const privacy = screen.getByRole("link", { name: "Privacy Policy" });
+    expect(terms).toHaveAttribute("href", "/en/terms");
+    expect(privacy).toHaveAttribute("href", "/en/privacy");
+    expect(terms).toHaveAttribute("target", "_blank");
+
+    fireEvent.click(accept);
+    await waitFor(() => expect(create).not.toBeDisabled());
+    fireEvent.click(create);
+
+    await waitFor(() => expect(sent).not.toBeNull());
+    expect(sent!.accept_terms).toBe(true);
+  });
+
   describe("type-aware narrowing", () => {
     function kindsWithSectors() {
       server.use(

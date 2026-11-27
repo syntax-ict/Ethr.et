@@ -47,6 +47,9 @@ test.describe("Onboarding to first payroll", () => {
 
     await page.fill("#password", "SecurePass123!");
     await page.fill("#password_confirmation", "SecurePass123!");
+    // Sign-up records acceptance of the terms and the privacy policy, and is
+    // refused without it.
+    await page.check("#accept_terms");
     await page.getByRole("button", { name: /create free account/i }).click();
     await page.waitForURL("**/setup/guided", { timeout: 60_000 });
 

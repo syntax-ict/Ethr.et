@@ -1,7 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { AlertTriangle, Download, FileText, Lock } from "lucide-react";
+import {
+  AlertTriangle,
+  Download,
+  FileSpreadsheet,
+  FileText,
+  Lock,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -25,6 +31,7 @@ import {
   type ReportMonth,
 } from "@/features/reports/components/report-month-picker";
 import {
+  downloadTimesheetExcel,
   downloadTimesheetPdf,
   monthOf,
   periodOf,
@@ -899,8 +906,30 @@ export function TimesheetDownload({
     }
   }
 
+  async function excel() {
+    setBusy(true);
+    try {
+      await downloadTimesheetExcel(filters, period);
+    } catch (error) {
+      toast.error(
+        error instanceof Error && error.message
+          ? error.message
+          : t(
+              "reports_page.timesheet.excel_failed",
+              "The Excel file could not be made. Try again, or choose a department.",
+            ),
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <>
+      <Button variant="outline" size="sm" onClick={excel} disabled={busy}>
+        <FileSpreadsheet className="mr-2 h-4 w-4" aria-hidden />
+        {t("reports_page.timesheet.download_excel", "Download Excel")}
+      </Button>
       <Button variant="outline" size="sm" onClick={pdf} disabled={busy}>
         <FileText className="mr-2 h-4 w-4" aria-hidden />
         {t("reports_page.timesheet.download_pdf", "Download PDF")}

@@ -190,6 +190,7 @@ it('leaves a setup window: a fresh install registers its one organisation', func
         'admin_phone' => '0912345678',
         'password' => 'Str0ng-passw0rd',
         'password_confirmation' => 'Str0ng-passw0rd',
+        'accept_terms' => true,
     ])->assertCreated();
 
     // The sole-organisation cache was busted by registerTenant(), so the new

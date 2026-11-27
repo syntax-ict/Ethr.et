@@ -6,6 +6,7 @@ namespace App\Http\Requests\Admin;
 
 use App\Models\BackupStorageSetting;
 use App\Rules\ExternalUrl;
+use App\Support\BackupResidency;
 use App\Support\OutboundHost;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
@@ -27,6 +28,7 @@ class SaveBackupStorageRequest extends FormRequest
             'access_key_id' => ['required', 'string', 'max:191'],
             'secret_access_key' => ['nullable', 'string', 'max:500'],
             'path_style' => ['required', 'boolean'],
+            'located_in_ethiopia' => ['required', 'boolean'],
         ];
     }
 
@@ -37,6 +39,11 @@ class SaveBackupStorageRequest extends FormRequest
      * Without path-style addressing the client connects to `{bucket}.{host}`,
      * a different name from the endpoint ExternalUrl checked, so that name is
      * checked too.
+     *
+     * In production the storage must be stated to be in Ethiopia
+     * (BackupResidency): saving one that is not would configure a destination
+     * the nightly backup then refuses, so it is refused here, where the admin
+     * can still change it.
      */
     public function withValidator(Validator $validator): void
     {
@@ -48,6 +55,12 @@ class SaveBackupStorageRequest extends FormRequest
             $host = BackupStorageSetting::hostFor((string) $this->input('endpoint'), (string) $this->input('bucket'), $this->boolean('path_style'));
             if (OutboundHost::isInternal($host)) {
                 $validator->errors()->add('bucket', 'The bucket must not point to an internal address.');
+
+                return;
+            }
+
+            if (BackupResidency::refuses($this->boolean('located_in_ethiopia'))) {
+                $validator->errors()->add('located_in_ethiopia', __('backup.storage_must_be_in_ethiopia'));
 
                 return;
             }

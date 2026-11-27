@@ -337,15 +337,16 @@ final class ReportEngine
      * organisation's zone. A spreadsheet keeps what sorts: an ISO date, with
      * the Ethiopian one in the next column for a reader on that calendar, and
      * a local 24-hour time. Check-in and check-out were raw UTC instants.
+     * `$numeric` leaves birr as a number, for a workbook, not as grouped text.
      *
      * @param  array<int, array<string, mixed>>  $rows
      * @return list<array<string, mixed>>
      */
-    public function presentable(array $rows, ?ReaderDates $reader = null, bool $spreadsheet = false): array
+    public function presentable(array $rows, ?ReaderDates $reader = null, bool $spreadsheet = false, bool $numeric = false): array
     {
         $reader ??= ReaderDates::forTenant(null);
 
-        return array_values(array_map(function (array $row) use ($reader, $spreadsheet): array {
+        return array_values(array_map(function (array $row) use ($reader, $spreadsheet, $numeric): array {
             $day = is_string($row['date'] ?? null) ? $row['date'] : null;
             $out = [];
             foreach ($row as $field => $value) {
@@ -354,7 +355,8 @@ final class ReportEngine
                 $text = is_string($value) && $value !== '' ? $value : null;
 
                 if (str_ends_with($field, '_cents') && is_numeric($value)) {
-                    $out[$label] = number_format(((int) $value) / 100, 2);
+                    // A workbook keeps birr as a number a column can add up.
+                    $out[$label] = $numeric ? round(((int) $value) / 100, 2) : number_format(((int) $value) / 100, 2);
                 } elseif (in_array($field, self::DATE_FIELDS, true)) {
                     $out[$label] = $spreadsheet ? ($text ?? '') : ($text === null ? '' : $reader->date($text));
                     if ($spreadsheet && $reader->calendar === 'ethiopian') {
