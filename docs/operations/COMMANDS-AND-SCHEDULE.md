@@ -24,7 +24,9 @@ and the first two are off-host:
    `/api/v1/cron/queue`. It is written as every five minutes and delivers **4 to 6 times a day
    in practice** (F23). It only fires from the repository's **default branch**.
 2. **A second URL-fetch caller** (cron-job.org) hits the same endpoints, and separately polls
-   `GET /api/v1/cron/backup`, which answers 503 while backups are failing. See
+   `GET /api/v1/cron/backup`, which answers 503 while backups are failing, and
+   `GET /api/v1/cron/tasks`, which answers 503 while the scheduler is stale or a scheduled
+   command is failing (each needs its own monitor, same token header). See
    [`CUSTODY.md`](CUSTODY.md) for who holds that account.
 3. **Ordinary traffic.** `RunBackgroundWorkAfterResponse` drains the queue for a few seconds
    after a response has been sent, at most once a minute, and catches the schedule up at most
@@ -217,7 +219,9 @@ Worth stating plainly, because this page and
   `OperationsCommandsTest` pins that no scheduled entry mentions `queue:check`.
 - **What watches the service is off-host**: the uptime monitor polling `GET /api/v1/health` and
   reading `queue_detail`, and the same account polling `GET /api/v1/cron/backup`, which answers
-  503 while `BackupHealth` is critical — a failing backup, or disk above 85%.
+  503 while `BackupHealth` is critical — a failing backup, or disk above 85% — and
+  `GET /api/v1/cron/tasks`, which answers 503 while a scheduled command's last run failed
+  (until it next succeeds, 48 hours at most) or the scheduler heartbeat is stale.
 - **What an operator opens is `/admin/operations`**, which shows the heartbeat, the last tick of
   each caller, the last drain, queue depths, failed jobs, mail, release and backups.
   [`OPERATIONS-CENTRE.md`](OPERATIONS-CENTRE.md) reads it field by field.

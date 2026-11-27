@@ -277,6 +277,8 @@ account** — the endpoint is the instrument. See
 
 Scheduled commands run as child processes of the PHP binary that `App\Support\PhpCli` resolves (PHP_BINARY under the CLI, the PHP install directory under FPM); set `CRON_PHP_BINARY` to an absolute path to override it, and a failing child now reports its last output and turns `/api/v1/health` unhealthy for 30 minutes.
 
+Two read-only GET endpoints exist for an uptime monitor, with the same token header as the POSTs and no side effects: `GET /api/v1/cron/backup` (503 while backups are failing) and `GET /api/v1/cron/tasks` (503 while the scheduler heartbeat is stale, a job waits too long, or a scheduled command's last run failed and has not succeeded since; the body lists `failing_tasks`). `/api/v1/health` stays 200 for these by design. **Each needs its own monitor on cron-job.org**: for `/cron/tasks`, clone the backup job (that keeps the `X-Cron-Token` header), change the URL and set every 15 minutes, only after the endpoint is deployed or the first run gets a 404. cron-job.org emails on state changes only, so add a second notification channel.
+
 ## 5 · What to watch afterwards
 
 Covered in full by [`../../operations/QUEUE-MONITORING.md`](../../operations/QUEUE-MONITORING.md)

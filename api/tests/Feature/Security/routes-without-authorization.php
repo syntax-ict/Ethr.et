@@ -98,6 +98,7 @@ return [
         'App\Http\Controllers\Api\V1\Cron\CronRunController@schedule' => 'VerifyCronToken middleware.',
         'App\Http\Controllers\Api\V1\Cron\CronRunController@queue' => 'VerifyCronToken middleware.',
         'App\Http\Controllers\Api\V1\Cron\CronRunController@backup' => 'VerifyCronToken middleware; 404 unless CRON_TOKEN is set. Platform-wide backup timestamps and reason codes only, no tenant data, no backup names or paths.',
+        'App\Http\Controllers\Api\V1\Cron\CronRunController@tasks' => 'VerifyCronToken middleware; 404 unless CRON_TOKEN is set. Platform-wide scheduler and queue health, and the names and exit codes of failing scheduled tasks; no tenant data.',
         'App\Http\Controllers\Api\V1\Maintenance\MaintenanceController@backups' => 'VerifyMaintenanceToken middleware; 404 unless MAINTENANCE_TOKEN is set. Read-only list of backup names.',
         'App\Http\Controllers\Api\V1\Device\AdmsController@commandResult' => 'Pre-authentication ZKTeco ADMS device: AdmsDeviceResolver selects by serial and authenticates by the device IP allowlist, fail-closed.',
         'App\Http\Controllers\Api\V1\Device\AdmsController@getRequest' => 'Pre-authentication ZKTeco ADMS device: AdmsDeviceResolver selects by serial and authenticates by the device IP allowlist, fail-closed.',

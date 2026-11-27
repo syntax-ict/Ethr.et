@@ -109,6 +109,8 @@ final class ScheduleCatchUpCommand extends Command
                         $event->exitCode,
                         $tail === '' ? '' : ' Output: '.$tail,
                     )));
+                } else {
+                    app(QueueHealth::class)->recordTaskSuccess($event->getSummaryForDisplay());
                 }
             } catch (Throwable $e) {
                 // One failing task must not stop the rest, or a broken report
