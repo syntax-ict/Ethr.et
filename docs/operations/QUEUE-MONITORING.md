@@ -34,7 +34,7 @@ queue:
 | Driver | What it hits | Cadence |
 |---|---|---|
 | **GitHub Actions** — `.github/workflows/cron.yml` | `POST /api/v1/cron/schedule`, `POST /api/v1/cron/queue` | Written `*/5`, **4 to 6 times a day in practice** (F23). Fires only from the default branch |
-| **cron-job.org** — the second caller | The same two endpoints, plus `GET /api/v1/cron/backup` | Chosen 2026-10-12. Account and alert address in [`CUSTODY.md`](CUSTODY.md) |
+| **cron-job.org** — the second caller | The same two endpoints, plus `GET /api/v1/cron/backup` and `GET /api/v1/cron/tasks` | Chosen 2026-10-12. Account and alert address in [`CUSTODY.md`](CUSTODY.md) |
 | **Ordinary traffic** — `RunBackgroundWorkAfterResponse` | Drains the queue in `terminate()`, and catches the schedule up | Queue at most once a minute, schedule at most once every five ([`cron-caller.md`](../deployment/shared-hosting/cron-caller.md) §5a) |
 
 **The schedule endpoint runs `ethr:schedule-run`, not `schedule:run`**
@@ -54,6 +54,7 @@ run until 09:00. That is the failure mode to design against — see
 |---|---|
 | `GET /api/v1/health` → `queue_detail` | **Yes, and it is the mechanism.** Unauthenticated behind `throttle:health`, it publishes the heartbeat age, `last_drain_at`, per-queue depth and oldest waiting job, and the failed-job count. The uptime monitor polls it |
 | `GET /api/v1/cron/backup` | **Yes.** Answers **503** while `BackupHealth` is critical — a failing or stale backup, or disk above 85%. A GET so a monitor can watch it. The second caller emails after one failure |
+| `GET /api/v1/cron/tasks` | **Yes.** Same token header as `/cron/backup`, reads only, records no tick. Answers **503** when `QueueHealth::snapshot()` is not healthy: a stale scheduler heartbeat, a job waiting too long, or **a scheduled task that failed and has not succeeded since** (kept for at most 48 hours, so a task failing once a day, such as the 01:00 backup, stays red until its next good run). The body names the task and its exit code in `failing_tasks`. It needs **its own monitor** on the second caller: clone the backup job in cron-job.org (that keeps the token header), change the URL to `/api/v1/cron/tasks` and the schedule to every 15 minutes. Create it only after the endpoint is deployed, or its first run gets a 404 |
 | `/admin/operations` | **Yes, for a human.** The page an operator opens: heartbeat, each caller's last tick, last drain, queue depths, failed jobs, mail, release, services, backups. [`OPERATIONS-CENTRE.md`](OPERATIONS-CENTRE.md) |
 | `ethr:queue:check` | **No, and it must not.** It is absent from `api/routes/console.php` and from `cron.yml`. Scheduling it would be circular — a watchdog this scheduler starts cannot report that this scheduler stopped — so the one state it exists to detect is the one it could never reach. It works and it is tested; treat it as a command for a terminal, or for a deployment that has a runner. *(Three docblocks said it "runs from cron" until 2026-11-13, which made adding the entry look like the fix; all three now carry the reasoning, and `OperationsCommandsTest` pins that no entry mentions `queue:check`.)* |
 
@@ -121,6 +122,7 @@ The separation that works:
 | `queue_detail` in `/health` | Is anything actually running? | dashboards, humans | informational |
 | `/admin/operations` | Is anything actually running, and since when? | the operator | amber and red, never a page |
 | `GET /cron/backup` | Did last night's backup land, and is there disk? | uptime monitor | 503 = act today |
+| `GET /cron/tasks` | Is scheduled work running, and did every task's last run succeed? | uptime monitor | 503 = act today |
 
 A scheduler that stopped an hour ago is a real problem and **not** "the site is down". Requests
 are still served. Conflating the two means either paging someone at 3am for a cron job, or — far
@@ -194,7 +196,7 @@ mode an external driver introduces.
 |---|---|
 | **1. Heartbeat** — a scheduled task whose only job is to prove the scheduler ran, written every minute to a store that is already database-backed. Its value is being independent of whether any *real* job was due: a quiet hour must look different from a dead scheduler | `QueueHealth::beat()`, `everyMinute()` in `api/routes/console.php`. Since 2026-10-28 the timestamps live in a `signals` file store under `storage/framework/signals` (`App\Support\HealthSignals`), because the default cache store is emptied by the release's `optimize:clear` and the console read "never" after every deploy |
 | **2. Health endpoint** — heartbeat age, oldest unreserved job, depth per queue, `failed_jobs` count, last successful run per task. **Per-queue depth matters more than it looks**: jobs dispatch onto four queues and a bare `queue:work` reads only `default`, so a misconfigured drain starves three while total depth looks healthy | `queue_detail` on `/api/v1/health`, and the whole of `/admin/operations`. Per-task last-run is the one item still unbuilt (G3) |
-| **3. Dead-man's switch** — alert when the heartbeat is stale or the oldest job crosses a threshold. Transport depends on whether outbound SMTP works (G0-H); **an external uptime service polling the health endpoint is the better option regardless, because it also catches the case where the whole site is down, which an alert sent *from* the dead host cannot** | Exactly that, since 2026-10-16: cron-job.org polls `/api/v1/health` and `/api/v1/cron/backup` and emails after one failure. The reasoning in the original was right, and it is why no in-app alerting was built |
+| **3. Dead-man's switch** — alert when the heartbeat is stale or the oldest job crosses a threshold. Transport depends on whether outbound SMTP works (G0-H); **an external uptime service polling the health endpoint is the better option regardless, because it also catches the case where the whole site is down, which an alert sent *from* the dead host cannot** | Exactly that, since 2026-10-16: cron-job.org polls `/api/v1/health` and `/api/v1/cron/backup` and emails after one failure, **on a change of state only**: the backup monitor mailed once (2026-11-25) during an 18-day outage and the mail was missed. Add a second notification channel (a second person's address), and create a monitor for `/api/v1/cron/tasks` (BASELINE section 25bl). The reasoning in the original was right, and it is why no in-app alerting was built |
 
 The most valuable sentence in the original design turned out to be the aside in part 3, and it is
 the one that decided the architecture.
