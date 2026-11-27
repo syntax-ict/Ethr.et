@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Exceptions\ErasureIncomplete;
 use App\Services\Tenancy\OrganisationErasure;
 use Illuminate\Console\Command;
 use Throwable;
@@ -77,6 +78,10 @@ class EraseOrganisationCommand extends Command
 
         try {
             $certificate = $erasure->erase($tenant, via: 'command');
+        } catch (ErasureIncomplete $e) {
+            $this->error('Erasure INCOMPLETE: '.$e->getMessage());
+
+            return self::FAILURE;
         } catch (Throwable $e) {
             $this->error('Erasure FAILED, and was rolled back: '.$e->getMessage());
 

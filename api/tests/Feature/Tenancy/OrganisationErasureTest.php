@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\TenantStatus;
+use App\Exceptions\ErasureIncomplete;
 use App\Models\AuditLog;
 use App\Models\Branch;
 use App\Models\Department;
@@ -14,6 +15,7 @@ use App\Services\Tenancy\OrganisationErasure;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 use Tests\Support\ParameterizedFixtures;
 
@@ -191,6 +193,98 @@ describe('what erasure removes and keeps', function () {
         $audit = AuditLog::withoutGlobalScopes()->where('action', 'admin.tenant.erased')->sole();
         expect($audit->tenant_id)->toBe($leaving->id)
             ->and($audit->payload['via'])->toBe('command');
+    });
+});
+
+/** A permission on one of the organisation's custom roles: a row with no `tenant_id` of its own. */
+function grantCustomRolePermission(Tenant $tenant): int
+{
+    $permissionId = DB::table('permissions')->value('id') ?? DB::table('permissions')->insertGetId([
+        'public_id' => (string) Str::ulid(), 'name' => 'erasure.test', 'module' => 'erasure', 'action' => 'test',
+        'created_at' => now(), 'updated_at' => now(),
+    ]);
+    $roleId = DB::table('custom_roles')->insertGetId([
+        'public_id' => (string) Str::ulid(), 'tenant_id' => $tenant->id, 'name' => 'Role of '.$tenant->subdomain,
+        'description' => '', 'is_active' => true, 'org_scope' => 'all', 'created_at' => now(), 'updated_at' => now(),
+    ]);
+    DB::table('custom_role_permissions')->insert(['custom_role_id' => $roleId, 'permission_id' => $permissionId]);
+
+    return $roleId;
+}
+
+describe('what the review of the first version found', function () {
+    it('erases the rows that belong to the organisation only through a parent', function () {
+        $leaving = closeOrganisation(createTenant(['subdomain' => 'roles-leaving']));
+        $staying = createTenant(['subdomain' => 'roles-staying']);
+        $leavingRole = grantCustomRolePermission($leaving);
+        $stayingRole = grantCustomRolePermission($staying);
+
+        $erasure = app(OrganisationErasure::class);
+        expect($erasure->inventory($leaving)['rows'])->toHaveKey('custom_role_permissions', 1);
+
+        $certificate = $erasure->erase($leaving);
+
+        expect(DB::table('custom_role_permissions')->where('custom_role_id', $leavingRole)->count())->toBe(0)
+            ->and(DB::table('custom_role_permissions')->where('custom_role_id', $stayingRole)->count())->toBe(1)
+            ->and($certificate['rows_erased'])->toHaveKey('custom_role_permissions', 1);
+    });
+
+    it('refuses a second erasure that loaded the organisation before the first finished', function () {
+        $gone = closeOrganisation(createTenant(['subdomain' => 'erased-twice']));
+        $stale = Tenant::withTrashed()->findOrFail($gone->id);
+        $erasure = app(OrganisationErasure::class);
+
+        $erasure->erase($gone);
+        $certificate = Tenant::withTrashed()->findOrFail($gone->id)->erasure_certificate;
+
+        expect($stale->erased_at)->toBeNull()
+            ->and(fn () => $erasure->erase($stale))->toThrow(RuntimeException::class, 'already_erased');
+        expect(Tenant::withTrashed()->findOrFail($gone->id)->erasure_certificate)->toBe($certificate)
+            ->and(AuditLog::withoutGlobalScopes()->where('action', 'admin.tenant.erased')->count())->toBe(1);
+    });
+
+    it('says the records were erased when the files were not, and removes them when asked again', function () {
+        $leaving = closeOrganisation(erasableOrganisation('files-stuck'));
+        $diskName = (string) config('filesystems.default');
+        $fake = Storage::disk($diskName);
+        $broken = Mockery::mock($fake)->makePartial();
+        $broken->shouldReceive('deleteDirectory')->andThrow(new RuntimeException('the disk is unreachable'));
+        Storage::set($diskName, $broken);
+
+        $erasure = app(OrganisationErasure::class);
+        expect(fn () => $erasure->erase($leaving))
+            ->toThrow(ErasureIncomplete::class, 'were erased and its certificate saved');
+
+        $tomb = Tenant::withTrashed()->findOrFail($leaving->id);
+        expect(array_filter(rowsOf($tomb)))->toBe([])
+            ->and($tomb->erased_at)->not->toBeNull()
+            ->and($tomb->erasure_certificate['files_pending'])->toBeTrue()
+            ->and($erasure->refusal($tomb))->toBeNull()
+            ->and($fake->allFiles("tenants/{$leaving->public_id}"))->not->toBe([]);
+
+        Storage::set($diskName, $fake);
+        $certificate = $erasure->erase($tomb);
+
+        $tomb = Tenant::withTrashed()->findOrFail($leaving->id);
+        expect($certificate)->not->toHaveKey('files_pending')
+            ->and($certificate['files_erased'])->toBe(4)
+            ->and($tomb->erasure_certificate)->not->toHaveKey('files_pending')
+            ->and($fake->allFiles("tenants/{$leaving->public_id}"))->toBe([])
+            ->and($erasure->refusal($tomb))->toBe('already_erased')
+            ->and(AuditLog::withoutGlobalScopes()->where('action', 'admin.tenant.erased')->count())->toBe(1);
+    });
+
+    it('answers an incomplete erasure as one, not as a rollback', function () {
+        closeOrganisation(erasableOrganisation('task-stuck'));
+        $diskName = (string) config('filesystems.default');
+        $broken = Mockery::mock(Storage::disk($diskName))->makePartial();
+        $broken->shouldReceive('deleteDirectory')->andThrow(new RuntimeException('the disk is unreachable'));
+        Storage::set($diskName, $broken);
+
+        eraseTask(['address' => 'task-stuck', 'execute' => true, 'confirm' => 'task-stuck'])
+            ->assertStatus(500)
+            ->assertJsonPath('status', 'failed')
+            ->assertJsonPath('steps.0.output', fn (string $output): bool => str_contains($output, 'INCOMPLETE') && ! str_contains($output, 'rolled back'));
     });
 });
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1\Maintenance;
 
+use App\Exceptions\ErasureIncomplete;
 use App\Http\Requests\Maintenance\CreatePlatformAdminRequest;
 use App\Http\Requests\Maintenance\EraseOrganisationRequest;
 use App\Http\Requests\Maintenance\RestoreBackupRequest;
@@ -260,6 +261,10 @@ class MaintenanceController
 
             try {
                 $certificate = $erasure->erase($tenant, via: 'maintenance');
+            } catch (ErasureIncomplete $e) {
+                report($e);
+
+                return [['command' => 'ethr:erase-organisation', 'exit_code' => 1, 'output' => 'Erasure INCOMPLETE: '.$e->getMessage()]];
             } catch (Throwable $e) {
                 report($e);
 

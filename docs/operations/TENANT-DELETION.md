@@ -143,13 +143,26 @@ acme`, then `--execute --confirm=acme`.
 - Every row, in every table with a `tenant_id` column, that belongs to the
   organisation. The tables are read from the schema at the time, not listed by
   hand, so a table added later is erased too.
+- Rows of a table with no `tenant_id` that belong to the organisation through
+  a parent, such as a custom role's permissions. The foreign keys are switched
+  off for the deletion, so what each key's `ON DELETE CASCADE` or `SET NULL`
+  would have done is done by hand. A `RESTRICT` key is left alone and has to be
+  handled on purpose.
 - Its users' API tokens, sessions, trusted devices, sign-in codes, and
   password-reset and activation tokens.
 - Its files: `tenants/{public_id}/`, `exports/{public_id}/` and the console's
   per-organisation backups in `backups/{address}/`.
 
-It runs in one transaction, children before parents, so it erases all of it
-or none of it.
+The records, the tombstone, the certificate and the audit row are one
+transaction, children before parents, so they are erased all together or not
+at all. That transaction re-reads the organisation under a lock, so a second
+erasure started before the first finished is refused instead of run again.
+
+The files go after it commits, because a disk cannot roll back. If some cannot
+be removed, the answer says the records **were** erased and the files were not
+(`ErasureIncomplete`, 500 `failed`). The certificate carries `files_pending`
+until they are gone, and the organisation is accepted again until then: send
+the same request to remove what is left.
 
 **What stays, on purpose:**
 
@@ -159,6 +172,7 @@ or none of it.
 | `invoices`, `subscriptions` | ETHR's own billing and tax records, of which ETHR is controller. Amounts and dates, no employee data |
 | `tenant_subdomain_aliases` | So an address the organisation retired is never reissued |
 | The `tenants` row, as a tombstone | Renamed *Erased organisation*, every other nullable field cleared (its own domain is released), still deleted. Its address stays reserved, so nobody else can register it and receive mail or links meant for the old organisation, and the audit log still names a row |
+| Queued and failed jobs (`jobs`, `failed_jobs`) | **A gap, not a choice.** A payload names models by id, and a job that runs after the erasure finds nothing for its tenant. But a failed job's stored exception text can quote a row, and nothing removes it. It is not in the certificate |
 | Copies inside backups | One archive holds every organisation, so it cannot be edited. They age out with rotation, and the certificate's `backups_rotate_out_by` is the date the last one is gone (the longer of `BACKUP_KEEP` and `BACKUP_OFF_HOST_KEEP` days) |
 
 **The certificate** is stored on the tombstone (`erasure_certificate`) and

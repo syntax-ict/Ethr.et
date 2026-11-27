@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Tenancy;
 
 use App\Enums\TenantStatus;
+use App\Exceptions\ErasureIncomplete;
 use App\Models\AuditLog;
 use App\Models\Tenant;
 use App\Models\User;
@@ -14,6 +15,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
+use Throwable;
 
 /**
  * Permanent erasure of an organisation that has left ETHR.
@@ -35,7 +37,10 @@ use RuntimeException;
  * to the organisation, its users' sessions and API tokens, and its files:
  * `tenants/{public_id}/`, `exports/{public_id}/` and `backups/{subdomain}/`.
  * The tables are found from the schema, not listed by hand, so a table added
- * later is erased without anyone remembering to add it.
+ * later is erased without anyone remembering to add it. So are the rows of a
+ * table with no `tenant_id` that belong to the organisation through a parent
+ * (a custom role's permissions): the foreign keys are switched off for the
+ * deletion, so what their ON DELETE would have done is done by hand.
  *
  * WHAT STAYS, and why (RETAINED):
  *  - `audit_log`, which refuses DELETE at database level by an owner decision
@@ -52,7 +57,11 @@ use RuntimeException;
  *
  * Copies inside backups are not reached: an archive is one file holding every
  * organisation. They age out with rotation, and the certificate states by
- * when (`backups_rotate_out_by`).
+ * when (`backups_rotate_out_by`). Nor are queued or failed jobs (`jobs`,
+ * `failed_jobs`): a payload names models by id, and a job that runs after the
+ * erasure finds nothing for its tenant, but a failed job's stored exception
+ * text can quote a row. docs/operations/TENANT-DELETION.md lists this as a
+ * gap, not a control.
  *
  * Raw queries throughout, each stating the organisation's `tenant_id` itself:
  * no global scope is bypassed, because none is used.
@@ -77,6 +86,9 @@ class OrganisationErasure
 
     public const ERASED_NAME = 'Erased organisation';
 
+    /** Sign-in data keyed by user, erased with the organisation's users and counted apart. */
+    private const USER_TABLES = ['personal_access_tokens', 'sessions', 'trusted_devices', 'otp_codes'];
+
     /** Password-reset and activation tokens: keyed by tenant and email, with no `tenant_id` column. */
     private const TOKEN_TABLES = ['password_reset_tokens', 'account_activation_tokens'];
 
@@ -89,12 +101,15 @@ class OrganisationErasure
     /**
      * Why this organisation cannot be erased now, as a code, or null when it can.
      *
+     * An organisation whose records were erased but whose files could not all
+     * be removed is not refused: erasing it again removes what is left.
+     *
      * @return 'not_deleted'|'not_cancelled'|'in_grace_period'|'already_erased'|null
      */
     public function refusal(Tenant $tenant): ?string
     {
         return match (true) {
-            $tenant->erased_at !== null => 'already_erased',
+            $tenant->erased_at !== null && ! $this->filesPending($tenant) => 'already_erased',
             ! $tenant->trashed() => 'not_deleted',
             $tenant->status !== TenantStatus::CANCELLED => 'not_cancelled',
             $tenant->deleted_at->greaterThan($this->graceCutoff()) => 'in_grace_period',
@@ -116,10 +131,21 @@ class OrganisationErasure
     public function inventory(Tenant $tenant): array
     {
         $rows = [];
-        foreach ($this->tenantTables() as $table) {
+        $tables = $this->tenantTables();
+        foreach ($tables as $table) {
             $count = DB::table($table)->where('tenant_id', $tenant->id)->count();
             if ($count > 0) {
                 $rows[$table] = $count;
+            }
+        }
+        foreach ($this->dependents($tables) as $dependent) {
+            if ($dependent['action'] !== 'cascade') {
+                continue;
+            }
+            $parents = DB::table($dependent['parent'])->where('tenant_id', $tenant->id)->select($dependent['parent_column']);
+            $count = DB::table($dependent['table'])->whereIn($dependent['column'], $parents)->count();
+            if ($count > 0) {
+                $rows[$dependent['table']] = ($rows[$dependent['table']] ?? 0) + $count;
             }
         }
 
@@ -141,7 +167,17 @@ class OrganisationErasure
     /**
      * Erase the organisation. Refuses unless refusal() is null.
      *
+     * The records, the tombstone and the audit row are one transaction, which
+     * re-reads the tenant row under a lock: a second erasure that loaded the
+     * organisation before the first finished is refused there, rather than
+     * run again over nothing and overwrite the certificate. The files are
+     * removed after it commits, because a disk cannot roll back. If that
+     * fails, ErasureIncomplete says so, the certificate records it
+     * (`files_pending`), and erasing again removes what is left.
+     *
      * @return array<string, mixed> the erasure certificate
+     *
+     * @throws ErasureIncomplete when the records are erased and some files are not
      */
     public function erase(Tenant $tenant, ?int $erasedBy = null, string $via = 'command'): array
     {
@@ -150,16 +186,43 @@ class OrganisationErasure
             throw new RuntimeException("This organisation cannot be erased: {$refusal}.");
         }
 
+        if ($tenant->erased_at !== null) {
+            return $this->removeFiles($tenant);
+        }
+
         $before = $this->inventory($tenant);
         $files = $this->files($tenant);
         $nameBefore = $tenant->name;
         $userIds = DB::table('users')->where('tenant_id', $tenant->id)->pluck('id')->all();
 
+        $now = now();
+        $certificate = [
+            'organisation' => $tenant->public_id,
+            'address' => $tenant->subdomain,
+            'name_before_erasure' => $nameBefore,
+            'deleted_at' => $tenant->deleted_at?->toIso8601String(),
+            'erased_at' => $now->toIso8601String(),
+            'erased_via' => $via,
+            'rows_erased' => $before['rows'],
+            'user_rows_erased' => $before['user_rows'],
+            'files_erased' => count($files),
+            'files_pending' => true,
+            'retained' => collect($before['retained'])
+                ->map(fn (int $count, string $table): array => ['rows' => $count, 'reason' => self::RETAINED[$table]])
+                ->all(),
+            'backups_rotate_out_by' => $now->copy()->addDays($this->backupRetentionDays())->toDateString(),
+        ];
+
         // Off, then the transaction: SQLite ignores the switch inside one. The
         // tables are also deleted children first, so a foreign key between two
         // of them never decides the outcome where the switch is not honoured.
-        Schema::withoutForeignKeyConstraints(function () use ($tenant, $userIds): void {
-            DB::transaction(function () use ($tenant, $userIds): void {
+        Schema::withoutForeignKeyConstraints(function () use ($tenant, $userIds, $erasedBy, $now, $certificate, $nameBefore, $before, $files, $via): void {
+            DB::transaction(function () use ($tenant, $userIds, $erasedBy, $now, $certificate, $nameBefore, $before, $files, $via): void {
+                $erasedAt = DB::table('tenants')->where('id', $tenant->id)->lockForUpdate()->value('erased_at');
+                if ($erasedAt !== null) {
+                    throw new RuntimeException('This organisation cannot be erased: already_erased.');
+                }
+
                 foreach (array_chunk($userIds, 500) as $chunk) {
                     DB::table('personal_access_tokens')
                         ->where('tokenable_type', (new User)->getMorphClass())
@@ -180,6 +243,17 @@ class OrganisationErasure
                     DB::statement('PRAGMA defer_foreign_keys = ON');
                 }
 
+                // Rows with no `tenant_id` of their own, which belong to the
+                // organisation through a parent: what the foreign key would
+                // have done to them, had the switch above not turned it off.
+                foreach ($this->dependents($this->tenantTables()) as $dependent) {
+                    $parents = DB::table($dependent['parent'])->where('tenant_id', $tenant->id)->select($dependent['parent_column']);
+                    $rows = DB::table($dependent['table'])->whereIn($dependent['column'], $parents);
+                    $dependent['action'] === 'cascade'
+                        ? $rows->delete()
+                        : $rows->update([$dependent['column'] => null]);
+                }
+
                 $plan = $this->deletionPlan($this->tenantTables());
                 foreach ($plan['clear'] as [$table, $column]) {
                     DB::table($table)->where('tenant_id', $tenant->id)->update([$column => null]);
@@ -187,46 +261,121 @@ class OrganisationErasure
                 foreach ($plan['order'] as $table) {
                     DB::table($table)->where('tenant_id', $tenant->id)->delete();
                 }
+
+                $this->tombstone($tenant, $erasedBy, $now, $certificate);
+
+                AuditLog::record('admin.tenant.erased', $tenant, [
+                    'name_before_erasure' => $nameBefore,
+                    'rows_erased' => array_sum($before['rows']),
+                    'files_erased' => count($files),
+                    'audit_rows_retained' => $before['retained']['audit_log'] ?? 0,
+                    'backups_rotate_out_by' => $certificate['backups_rotate_out_by'],
+                    'via' => $via,
+                ]);
             });
         });
 
+        // The model still holds the custom domain the cache is keyed by; the
+        // tombstone has cleared it in the database.
+        $tenant->forgetResolverCache();
+        $tenant->refresh();
+
+        return $this->removeFiles($tenant);
+    }
+
+    /**
+     * Remove the organisation's files, and mark the certificate complete.
+     *
+     * @return array<string, mixed> the erasure certificate
+     *
+     * @throws ErasureIncomplete
+     */
+    private function removeFiles(Tenant $tenant): array
+    {
         $disk = Storage::disk(config('filesystems.default'));
-        foreach ($this->directories($tenant) as $directory) {
-            $disk->deleteDirectory($directory);
+
+        try {
+            foreach ($this->directories($tenant) as $directory) {
+                if (! $disk->deleteDirectory($directory) && $disk->allFiles($directory) !== []) {
+                    throw new RuntimeException("{$directory} could not be deleted.");
+                }
+            }
+        } catch (Throwable $e) {
+            throw new ErasureIncomplete($tenant->subdomain, $e);
         }
 
-        // Before the tombstone clears the custom domain the cache is keyed by.
-        $tenant->forgetResolverCache();
+        $certificate = $tenant->erasure_certificate ?? [];
+        unset($certificate['files_pending']);
 
-        $now = now();
-        $certificate = [
-            'organisation' => $tenant->public_id,
-            'address' => $tenant->subdomain,
-            'name_before_erasure' => $nameBefore,
-            'deleted_at' => $tenant->deleted_at?->toIso8601String(),
-            'erased_at' => $now->toIso8601String(),
-            'erased_via' => $via,
-            'rows_erased' => $before['rows'],
-            'user_rows_erased' => $before['user_rows'],
-            'files_erased' => count($files),
-            'retained' => collect($before['retained'])
-                ->map(fn (int $count, string $table): array => ['rows' => $count, 'reason' => self::RETAINED[$table]])
-                ->all(),
-            'backups_rotate_out_by' => $now->copy()->addDays($this->backupRetentionDays())->toDateString(),
-        ];
-
-        $this->tombstone($tenant, $erasedBy, $now, $certificate);
-
-        AuditLog::record('admin.tenant.erased', $tenant, [
-            'name_before_erasure' => $nameBefore,
-            'rows_erased' => array_sum($before['rows']),
-            'files_erased' => count($files),
-            'audit_rows_retained' => $before['retained']['audit_log'] ?? 0,
-            'backups_rotate_out_by' => $certificate['backups_rotate_out_by'],
-            'via' => $via,
+        DB::table('tenants')->where('id', $tenant->id)->update([
+            'erasure_certificate' => json_encode($certificate, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR),
         ]);
+        $tenant->refresh();
 
         return $certificate;
+    }
+
+    /**
+     * The tables of this connection's own database.
+     *
+     * Not every schema the account can see: on MariaDB the unqualified
+     * listing spans every database the user may read, which names a table
+     * twice when a second database has it too, and names tables this one
+     * does not have.
+     *
+     * @return list<string>
+     */
+    private function tableNames(): array
+    {
+        return array_values(array_unique(
+            Schema::getTableListing(Schema::getCurrentSchemaName(), schemaQualified: false),
+        ));
+    }
+
+    private function filesPending(Tenant $tenant): bool
+    {
+        return (bool) ($tenant->erasure_certificate['files_pending'] ?? false);
+    }
+
+    /**
+     * Single-column foreign keys from a table with no `tenant_id` to one of
+     * $tables, with what deleting the parent row would do to the child.
+     *
+     * A table that holds an organisation's rows only through a parent (a
+     * custom role's permissions) is found from the schema like every other,
+     * so a table added later is not missed. A RESTRICT or NO ACTION key is
+     * left alone: the database would have refused the deletion, and a table
+     * like that has to be added here on purpose.
+     *
+     * @param  list<string>  $tables
+     * @return list<array{table: string, column: string, parent: string, parent_column: string, action: 'cascade'|'set null'}>
+     */
+    private function dependents(array $tables): array
+    {
+        $set = array_flip($tables);
+        $dependents = [];
+        foreach ($this->tableNames() as $table) {
+            if (isset($set[$table]) || $table === 'tenants' || array_key_exists($table, self::RETAINED)
+                || in_array($table, self::USER_TABLES, true) || Schema::hasColumn($table, 'tenant_id')) {
+                continue;
+            }
+            foreach (Schema::getForeignKeys($table) as $fk) {
+                $action = strtolower((string) $fk['on_delete']);
+                if (! isset($set[$fk['foreign_table']]) || count($fk['columns']) !== 1
+                    || ! in_array($action, ['cascade', 'set null'], true)) {
+                    continue;
+                }
+                $dependents[] = [
+                    'table' => $table,
+                    'column' => $fk['columns'][0],
+                    'parent' => $fk['foreign_table'],
+                    'parent_column' => $fk['foreign_columns'][0],
+                    'action' => $action,
+                ];
+            }
+        }
+
+        return $dependents;
     }
 
     /**
@@ -237,7 +386,7 @@ class OrganisationErasure
     public function tenantTables(): array
     {
         $tables = [];
-        foreach (Schema::getTableListing(schemaQualified: false) as $table) {
+        foreach ($this->tableNames() as $table) {
             if ($table === 'tenants' || array_key_exists($table, self::RETAINED)) {
                 continue;
             }
@@ -378,8 +527,6 @@ class OrganisationErasure
             'erasure_certificate' => json_encode($certificate, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR),
             'updated_at' => $now,
         ]));
-
-        $tenant->refresh();
     }
 
     private function graceDays(): int
