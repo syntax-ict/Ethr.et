@@ -54,32 +54,39 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
           <KeyboardShortcuts />
           <PunchReminders />
           <ImpersonationBanner />
-          <OfflineBanner />
           <OfflineSyncAgent />
-          <PausedFeaturesBanner />
-          <div className="print-shell flex h-screen overflow-hidden bg-background">
-            <AppSidebar />
-            <div className="flex min-w-0 flex-1 flex-col">
-              <AppHeader />
-              {/* tabIndex -1 so the skip link above lands focus here in every
+          {/* The banners and the shell share one viewport-high column. The
+              banners used to sit above an `h-screen` row, so whenever one
+              showed, the document was taller than the window and gained its
+              own scrollbar beside <main>'s. The row now takes what the
+              banners leave (`min-h-0 flex-1`). */}
+          <div className="print-shell flex h-dvh flex-col overflow-hidden bg-background">
+            <OfflineBanner />
+            <PausedFeaturesBanner />
+            <div className="flex min-h-0 flex-1">
+              <AppSidebar />
+              <div className="flex min-w-0 flex-1 flex-col">
+                <AppHeader />
+                {/* tabIndex -1 so the skip link above lands focus here in every
                   browser, not only the ones that move the sequential focus
                   start to a fragment target; the next Tab is then the page's
                   first control, not the sidebar's (dashboard review,
                   2026-11-03, PR 9). */}
-              <main
-                id="main-content"
-                tabIndex={-1}
-                className="flex-1 overflow-y-auto focus:outline-none"
-                role="main"
-              >
-                <PageActionsSlotProvider>
-                  <PrintHeader />
-                  <PageTitleBar />
-                  <div className="p-4 pb-[calc(5rem+env(safe-area-inset-bottom))] md:p-6 md:pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-6">
-                    <ErrorBoundary>{children}</ErrorBoundary>
-                  </div>
-                </PageActionsSlotProvider>
-              </main>
+                <main
+                  id="main-content"
+                  tabIndex={-1}
+                  className="flex-1 overflow-y-auto focus:outline-none"
+                  role="main"
+                >
+                  <PageActionsSlotProvider>
+                    <PrintHeader />
+                    <PageTitleBar />
+                    <div className="p-4 pb-[calc(5rem+env(safe-area-inset-bottom))] md:p-6 md:pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-6">
+                      <ErrorBoundary>{children}</ErrorBoundary>
+                    </div>
+                  </PageActionsSlotProvider>
+                </main>
+              </div>
             </div>
           </div>
           <MobileBottomNav />
