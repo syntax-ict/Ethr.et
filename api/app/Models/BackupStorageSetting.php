@@ -34,6 +34,9 @@ use Throwable;
  * @property Carbon|null $last_test_at
  * @property bool|null $last_test_ok
  * @property string|null $last_test_error
+ * @property bool $located_in_ethiopia
+ * @property Carbon|null $located_confirmed_at
+ * @property int|null $located_confirmed_by
  */
 class BackupStorageSetting extends Model
 {
@@ -48,6 +51,7 @@ class BackupStorageSetting extends Model
 
     protected $fillable = [
         'endpoint', 'region', 'bucket', 'access_key_id', 'secret_access_key', 'path_style',
+        'located_in_ethiopia',
     ];
 
     protected $hidden = ['id', 'secret_access_key', 'encryption_key'];
@@ -64,6 +68,8 @@ class BackupStorageSetting extends Model
             'verified_at' => 'datetime',
             'last_test_at' => 'datetime',
             'last_test_ok' => 'boolean',
+            'located_in_ethiopia' => 'boolean',
+            'located_confirmed_at' => 'datetime',
         ];
     }
 

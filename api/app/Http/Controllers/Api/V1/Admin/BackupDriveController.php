@@ -16,6 +16,7 @@ use App\Services\Backup\BackupDriveDisk;
 use App\Services\Backup\GoogleDrive\GoogleDriveClient;
 use App\Services\Backup\GoogleDrive\GoogleDriveException;
 use App\Services\Backup\GoogleDrive\GoogleDriveOAuth;
+use App\Support\BackupResidency;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
@@ -188,6 +189,13 @@ class BackupDriveController extends Controller
 
         $settings = BackupDriveSetting::current();
         abort_unless($settings instanceof BackupDriveSetting, 404);
+
+        // Drive stores outside Ethiopia (Proclamation 1321/2024 Art. 22(1)), so
+        // production never switches copies to it on. Switching it off, and
+        // reading back what it already holds, stay allowed.
+        if ($request->boolean('enabled') && BackupResidency::refuses(false)) {
+            throw ValidationException::withMessages(['enabled' => __('backup.drive_outside_ethiopia')]);
+        }
 
         if ($request->has('key_saved')) {
             $settings->key_saved_at = $request->boolean('key_saved') ? ($settings->key_saved_at ?? now()) : null;
