@@ -1951,6 +1951,7 @@ class ComposerStaticInit7076609bd9cc541b03d375662d9718bb
         'App\\Support\\PeopleRead' => __DIR__ . '/../..' . '/app/Support/PeopleRead.php',
         'App\\Support\\PersonName' => __DIR__ . '/../..' . '/app/Support/PersonName.php',
         'App\\Support\\PhotoConsent' => __DIR__ . '/../..' . '/app/Support/PhotoConsent.php',
+        'App\\Support\\PhpCli' => __DIR__ . '/../..' . '/app/Support/PhpCli.php',
         'App\\Support\\PlainExcerpt' => __DIR__ . '/../..' . '/app/Support/PlainExcerpt.php',
         'App\\Support\\PortalHead' => __DIR__ . '/../..' . '/app/Support/PortalHead.php',
         'App\\Support\\PortalPage' => __DIR__ . '/../..' . '/app/Support/PortalPage.php',
