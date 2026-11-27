@@ -6,6 +6,7 @@ namespace App\Services\Admin;
 
 use App\Http\Middleware\VerifyMaintenanceToken;
 use App\Services\Observability\QueueHealth;
+use App\Support\Access\TitleAccessHealth;
 use App\Support\BackupHealth;
 use App\Support\Mail\MailBudget;
 use App\Support\Mail\MailHealth;
@@ -77,6 +78,7 @@ final class OperationsStatusService
      *     delivery: array{state: 'ok'|'warning'|'critical'|'unknown', reasons: list<string>, mail: array{mailer: string, last_sent_at: string|null, last_failed_at: string|null, tls: string|null, sent_today: int, held_today: int, daily_cap: int}},
      *     release: array{state: 'ok'|'warning'|'critical'|'unknown', reasons: list<string>, environment: string, commit: string|null, built_at: string|null, pending_migrations: int|null, config_cached_at: string|null, routes_cached_at: string|null, debug: bool, queue_connection: string, broadcast_connection: string, maintenance_routes_open: bool, cron_token_set: bool, php: array{version: string, upload_max_filesize: string, post_max_size: string, memory_limit: string, max_execution_time: string}},
      *     services: array{state: 'ok'|'warning'|'critical'|'unknown', reasons: list<string>, checks: list<array{name: string, status: string, response_ms: int|null}>, disk_free_gb: float|null},
+     *     sweeps: array{title_access: array{last_sweep_at: string|null, tenants_scanned: int|null, admins: int|null, held: int|null, waiting: int|null, dispatched: int|null, remembered: int|null, last_notice_at: string|null, notice_held: int|null, notice_notified: int|null}},
      *     backups: array{state: 'ok'|'warning'|'critical'|'unknown', reasons: list<string>, last_backup_at: string|null, age_seconds: int|null, last_failed_at: string|null, last_failed_stage: string|null, off_host: array{configured: bool, disk: string, destination: 's3'|'google_drive'|null, last_copied_at: string|null}, disk: array{measured_at: string, quota_bytes: int, total_bytes: int, database_bytes: int|null, documents_bytes: int, backups_bytes: int, logs_bytes: int, other_bytes: int}|null}
      * }
      */
@@ -88,6 +90,7 @@ final class OperationsStatusService
         $release = $this->release();
         $services = $this->services();
         $backups = $this->backupHealth->snapshot();
+        $sweeps = $this->sweeps();
 
         return [
             'status' => $this->worst([
@@ -105,7 +108,29 @@ final class OperationsStatusService
             'release' => $release,
             'services' => $services,
             'backups' => $backups,
+            'sweeps' => $sweeps,
         ];
+    }
+
+    /**
+     * What the scheduled sweeps last did.
+     *
+     * Reported, not alarmed on: no threshold here has been measured against
+     * production, and a guessed one would cry wolf, which is the failure the
+     * probes in HealthController are commented against. So it is deliberately
+     * absent from worst() and carries no state of its own.
+     *
+     * A key added here reaches the published contract only if it is also added
+     * to the `@response` annotation on AdminDashboardController::operations().
+     * That annotation, not this docblock, is what the spec is built from, and
+     * a key missing from it is dropped silently: the export succeeds, no error
+     * is printed, and the frontend type simply never gains the field.
+     *
+     * @return array{title_access: array{last_sweep_at: string|null, tenants_scanned: int|null, admins: int|null, held: int|null, waiting: int|null, dispatched: int|null, remembered: int|null, last_notice_at: string|null, notice_held: int|null, notice_notified: int|null}}
+     */
+    private function sweeps(): array
+    {
+        return ['title_access' => TitleAccessHealth::snapshot()];
     }
 
     /**
