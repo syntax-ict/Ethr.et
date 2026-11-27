@@ -15,7 +15,7 @@ return [
     'allowlist_full' => 'Tarreen hayyamamoota teessoo 20 caalaa hin qabu. Dura foormii meeshaa irratti tokko haqaa.',
     'not_pulled' => 'Teerminaalichi galmeewwan isaa ETHR sii erga, ETHR isa irraa gonkumaa hin fudhatu. Asitti kan fudhatamu yookaan galfamu hin jiru.',
     'held_busy' => 'Galmeewwan kunneen amma galmaa\'aa jiru. Yeroo muraasa booda irra deebi\'aa yaalaa.',
-    'held_warnings_unaccepted' => 'Baajiin kun akeekkachiisa duraan ilaalamuu qabu qaba. Nama sirrii ta’uu isaa mirkaneessitanii irra deebii yaalaa.',
+    'held_warnings_unaccepted' => 'Baajiin kun akeekkachiisa duraan ilaalamuu qabu qaba. Nama sirrii ta\'uu isaa mirkaneessitanii irra deebi\'aa yaalaa.',
     'roster' => [
         'receives_only' => 'Meeshaan kun galmeewwan isaa gara ETHR ergee, eenyu akka itti galmaa\'e gaafachuun hin danda\'amu. Baajiin hin beekamne kan inni ergee fuula Meeshaalee jala tarreeffameera; tokkoon tokkoon isaa hojjetaadhaaf kennuu dandeessa.',
         'too_large' => 'Meeshaan kun namoota 1,000 ol tarreessa, kunis kan ETHR yeroo tokkotti irraa dubbisu caala, kanaaf tarreeffamni isaa hin fayyadamne. Qooda kanaa faayilii irraa galchaa.',

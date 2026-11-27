@@ -228,7 +228,7 @@ it('replays when the warnings are accepted, and the audit entry carries the serv
 
     $entry = AuditLog::query()->where('action', 'device.badge_assigned')->sole();
     expect(assignConfirmPending($device, 'R040'))->toBe(0)
-        ->and(json_encode($entry->toArray()))->toContain('other_badge');
+        ->and($entry->payload['warnings'])->toBe(['other_badge']);
 });
 
 it('assigns with no flag when there is nothing to warn of', function () {
@@ -240,7 +240,8 @@ it('assigns with no flag when there is nothing to warn of', function () {
     test()->postJson(assignConfirmUrl($tenant, 'assign'), assignConfirmQuery($device, 'R040', $person))
         ->assertOk()->assertJsonPath('replayed', 2);
 
-    expect(AuditLog::query()->where('action', 'device.badge_assigned')->count())->toBe(1);
+    $entry = AuditLog::query()->where('action', 'device.badge_assigned')->sole();
+    expect($entry->payload['warnings'])->toBe([]);
 });
 
 it('does not ask again for the next slice of a replay the same person has just started', function () {
