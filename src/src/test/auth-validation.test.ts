@@ -78,11 +78,24 @@ describe("Register schema validation", () => {
     admin_phone: "+251911223344",
     password: "StrongPass123!",
     password_confirmation: "StrongPass123!",
+    accept_terms: true,
   };
 
   it("accepts valid registration data", () => {
     const result = registerSchema.safeParse(validData);
     expect(result.success).toBe(true);
+  });
+
+  it("requires the terms and the privacy policy to be accepted", () => {
+    const result = registerSchema.safeParse({
+      ...validData,
+      accept_terms: false,
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0].path).toContain("accept_terms");
+      expect(result.error.issues[0].message).toBe("auth.accept_terms_required");
+    }
   });
 
   it("requires the kind of organisation in law", () => {

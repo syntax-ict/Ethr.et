@@ -26,6 +26,9 @@ beforeEach(function () {
         'backup.encryption_key' => BACKUP_TEST_KEY,
         'backup.off_host_disk' => 's3',
         'backup.off_host_keep' => 14,
+        // Stated in Ethiopia, so the production cases below test what they
+        // name and not the residency rule (BackupResidencyTest covers that).
+        'backup.off_host_in_ethiopia' => true,
         'filesystems.disks.s3.bucket' => 'ethr-backups',
         'filesystems.disks.s3.key' => 'test-key',
         'filesystems.disks.s3.secret' => 'test-secret',

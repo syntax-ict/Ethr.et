@@ -246,6 +246,16 @@ export function reasonLabel(t: Translate, code: string): string {
         "operations_page.reason.off_host_fell_back",
         "The last copy went to the Google Drive fallback because the main storage failed. Check the main storage before relying on Drive alone.",
       );
+    case "off_host_not_connected":
+      return t(
+        "operations_page.reason.off_host_not_connected",
+        "Google Drive is saved on the Backups page but not connected, so it cannot take a copy.",
+      );
+    case "off_host_outside_ethiopia":
+      return t(
+        "operations_page.reason.off_host_outside_ethiopia",
+        "A backup destination is outside Ethiopia, or not confirmed to be in it, so production copies nothing to it (Proclamation 1321/2024, Art. 22). Confirm the storage's location on the Backups page.",
+      );
     case "off_host_failing":
       return t(
         "operations_page.reason.off_host_failing",
