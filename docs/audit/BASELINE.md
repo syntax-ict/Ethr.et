@@ -5538,6 +5538,17 @@ silence.
 
 **Consequence.** Everything that never ran will start on the first scheduler call after release. The first-run list is in the pull request.
 
+### 25bl. A dead-man's endpoint for scheduled work: `GET /api/v1/cron/tasks` (2026-11-27)
+
+**The gap.** Every `Schedule::command` child exited 255 on production from 2026-11-09 to 2026-11-27 (section 25bj), 18 days, and nightly backups never ran. Nothing alerted. `/api/v1/health` answers 200 by design (its 503 means the site is down, and stopped background work is not that; the reasoning is in `HealthController`), and the failure problem added by #923 showed in `queue_detail` for only 30 minutes, under a 200 nobody reads.
+
+**Changed.**
+- `GET /api/v1/cron/tasks` (`CronRunController::tasks`): the same token, throttle and read-only contract as `/cron/backup`, excluded from the API contract. It returns `QueueHealth::snapshot()` with `task: tasks-check` and answers 503 when the status is not `healthy`, so a cron-job.org monitor emails on failure. It records no tick and no heartbeat.
+- A scheduled task's failure now **persists until that task succeeds**, not for 30 minutes. `QueueHealth` keeps a map of task name to last failure under `ethr:schedule:task_failures`; `ScheduleCatchUpCommand` calls `recordTaskSuccess()` when an event ran and did not exit non-zero (a `Schedule::call` event, which has no exit code, counts as success). Entries older than 48 hours are dropped, so a task removed from the schedule cannot stay red forever. The snapshot adds one problem per failing task and a `failing_tasks` list (task, exit code, time). The old single-value key `ethr:schedule:last_task_failure` is never read. This supersedes the 30-minute window in 25bj.
+- Tests: `tests/Feature/CronTasksEndpointTest.php` (7) and the updated `tests/Feature/ScheduledChildProcessTest.php`.
+
+**Owner step, and a finding.** The `/cron/backup` monitor exists (cron-job.org job *ETHR backup and disk check*, daily 07:00 Africa/Nairobi, notifies after 1 failure and on recovery; verified in the console 2026-11-27) and it did fire: the owner's mail has failure notices on 2026-11-08, 11-19, 11-21 and 11-25. It has failed every day since, but cron-job.org emails only on a change of state, so the whole outage produced one email, which was missed. `docs/operations/CUSTODY.md` under-recorded the account (it named only the health monitor) and now lists all the jobs. The owner should add a second notification channel (a second person's address) and, after this is deployed, create a `GET /api/v1/cron/tasks` job by cloning the backup job (keeps the token header) with the URL changed and a schedule of every 15 minutes. Created before deploy, its first run would get a 404. Until it exists the endpoint is built and watched by nobody.
+
 ### 25bk. Reports as an Excel workbook: built 2026-11-27 (reports upgrade, step 4a)
 
 PRD FR-12.4 asks for PDF, Excel and CSV; Excel had been dropped from the plan and is now delivered for the ad hoc report and the monthly timesheet. The queued export, the list-page export and the notices are step 4b and are not built.

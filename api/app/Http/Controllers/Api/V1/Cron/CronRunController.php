@@ -82,6 +82,27 @@ class CronRunController
     }
 
     /**
+     * Whether scheduled work is running, for an uptime monitor: 503 while the
+     * scheduler has stopped, a queue is not draining, or a scheduled task is
+     * failing and has not succeeded since. /health cannot carry this, because
+     * its 503 means "the application is down" and stopped background work does
+     * not.
+     *
+     * It reads only. It records no tick, because it does not drive the
+     * scheduler and must not make a dead scheduler caller look alive.
+     */
+    #[ExcludeRouteFromDocs]
+    public function tasks(QueueHealth $health): JsonResponse
+    {
+        $snapshot = $health->snapshot();
+
+        return response()->json(
+            ['task' => 'tasks-check'] + $snapshot,
+            $snapshot['status'] === 'healthy' ? 200 : 503,
+        );
+    }
+
+    /**
      * One run of a given task at a time (CronRunner holds the lock).
      *
      * A fetch-a-URL task that fires while the previous run is still going must
