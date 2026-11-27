@@ -861,6 +861,9 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::get('/timesheet/pdf', [ReportController::class, 'timesheetPdf'])
             ->middleware(RequiresFeature::class.':reports')
             ->middleware('throttle:reports');
+        Route::get('/timesheet/xlsx', [ReportController::class, 'timesheetXlsx'])
+            ->middleware(RequiresFeature::class.':reports')
+            ->middleware('throttle:reports');
         Route::post('/export', [ReportController::class, 'export'])
             ->middleware(RequiresFeature::class.':reports')
             ->middleware('throttle:reports');

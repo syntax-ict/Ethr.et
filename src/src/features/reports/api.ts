@@ -227,3 +227,21 @@ export async function downloadReportPdf(
   });
   saveBlob(filename, data);
 }
+
+/** The body of an Excel export: a report configuration with its source and format. */
+export type ReportExcelRequest = ReportConfig & { format: "xlsx" };
+
+/**
+ * The server's Excel workbook of a report: the rows and columns of the CSV,
+ * with the heading in bold and frozen and birr and counts as numbers, saved
+ * as a file.
+ */
+export async function downloadReportExcel(
+  body: ReportExcelRequest,
+  filename: string,
+): Promise<void> {
+  const { data } = await apiClient.post("/reports/export", body, {
+    responseType: "blob",
+  });
+  saveBlob(filename, data);
+}
