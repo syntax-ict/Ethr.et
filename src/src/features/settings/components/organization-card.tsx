@@ -260,7 +260,7 @@ export function OrganizationCard({ organization }: OrganizationCardProps) {
           </div>
         )}
         <div className="grid gap-4 sm:grid-cols-2">
-          <div>
+          <div className="min-w-0">
             <Label htmlFor="org-name">
               {t("settings.organization_name", "Organisation name")}
             </Label>
@@ -271,7 +271,7 @@ export function OrganizationCard({ organization }: OrganizationCardProps) {
               className="mt-1"
             />
           </div>
-          <div>
+          <div className="min-w-0">
             <Label htmlFor="org-subdomain">
               {t("settings.subdomain", "Address name")}
             </Label>
@@ -281,6 +281,7 @@ export function OrganizationCard({ organization }: OrganizationCardProps) {
                 id="org-subdomain"
                 value={organization?.subdomain ?? ""}
                 readOnly
+                className="min-w-0"
               />
               <TenantAddressAffix side="suffix" />
             </div>
