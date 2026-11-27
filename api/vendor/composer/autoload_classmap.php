@@ -1227,6 +1227,7 @@ return array(
     'App\\Services\\TenantAddressService' => $baseDir . '/app/Services/TenantAddressService.php',
     'App\\Services\\UserProvisioningService' => $baseDir . '/app/Services/UserProvisioningService.php',
     'App\\Services\\Webhook\\WebhookDispatcher' => $baseDir . '/app/Services/Webhook/WebhookDispatcher.php',
+    'App\\Support\\Access\\TitleAccessHealth' => $baseDir . '/app/Support/Access/TitleAccessHealth.php',
     'App\\Support\\ApiKeyAbilities' => $baseDir . '/app/Support/ApiKeyAbilities.php',
     'App\\Support\\ApiReference' => $baseDir . '/app/Support/ApiReference.php',
     'App\\Support\\ApprovalRefusal' => $baseDir . '/app/Support/ApprovalRefusal.php',

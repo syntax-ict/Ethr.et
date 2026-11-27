@@ -1881,6 +1881,7 @@ class ComposerStaticInit7076609bd9cc541b03d375662d9718bb
         'App\\Services\\TenantAddressService' => __DIR__ . '/../..' . '/app/Services/TenantAddressService.php',
         'App\\Services\\UserProvisioningService' => __DIR__ . '/../..' . '/app/Services/UserProvisioningService.php',
         'App\\Services\\Webhook\\WebhookDispatcher' => __DIR__ . '/../..' . '/app/Services/Webhook/WebhookDispatcher.php',
+        'App\\Support\\Access\\TitleAccessHealth' => __DIR__ . '/../..' . '/app/Support/Access/TitleAccessHealth.php',
         'App\\Support\\ApiKeyAbilities' => __DIR__ . '/../..' . '/app/Support/ApiKeyAbilities.php',
         'App\\Support\\ApiReference' => __DIR__ . '/../..' . '/app/Support/ApiReference.php',
         'App\\Support\\ApprovalRefusal' => __DIR__ . '/../..' . '/app/Support/ApprovalRefusal.php',
