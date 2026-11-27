@@ -2,9 +2,9 @@
 
 > **OWNER DECIDED, 2026-11-27.** Off-host backup copies go to an **Ethiopian** cloud provider,
 > which ETHR will subscribe to. Foreign object storage is **not** the primary destination:
-> Cloudflare R2 and Backblaze B2 were offered and declined. Google Drive keeps exactly the role
-> the console already gives it, a fallback used only when the primary is off or a copy to it
-> fails, because it stores outside Ethiopia.
+> Cloudflare R2 and Backblaze B2 were offered and declined. Google Drive is **no longer a
+> production destination at all**: it stores outside Ethiopia, so a copy to it is refused in
+> production. It stays available off production, where the rule is not enforced.
 
 ## The instruction, as given
 
@@ -88,3 +88,21 @@ Two related facts, both read from the code rather than assumed:
 of any kind was 2026-11-23 and no off-host copy has ever been made, because `ethr:backup` is a
 `Schedule::command` and those never ran on production until 2026-11-27. See
 [`BASELINE.md`](../audit/BASELINE.md) for the measurement log.
+
+## It is enforced in code, not only written here
+
+This decision stopped being a document on 2026-11-27, when the residency rule landed in
+`App\Support\BackupResidency`:
+
+- `enforced()` is true **in production only**, so development and the test suite are unaffected.
+- A destination that has not been stated to be in Ethiopia **refuses copies** in production, for
+  the console storage and the `.env` disk alike.
+- Google Drive is never copied to in production, because it stores outside Ethiopia. A restore
+  from an archive Drive already holds still works, which is the point of a fallback that was
+  written to before the rule existed.
+- The console demands the location statement **with every save**, and restates it whenever the
+  storage moves. Who stated it and when are recorded on `backup_storage_settings` and audited.
+- The refusal is reported as a warning in the operations centre rather than failing silently.
+
+So a bucket outside Ethiopia cannot quietly become the destination: it is refused, and the refusal
+is visible. What remains the owner's is the subscription itself.
