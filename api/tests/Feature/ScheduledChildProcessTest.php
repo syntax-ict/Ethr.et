@@ -208,3 +208,17 @@ it('clears a failing child once the same task runs and exits zero', function () 
     $this->artisan('ethr:schedule-run')->assertSuccessful();
     expect(app(QueueHealth::class)->failingTasks())->toBe([]);
 });
+
+it('names every scheduled event, so a failure never publishes a command line', function () {
+    $this->artisan('schedule:list');
+    $events = app(Schedule::class)->events();
+
+    $unnamed = collect($events)
+        ->filter(fn ($event) => ! is_string($event->description) || trim($event->description) === '')
+        ->map(fn ($event) => $event->command ?? $event::class)
+        ->values()
+        ->all();
+
+    expect(count($events))->toBeGreaterThan(5)
+        ->and($unnamed)->toBe([]);
+});
