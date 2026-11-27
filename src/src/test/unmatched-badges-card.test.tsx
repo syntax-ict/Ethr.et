@@ -76,11 +76,33 @@ const ROW = {
   last_seen: "2026-10-14 14:05:00",
 };
 
+/** What the confirmation reads before Assign: no warnings unless a test says so. */
+const PREVIEW = {
+  punches: 2,
+  first_day: "2026-10-14",
+  last_day: "2026-10-15",
+  employee: {
+    public_id: "01HZEMP0000000000000000001",
+    name: "Selam",
+    employee_code: null,
+    department: null,
+    position: null,
+    branch: null,
+    hire_date: null,
+    status: "confirmed",
+    badge_number: null,
+  },
+  warnings: [] as { code: string; value: string | number | null }[],
+};
+
 function renderCard(
   rows: unknown[],
   onPost: (path: string, body: unknown) => void,
 ) {
   server.use(
+    http.get("*/api/v1/devices/unmatched-punches/preview", () =>
+      HttpResponse.json(PREVIEW),
+    ),
     http.get("*/api/v1/devices/unmatched-punches", () =>
       HttpResponse.json({ data: rows }),
     ),
@@ -123,6 +145,9 @@ describe("<UnmatchedBadgesCard>", () => {
     expect(await screen.findByText("Badge 7777")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Pick Selam" }));
     await user.click(screen.getByRole("button", { name: "Assign" }));
+    await user.click(
+      await screen.findByRole("button", { name: "Confirm and assign" }),
+    );
 
     await vi.waitFor(() =>
       expect(posts).toEqual([
@@ -223,6 +248,9 @@ describe("<UnmatchedBadgesCard> row states", () => {
     await user.click(
       screen.getByRole("button", { name: "Assign and replay 2 punches" }),
     );
+    await user.click(
+      await screen.findByRole("button", { name: "Confirm and assign" }),
+    );
     await vi.waitFor(() =>
       expect(posts).toEqual([
         [
@@ -265,6 +293,9 @@ describe("<UnmatchedBadgesCard> row states", () => {
     ).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Assign" }));
+    await user.click(
+      await screen.findByRole("button", { name: "Confirm and assign" }),
+    );
     await vi.waitFor(() =>
       expect(posts).toEqual([
         [
@@ -434,6 +465,9 @@ describe("<UnmatchedBadgesCard> carrying on", () => {
     const user = userEvent.setup();
     await user.click(await screen.findByRole("button", { name: "Pick Selam" }));
     await user.click(screen.getByRole("button", { name: "Assign" }));
+    await user.click(
+      await screen.findByRole("button", { name: "Confirm and assign" }),
+    );
     return user;
   }
 
@@ -596,6 +630,9 @@ describe("<UnmatchedBadgesCard> the name a terminal sends", () => {
 
     // The pick is the select's value: Assign now sends that person.
     await user.click(screen.getByRole("button", { name: "Assign" }));
+    await user.click(
+      await screen.findByRole("button", { name: "Confirm and assign" }),
+    );
     await vi.waitFor(() =>
       expect(posts).toEqual([
         [
@@ -875,5 +912,161 @@ describe("<UnmatchedBadgesCard> the identity line and the warnings", () => {
 
     await screen.findByText("Badge 7777");
     expect(container.querySelector("[data-initial-search='']")).not.toBeNull();
+  });
+});
+
+describe("<UnmatchedBadgesCard> confirmation before assigning", () => {
+  beforeEach(() => {
+    granted.list = ["attendance.manage"];
+  });
+
+  const WARNED = {
+    ...PREVIEW,
+    employee: {
+      ...PREVIEW.employee,
+      employee_code: "WOR-9",
+      department: "Land Office",
+    },
+    warnings: [
+      { code: "other_badge", value: "W-77" },
+      { code: "moves_from", value: "Kebede Alemu" },
+    ],
+  };
+
+  it("opens a dialog instead of assigning, and shows the count, the days and the person", async () => {
+    const posts: Array<[string, unknown]> = [];
+    const user = userEvent.setup();
+    renderCard([ROW], (path, body) => posts.push([path, body]));
+
+    await user.click(await screen.findByRole("button", { name: "Pick Selam" }));
+    await user.click(screen.getByRole("button", { name: "Assign" }));
+
+    const dialog = await screen.findByRole("dialog");
+    expect(
+      await within(dialog).findByText(
+        /Held punches that go into their attendance: 2, from/,
+      ),
+    ).toBeInTheDocument();
+    expect(within(dialog).getByText("Selam")).toBeInTheDocument();
+    expect(
+      within(dialog).getByText(/Badge 7777 sent by Main gate/),
+    ).toBeInTheDocument();
+    expect(posts).toEqual([]);
+    expect(
+      within(dialog).getByRole("button", { name: "Confirm and assign" }),
+    ).toBeEnabled();
+    expect(within(dialog).queryByRole("checkbox")).not.toBeInTheDocument();
+
+    await user.click(
+      within(dialog).getByRole("button", { name: "Confirm and assign" }),
+    );
+    await vi.waitFor(() =>
+      expect(posts).toEqual([
+        [
+          "assign",
+          {
+            device_public_id: ROW.device_public_id,
+            badge: "7777",
+            employee_public_id: "01HZEMP0000000000000000001",
+          },
+        ],
+      ]),
+    );
+  });
+
+  it("keeps Confirm off until the warnings are ticked, then sends accept_warnings", async () => {
+    const posts: Array<[string, unknown]> = [];
+    const user = userEvent.setup();
+    renderCard([ROW], (path, body) => posts.push([path, body]));
+    server.use(
+      http.get("*/api/v1/devices/unmatched-punches/preview", () =>
+        HttpResponse.json(WARNED),
+      ),
+    );
+
+    await user.click(await screen.findByRole("button", { name: "Pick Selam" }));
+    await user.click(screen.getByRole("button", { name: "Assign" }));
+
+    const dialog = await screen.findByRole("dialog");
+    const confirm = within(dialog).getByRole("button", {
+      name: "Confirm and assign",
+    });
+    await within(dialog).findByText(/Already has badge number W-77/);
+    expect(
+      dialog.querySelector('[data-warning="moves_from"]'),
+    ).toHaveTextContent("matched to Kebede Alemu and will be moved from them");
+    expect(confirm).toBeDisabled();
+
+    await user.click(
+      within(dialog).getByRole("checkbox", {
+        name: "I have checked these and this is the right person",
+      }),
+    );
+    expect(confirm).toBeEnabled();
+    await user.click(confirm);
+
+    await vi.waitFor(() =>
+      expect(posts).toEqual([
+        [
+          "assign",
+          {
+            device_public_id: ROW.device_public_id,
+            badge: "7777",
+            employee_public_id: "01HZEMP0000000000000000001",
+            accept_warnings: true,
+          },
+        ],
+      ]),
+    );
+  });
+
+  it("says another employee when the holder may not be named", async () => {
+    const user = userEvent.setup();
+    renderCard([ROW], () => {});
+    server.use(
+      http.get("*/api/v1/devices/unmatched-punches/preview", () =>
+        HttpResponse.json({
+          ...PREVIEW,
+          warnings: [{ code: "moves_from", value: null }],
+        }),
+      ),
+    );
+
+    await user.click(await screen.findByRole("button", { name: "Pick Selam" }));
+    await user.click(screen.getByRole("button", { name: "Assign" }));
+
+    expect(
+      await screen.findByText(/matched to another employee and will be moved/),
+    ).toBeInTheDocument();
+  });
+
+  it("leaves Confirm off when the preview cannot be read, and reads it again on Try again", async () => {
+    let calls = 0;
+    const user = userEvent.setup();
+    renderCard([ROW], () => {});
+    server.use(
+      http.get("*/api/v1/devices/unmatched-punches/preview", () => {
+        calls += 1;
+        return calls === 1
+          ? HttpResponse.json({ detail: "Nope." }, { status: 500 })
+          : HttpResponse.json(PREVIEW);
+      }),
+    );
+
+    await user.click(await screen.findByRole("button", { name: "Pick Selam" }));
+    await user.click(screen.getByRole("button", { name: "Assign" }));
+
+    const dialog = await screen.findByRole("dialog");
+    await within(dialog).findByRole("alert");
+    expect(
+      within(dialog).getByRole("button", { name: "Confirm and assign" }),
+    ).toBeDisabled();
+
+    await user.click(within(dialog).getByRole("button", { name: "Try again" }));
+    await vi.waitFor(() =>
+      expect(
+        within(dialog).getByRole("button", { name: "Confirm and assign" }),
+      ).toBeEnabled(),
+    );
   });
 });

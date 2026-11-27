@@ -20,6 +20,8 @@ export interface BringInJob {
   employee_public_id: string;
   /** Punches held for it when the screen was drawn, for the count still to go. */
   punches?: number;
+  /** The person read the warnings and ticked the box; the server's own list is what it checks. */
+  acceptWarnings?: boolean;
 }
 
 export type BringInPhase = "idle" | "running" | "stopped" | "failed" | "done";
@@ -135,6 +137,7 @@ export function useBringInPunches(onSettled?: () => void) {
             device_public_id: job.device_public_id,
             badge: job.badge,
             employee_public_id: job.employee_public_id,
+            ...(job.acceptWarnings ? { accept_warnings: true } : {}),
           },
         );
         totals.current.replayed += data.replayed;

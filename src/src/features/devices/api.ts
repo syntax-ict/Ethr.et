@@ -607,6 +607,40 @@ export function useUnmatchedBadges(enabled = true) {
   });
 }
 
+/**
+ * What assigning a held badge to one person would do, and what speaks against
+ * it (`GET /devices/unmatched-punches/preview`). The warnings are the server's
+ * own and the ones `assign` refuses to go past without `accept_warnings`:
+ * the three of `SuggestionIdentity`, and `moves_from` (the badge is matched to
+ * someone else today; the value is their name, or null when the viewer may not
+ * open them).
+ */
+export type AssignPreview =
+  operations["unmatchedPunch.preview"]["responses"][200]["content"]["application/json"];
+
+/** @param enabled Only while the confirmation is open: it is a read of what the click would do now. */
+export function useAssignPreview(
+  target: {
+    device_public_id: string;
+    badge: string;
+    employee_public_id: string;
+  } | null,
+  enabled: boolean,
+) {
+  return useQuery<AssignPreview>({
+    queryKey: [...UNMATCHED_KEY, "preview", target],
+    enabled: enabled && target !== null,
+    gcTime: 0,
+    queryFn: async () => {
+      const { data } = await apiClient.get<AssignPreview>(
+        "/devices/unmatched-punches/preview",
+        { params: target },
+      );
+      return data;
+    },
+  });
+}
+
 export function useAssignUnmatchedBadge() {
   const queryClient = useQueryClient();
 
@@ -615,6 +649,7 @@ export function useAssignUnmatchedBadge() {
       device_public_id: string;
       badge: string;
       employee_public_id: string;
+      accept_warnings?: boolean;
     }) => {
       const { data } = await apiClient.post<{
         replayed: number;
