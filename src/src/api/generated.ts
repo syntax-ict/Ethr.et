@@ -20863,6 +20863,7 @@ export interface operations {
                         available: boolean;
                         blocker: string | null;
                         keep: number;
+                        residency_enforced: boolean;
                         storage: {
                             [key: string]: unknown;
                         } | null;

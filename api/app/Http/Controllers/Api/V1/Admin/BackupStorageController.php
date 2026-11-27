@@ -168,7 +168,7 @@ class BackupStorageController extends Controller
      *
      * A failure is reported in the body, never as a 500.
      *
-     * @response array{source: 'console'|'env'|'none', enabled: bool, available: bool, blocker: string|null, keep: int, storage: array<string, mixed>|null, key: array<string, mixed>|null, google_drive: array<string, mixed>, health: array<string, mixed>, run: array{ok: bool, exit_code: int|null, output: string, off_host_copied: bool}}
+     * @response array{source: 'console'|'env'|'none', enabled: bool, available: bool, blocker: string|null, keep: int, residency_enforced: bool, storage: array<string, mixed>|null, key: array<string, mixed>|null, google_drive: array<string, mixed>, health: array<string, mixed>, run: array{ok: bool, exit_code: int|null, output: string, off_host_copied: bool}}
      */
     public function run(BackupConsoleState $console): JsonResponse
     {
