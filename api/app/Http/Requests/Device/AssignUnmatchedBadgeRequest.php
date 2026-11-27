@@ -19,6 +19,7 @@ class AssignUnmatchedBadgeRequest extends FormRequest
             'device_public_id' => ['required', 'string', 'size:26'],
             'badge' => ['required', 'string', 'max:64'],
             'employee_public_id' => ['required', 'string', 'size:26'],
+            'accept_warnings' => ['sometimes', 'boolean'],
         ];
     }
 }

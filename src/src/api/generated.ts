@@ -9245,6 +9245,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/devices/unmatched-punches/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What assigning this badge to this person would do, read without changing
+         *     anything: the held punches and their days, who the person is, and what
+         *     speaks against it. The assign request enforces the same warnings
+         */
+        get: operations["unmatchedPunch.preview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/devices/unmatched-punches/assign": {
         parameters: {
             query?: never;
@@ -10019,6 +10040,7 @@ export interface components {
             device_public_id: string;
             badge: string;
             employee_public_id: string;
+            accept_warnings?: boolean;
         };
         /** AttendanceConflictResource */
         AttendanceConflictResource: {
@@ -40778,6 +40800,52 @@ export interface operations {
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "unmatchedPunch.preview": {
+        parameters: {
+            query: {
+                device_public_id: string;
+                badge: string;
+                employee_public_id: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        punches: number;
+                        first_day: string | null;
+                        last_day: string | null;
+                        employee: {
+                            public_id: string;
+                            name: string;
+                            employee_code: string | null;
+                            department: string | null;
+                            position: string | null;
+                            branch: string | null;
+                            hire_date: string | null;
+                            status: string;
+                            badge_number: string | null;
+                        };
+                        warnings: {
+                            code: string;
+                            value: string | number | null;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
         };
     };
     "unmatchedPunch.assign": {

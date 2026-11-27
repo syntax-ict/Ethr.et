@@ -346,7 +346,7 @@ it('writes one audit entry per call that replays punches: the link first, then e
     test()->postJson(unmatchedUrl($tenant, '/assign'), heldAssignBody($device, $employee))->assertOk();
     $first = AuditLog::where('action', 'device.badge_assigned')->get();
     expect($first)->toHaveCount(1)
-        ->and(storedPayloadSorted($first->first()->payload))->toBe(['badge' => '7777', 'employee_id' => $employee->public_id, 'refused' => 0, 'replayed' => 1])
+        ->and(storedPayloadSorted($first->first()->payload))->toBe(['badge' => '7777', 'employee_id' => $employee->public_id, 'refused' => 0, 'replayed' => 1, 'warnings' => []])
         ->and(AuditLog::where('action', 'device.held_punches_replayed')->count())->toBe(0);
 
     foreach ([2, 3] as $ignored) {
@@ -382,7 +382,7 @@ it('writes an entry for punches brought in for a number the import already confi
         ->assertOk()->assertJsonPath('replayed', 2);
 
     $entry = AuditLog::where('action', 'device.held_punches_replayed')->sole();
-    expect(storedPayloadSorted($entry->payload))->toBe(['badge' => '7777', 'employee_id' => $employee->public_id, 'refused' => 0, 'replayed' => 2])
+    expect(storedPayloadSorted($entry->payload))->toBe(['badge' => '7777', 'employee_id' => $employee->public_id, 'refused' => 0, 'replayed' => 2, 'warnings' => []])
         ->and(AuditLog::where('action', 'device.badge_assigned')->count())->toBe(0);
 });
 
@@ -394,7 +394,7 @@ it('writes a link entry again when the number changes hands', function () {
     $other = Employee::factory()->create(['tenant_id' => $tenant->id, 'branch_id' => $employee->branch_id, 'name' => 'Other Person', 'status' => EmployeeStatus::CONFIRMED]);
 
     test()->postJson(unmatchedUrl($tenant, '/assign'), heldAssignBody($device, $employee))->assertOk();
-    test()->postJson(unmatchedUrl($tenant, '/assign'), heldAssignBody($device, $other))->assertOk();
+    test()->postJson(unmatchedUrl($tenant, '/assign'), heldAssignBody($device, $other) + ['accept_warnings' => true])->assertOk();
 
     expect(AuditLog::where('action', 'device.badge_assigned')->count())->toBe(2)
         ->and(AuditLog::where('action', 'device.held_punches_replayed')->count())->toBe(0);
@@ -419,11 +419,11 @@ it('refuses a second caller while the same badge is being brought in, and replay
 
     // Another badge of the same device is not held up by it.
     heldDays($tenant, $device, 1, '8888');
-    test()->postJson(unmatchedUrl($tenant, '/assign'), heldAssignBody($device, $employee, '8888'))->assertOk();
+    test()->postJson(unmatchedUrl($tenant, '/assign'), heldAssignBody($device, $employee, '8888') + ['accept_warnings' => true])->assertOk();
 
     // Released, the badge goes through.
     $held->release();
-    test()->postJson(unmatchedUrl($tenant, '/assign'), heldAssignBody($device, $employee))->assertOk()->assertJsonPath('remaining', 0);
+    test()->postJson(unmatchedUrl($tenant, '/assign'), heldAssignBody($device, $employee) + ['accept_warnings' => true])->assertOk()->assertJsonPath('remaining', 0);
 });
 
 it('lets go of the lock when the replay fails part-way', function () {

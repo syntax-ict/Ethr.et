@@ -715,6 +715,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::get('/dashboard', [DeviceController::class, 'dashboard']);
         // Badges no employee matched, with their held punches (UnmatchedPunches).
         Route::get('/unmatched-punches', [UnmatchedPunchController::class, 'index']);
+        Route::get('/unmatched-punches/preview', [UnmatchedPunchController::class, 'preview']);
         Route::post('/unmatched-punches/assign', [UnmatchedPunchController::class, 'assign']);
         Route::post('/unmatched-punches/dismiss', [UnmatchedPunchController::class, 'dismiss']);
         Route::post('/quarantine/replay', [DeviceQuarantineController::class, 'replay']);

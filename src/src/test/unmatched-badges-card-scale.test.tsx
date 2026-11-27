@@ -94,6 +94,27 @@ function renderCard() {
         links: {},
       });
     }),
+    http.get("*/api/v1/devices/unmatched-punches/preview", ({ request }) =>
+      HttpResponse.json({
+        punches: 3,
+        first_day: "2026-10-14",
+        last_day: "2026-10-14",
+        employee: {
+          public_id: new URL(request.url).searchParams.get(
+            "employee_public_id",
+          ),
+          name: "Chosen",
+          employee_code: null,
+          department: null,
+          position: null,
+          branch: null,
+          hire_date: null,
+          status: "confirmed",
+          badge_number: null,
+        },
+        warnings: [],
+      }),
+    ),
     http.post(
       "*/api/v1/devices/unmatched-punches/assign",
       async ({ request }) => {
@@ -169,6 +190,9 @@ describe("<UnmatchedBadgesCard> with 80 badges and 4,000 employees", () => {
     expect(document.querySelectorAll('[role="option"]')).toHaveLength(0);
 
     await user.click(within(row).getByRole("button", { name: "Assign" }));
+    await user.click(
+      await screen.findByRole("button", { name: "Confirm and assign" }),
+    );
     await vi.waitFor(() =>
       expect(posts).toEqual([
         expect.objectContaining({
@@ -210,6 +234,9 @@ describe("<UnmatchedBadgesCard> with 80 badges and 4,000 employees", () => {
     expect(employeeCalls).toEqual([]);
 
     await user.click(within(row).getByRole("button", { name: "Assign" }));
+    await user.click(
+      await screen.findByRole("button", { name: "Confirm and assign" }),
+    );
     await vi.waitFor(() =>
       expect(posts).toEqual([
         expect.objectContaining({

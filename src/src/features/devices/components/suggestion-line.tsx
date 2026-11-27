@@ -36,22 +36,7 @@ export function SuggestionLine({
   const identity = person.identity ?? null;
   const department = identity?.department ?? person.department ?? null;
 
-  const facts = [
-    identity?.employee_code
-      ? t("devices_page.unmatched.identity_number", "No. :code", {
-          code: identity.employee_code,
-        })
-      : null,
-    department,
-    identity?.position ?? null,
-    identity?.branch ?? null,
-    identity?.hire_date
-      ? t("devices_page.unmatched.identity_hired", "Hired :date", {
-          date: formatDate(identity.hire_date),
-        })
-      : null,
-    identity ? statusLabel(identity.status, t) : null,
-  ].filter((fact): fact is string => !!fact);
+  const facts = identityFacts(identity, department, t, formatDate);
 
   return (
     <li className="space-y-0.5">
@@ -105,6 +90,35 @@ export function SuggestionLine({
   );
 }
 
+/** The identity line as facts to join: number, department, position, branch, hire date, status. */
+export function identityFacts(
+  identity: SuggestionIdentity | null,
+  department: string | null,
+  t: (
+    key: string,
+    fallback?: string,
+    params?: Record<string, string | number>,
+  ) => string,
+  formatDate: (date: string) => string,
+): string[] {
+  return [
+    identity?.employee_code
+      ? t("devices_page.unmatched.identity_number", "No. :code", {
+          code: identity.employee_code,
+        })
+      : null,
+    department,
+    identity?.position ?? null,
+    identity?.branch ?? null,
+    identity?.hire_date
+      ? t("devices_page.unmatched.identity_hired", "Hired :date", {
+          date: formatDate(identity.hire_date),
+        })
+      : null,
+    identity ? statusLabel(identity.status, t) : null,
+  ].filter((fact): fact is string => !!fact);
+}
+
 function statusLabel(
   status: string,
   t: (key: string, fallback?: string) => string,
@@ -114,7 +128,7 @@ function statusLabel(
     : t(`status.${status}`, status);
 }
 
-function warningText(
+export function warningText(
   warning: { code: string; value: string | number | null },
   t: (
     key: string,
@@ -142,6 +156,17 @@ function warningText(
         "Already has attendance of their own on :count of the days this badge punched",
         { count: Number(warning.value ?? 0) },
       );
+    case "moves_from":
+      return warning.value
+        ? t(
+            "devices_page.unmatched.warn_moves_from",
+            "This badge is now matched to :name and will be moved from them",
+            { name: String(warning.value) },
+          )
+        : t(
+            "devices_page.unmatched.warn_moves_from_other",
+            "This badge is now matched to another employee and will be moved from them",
+          );
     default:
       return warning.code;
   }
