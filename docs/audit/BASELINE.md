@@ -5528,3 +5528,12 @@ on a bare clone and it is not part of the full sweep. A release that could not r
 satisfied step 5 — the honest report is *not run*, which is what the release steps in
 [`../deployment/PLESK-GO-LIVE.md`](../deployment/PLESK-GO-LIVE.md) now ask for, rather than
 silence.
+### 25bj. Every scheduled command exited 255 on production: the PHP binary was the bare word `php` (2026-11-27)
+
+**Measured** in `storage/logs/laravel-2026-11-26.log`: every `Schedule::command` task logged `exited 255` for the whole day. devices:sync 288, attendance-auto-checkout 288, attendance-push-reminders 288, devices-watch-silence 96, access-watch-held-titles 96, attendance-baseline 24, attendance-photo-retention 24, refresh-tenant-journeys 24, and once each attendance-purge-device-challenges, auth-purge-activation-codes, ethr-backup, invitations-send-reminders, attendance-pattern-scan. The first such line is 2026-11-09 08:25, the day exit-code reporting arrived (6f5e269328), so these most likely never ran on production. `Schedule::call` and `Schedule::job` events run in-process and were unaffected, which is why the heartbeat and `/api/v1/health` stayed healthy.
+
+**Cause.** Under PHP-FPM, Symfony's `PhpExecutableFinder` does not return `PHP_BINARY` (the SAPI is not cli), and under Plesk's `open_basedir` its `is_executable` probes fail, so Laravel builds `'php' 'artisan' ...`. The shell then runs the first `php` on PATH, a different PHP that exits 255. The child's output went to the null device, so the reason was never visible. An environment variable would not have helped: the finder re-checks it with the same `is_executable`.
+
+**Changed.** `App\Support\PhpCli::binary()` picks `config('cron.php_binary')` (`CRON_PHP_BINARY`), else `PHP_BINARY` under cli/phpdbg, else `PHP_BINDIR/php`, never probing the file system. `ScheduleCatchUpCommand` swaps Laravel's `'php' ` prefix for it on command events only, captures a default-output child's output to a temp file for the run and puts its last 1,000 bytes in the reported exception and the console line, and records the failure (task name and exit code only) so `QueueHealth::snapshot()` reports a `scheduled task ... failed` problem for 30 minutes. Stock `schedule:run` (local use only) is unchanged: it runs under the CLI, where Laravel already finds `PHP_BINARY`. Tests: `tests/Feature/ScheduledChildProcessTest.php`.
+
+**Consequence.** Everything that never ran will start on the first scheduler call after release. The first-run list is in the pull request.
