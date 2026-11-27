@@ -200,7 +200,7 @@ final class TimesheetPdf
             'stamp' => (string) __('report.signatures.stamp', [], $locale),
             'labels' => [
                 'no' => $t('no'), 'id' => $t('id'), 'name' => $t('name'), 'department' => $t('department'),
-                'position' => $t('position'), 'shift' => $t('shift'),
+                'position' => $t('position'), 'shift' => (string) __('report.fields.shift', [], $locale),
                 'device' => $t('device'), 'status' => $t('status_line'), 'filters' => $t('filters'),
                 'days' => $t('section_days'), 'summary' => $t('section_summary'), 'legend' => $t('legend'),
                 'rules' => $t('rules'), 'totals' => $t('totals'), 'grand_total' => $t('grand_total'),

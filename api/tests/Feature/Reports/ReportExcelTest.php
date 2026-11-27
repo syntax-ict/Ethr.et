@@ -267,6 +267,14 @@ test('the timesheet workbook has the days and the summary, for the same people a
         ->and(ctype_digit($days[$header]['H'][1]))->toBeTrue()
         ->and($book['xml']['Days'])->toContain('state="frozen"');
 
+    $headings = array_map(fn (array $cell) => $cell[1] ?? null, $days[$header]);
+    expect($headings)->toContain('Shift');
+    foreach ($days as $row) {
+        foreach ($row as $cell) {
+            expect((string) ($cell[1] ?? ''))->not->toContain('report.timesheet.');
+        }
+    }
+
     $summary = $book['sheets']['Summary'];
     $last = max(array_keys($summary));
     expect($summary[$last]['B'][1])->toContain('(2)')
