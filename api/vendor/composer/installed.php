@@ -655,6 +655,15 @@
             'aliases' => array(),
             'dev_requirement' => false,
         ),
+        'openspout/openspout' => array(
+            'pretty_version' => 'v5.3.0',
+            'version' => '5.3.0.0',
+            'reference' => 'bc0d2cdefa3fa90c7caceb778192654b20f414f7',
+            'type' => 'library',
+            'install_path' => __DIR__ . '/../openspout/openspout',
+            'aliases' => array(),
+            'dev_requirement' => false,
+        ),
         'paragonie/constant_time_encoding' => array(
             'pretty_version' => 'v3.1.5',
             'version' => '3.1.5.0',

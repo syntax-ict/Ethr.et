@@ -22,12 +22,14 @@ use App\Services\Report\ReportEngine;
 use App\Services\Report\ReportPresets;
 use App\Services\Report\TimesheetPdf;
 use App\Services\Report\TimesheetReport;
+use App\Services\Report\TimesheetXlsx;
 use App\Support\Csv;
 use App\Support\Letterhead;
 use App\Support\PdfPages;
 use App\Support\ReaderDates;
 use App\Support\ScheduleSlot;
 use App\Support\StringList;
+use App\Support\Xlsx;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -139,6 +141,27 @@ class ReportController extends Controller
         ]);
     }
 
+    /**
+     * The same timesheet as an Excel workbook: a sheet of the days and a
+     * sheet of the summary, for the same people and by the same filters as the
+     * PDF. A list longer than the screen's own limit is a 422 that says how
+     * to narrow it.
+     */
+    public function timesheetXlsx(TimesheetRequest $request, TimesheetXlsx $timesheet): Response
+    {
+        Gate::authorize('report.generate');
+
+        $tenant = app(CurrentTenant::class)->get() ?? throw new TenantRequired;
+        $reader = ReaderDates::for($request->user());
+
+        $bytes = $timesheet->render($tenant, $request->user(), $request->validated(), $reader, Gate::allows('payroll.viewAll'));
+
+        return response($bytes, 200, [
+            'Content-Type' => Xlsx::MIME,
+            'Content-Disposition' => 'attachment; filename="timesheet-'.now()->format('Y-m-d-His').'.xlsx"',
+        ]);
+    }
+
     public function export(GenerateReportRequest $request): Response
     {
         Gate::authorize('report.generate');
@@ -152,9 +175,11 @@ class ReportController extends Controller
 
         $note = $this->engine->truncationNote($result, $reader);
 
-        return $format === 'pdf'
-            ? $this->exportPdf($result, $filename, $reader, $note)
-            : $this->exportCsv($result['data'], $filename, $reader, $note);
+        return match ($format) {
+            'pdf' => $this->exportPdf($result, $filename, $reader, $note),
+            'xlsx' => $this->exportXlsx($result, $filename, $reader, $note),
+            default => $this->exportCsv($result['data'], $filename, $reader, $note),
+        };
     }
 
     /**
@@ -175,6 +200,18 @@ class ReportController extends Controller
         return response(Csv::forSpreadsheet($this->engine->toCsv($rows, $reader, $note)), 200, [
             'Content-Type' => 'text/csv',
             'Content-Disposition' => "attachment; filename=\"{$filename}.csv\"",
+        ]);
+    }
+
+    /** @param array<string, mixed> $result */
+    private function exportXlsx(array $result, string $filename, ReaderDates $reader, ?string $note): Response
+    {
+        $rows = $this->engine->presentable($result['data'], $reader, spreadsheet: true, numeric: true);
+        $sheet = Xlsx::table((string) __('report.sources.'.$result['source'], [], $reader->locale), $rows, $note);
+
+        return response(Xlsx::render([$sheet]), 200, [
+            'Content-Type' => Xlsx::MIME,
+            'Content-Disposition' => "attachment; filename=\"{$filename}.xlsx\"",
         ]);
     }
 

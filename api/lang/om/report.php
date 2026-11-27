@@ -144,6 +144,7 @@ return [
         'section_days' => 'Guyyoota',
         'section_summary' => 'Cuunfaa',
         'too_many_for_pdf' => 'Sagantaan maxxanfame namoota :max hanga qabata. Tarree gabaabsuuf damee, gamoo ykn shiftii filadhu.',
+        'too_many_for_excel' => 'Faayilii Excel sagantaa hanga namoota :max qabata. Tarree gabaabsuuf damee, gamoo ykn shiftii filadhu.',
         'payable_note' => 'Guyyoonni kaffalaman guyyoota qacaramanii, eeyyama kaffalamuu hin qabnee fi guyyoota dhukkubaa kaffalamuu hin qabne hir\'isee dha. Hin argamuun hin hir\'ifamu.',
     ],
     'signatures' => [
