@@ -6,6 +6,7 @@ namespace App\Services\Backup;
 
 use App\Models\BackupDriveSetting;
 use App\Models\BackupStorageSetting;
+use App\Support\BackupResidency;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
@@ -217,6 +218,9 @@ class BackupService
                 'source' => 'console',
                 'name' => 'Google Drive',
                 'blocker' => match (true) {
+                    // Drive stores outside Ethiopia; in production it keeps
+                    // only what it already holds, for a restore to read.
+                    BackupResidency::refuses(false) => BackupResidency::BLOCKER,
                     ! $drive->isConnected() => 'off_host_not_connected',
                     ! $drive->enabled => 'off_host_switched_off',
                     $cipher === null => 'off_host_key_missing',
@@ -248,6 +252,7 @@ class BackupService
                 'source' => 'console',
                 'name' => $console->bucket,
                 'blocker' => match (true) {
+                    BackupResidency::refuses($console->located_in_ethiopia) => BackupResidency::BLOCKER,
                     ! $console->enabled => 'off_host_switched_off',
                     $cipher === null => 'off_host_key_missing',
                     default => null,
@@ -272,6 +277,7 @@ class BackupService
                 // configured.
                 ($config['driver'] ?? null) === 's3'
                     && (empty($config['bucket']) || empty($config['key']) || empty($config['secret'])) => 'off_host_not_configured',
+                BackupResidency::refuses((bool) config('backup.off_host_in_ethiopia')) => BackupResidency::BLOCKER,
                 $cipher === null => 'off_host_key_missing',
                 default => null,
             },

@@ -198,7 +198,7 @@ it('lists a person spelled differently on the card with the full identity line',
 
 it('warns about a person who carries another badge, was hired after the first punch, or has attendance of their own', function () {
     [$tenant, $device] = badgeSugOrganisation();
-    $person = badgeSugStaff($tenant, 'Seblewengel Mekonen Tesfaye', ['badge_number' => 'W-77', 'hire_date' => '2026-11-11']);
+    $person = badgeSugStaff($tenant, 'Seblewengel Mekonen Tesfaye', ['badge_number' => 'W-77', 'hire_date' => '2026-11-11', 'created_at' => '2026-09-01 08:00:00']);
     AttendanceRecord::factory()->create([
         'tenant_id' => $tenant->id, 'employee_id' => $person->id, 'date' => '2026-11-11', 'status' => AttendanceStatus::PRESENT,
     ]);
@@ -219,6 +219,35 @@ it('warns about a person who carries another badge, was hired after the first pu
         ['code' => 'hired_after', 'value' => '2026-11-10'],
         ['code' => 'own_attendance', 'value' => 1],
     ])->and($identity['badge_number'])->toBe('W-77');
+});
+
+/** @return list<array{code: string, value: string|int|null}> */
+function badgeSugHiredWarnings(string $hireDate, string $createdAtUtc): array
+{
+    [$tenant, $device] = badgeSugOrganisation();
+    badgeSugStaff($tenant, 'Seblewengel Mekonen Tesfaye', ['hire_date' => $hireDate, 'created_at' => $createdAtUtc]);
+    badgeSugHold($tenant, $device, 'R030');
+    badgeSugName($tenant, $device, 'R030', 'Seblewongel Mekonnen');
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+    return test()->getJson(badgeSugUrl($tenant))->assertOk()->json('data.0.name_matches.0.identity.warnings');
+}
+
+it('does not warn of a late hire date that is only the day the record was created', function () {
+    expect(badgeSugHiredWarnings('2026-11-15', '2026-11-15 09:00:00'))->toBe([]);
+});
+
+it('still warns of a late hire date that is not the day the record was created', function () {
+    expect(badgeSugHiredWarnings('2026-11-15', '2026-11-01 09:00:00'))->toBe([
+        ['code' => 'hired_after', 'value' => '2026-11-10'],
+    ]);
+});
+
+it('reads the creation day in the organisation time zone, so a late UTC evening is the next local day', function () {
+    expect(badgeSugHiredWarnings('2026-11-16', '2026-11-15 22:30:00'))->toBe([])
+        ->and(badgeSugHiredWarnings('2026-11-15', '2026-11-15 22:30:00'))->toBe([
+            ['code' => 'hired_after', 'value' => '2026-11-10'],
+        ]);
 });
 
 it('warns of nothing for a person with no other badge, hired earlier, with no attendance on those days', function () {

@@ -97,6 +97,9 @@ export function BackupDriveCard({ state }: { state: BackupDriveState }) {
   }, []);
 
   const ready = state.verified && state.key?.saved_at !== null;
+  // Production never copies to Drive (Proclamation 1321/2024 Art. 22): it
+  // stores outside Ethiopia. What it holds can still be restored.
+  const refusedHere = state.blocker === "off_host_outside_ethiopia";
   const secretRequired = !state.saved;
 
   function submit() {
@@ -216,6 +219,18 @@ export function BackupDriveCard({ state }: { state: BackupDriveState }) {
             "Used only when the main storage is off or a copy to it fails. Files are encrypted before they leave this server. Google Drive stores them outside Ethiopia, so it is a fallback, not a replacement.",
           )}
         </p>
+
+        {refusedHere && (
+          <p
+            role="status"
+            className="rounded-lg bg-warning-soft p-3 text-sm text-warning-on-soft"
+          >
+            {t(
+              "admin_backups.drive_refused_here",
+              "Production does not copy backups to Google Drive, because it stores them outside Ethiopia (Proclamation 1321/2024, Art. 22). Archives already on Drive can still be restored.",
+            )}
+          </p>
+        )}
 
         {outcome?.ok === true && (
           <p
@@ -494,20 +509,28 @@ export function BackupDriveCard({ state }: { state: BackupDriveState }) {
                   )}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {ready
+                  {refusedHere
                     ? t(
-                        "admin_backups.drive_switch_help",
-                        "If the main storage is off or a copy to it fails, the night's backup goes to Google Drive instead.",
+                        "admin_backups.drive_switch_refused",
+                        "Not available in production.",
                       )
-                    : t(
-                        "admin_backups.drive_switch_blocked",
-                        "Connect Google Drive, pass the test and confirm the key is saved before switching this on.",
-                      )}
+                    : ready
+                      ? t(
+                          "admin_backups.drive_switch_help",
+                          "If the main storage is off or a copy to it fails, the night's backup goes to Google Drive instead.",
+                        )
+                      : t(
+                          "admin_backups.drive_switch_blocked",
+                          "Connect Google Drive, pass the test and confirm the key is saved before switching this on.",
+                        )}
                 </p>
               </div>
               <Switch
                 checked={state.enabled}
-                disabled={(!ready && !state.enabled) || update.isPending}
+                disabled={
+                  ((!ready || refusedHere) && !state.enabled) ||
+                  update.isPending
+                }
                 aria-label={t(
                   "admin_backups.drive_switch_label",
                   "Use Google Drive when the main storage fails",

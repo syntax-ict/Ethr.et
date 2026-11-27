@@ -36,8 +36,9 @@ that it needed a deliberate design of its own. This is that design.
 | Its own secret | Not `CRON_TOKEN`, which sits in GitHub secrets and is sent every five minutes |
 | Header only | `X-Maintenance-Token`. Never `?token=`, which would land in access logs |
 | Brute-force brake | 5 requests a minute per address, counted **before** the comparison, in the **file** cache |
-| Fixed tasks | `key`, `migrate`, `seed`, `optimize`, `clear`, `create-admin`; later `mail-probe` (2026-10-10) and `backups`, `backup`, `restore` (2026-10-14). Each maps to arguments written in the controller, never to a command name from the request |
+| Fixed tasks | `key`, `migrate`, `seed`, `optimize`, `clear`, `create-admin`; later `mail-probe` (2026-10-10), `backups`, `backup`, `restore` (2026-10-14) and `erase-organisation` (2026-11-25). Each maps to arguments written in the controller, never to a command name from the request |
 | `restore` is guarded twice | The backup name must be typed twice and must be one the `backups` task lists, never a path. A `pre-restore` backup is taken first, so a wrong restore can be undone |
+| `erase-organisation` is guarded three times | A dry run unless `execute` is sent; the address typed twice; and only an organisation cancelled, deleted and past its 30 days ([`../operations/TENANT-DELETION.md`](../operations/TENANT-DELETION.md) → *Erasing an organisation that has left*) |
 | `key` is one-shot | Refused (409) once `APP_KEY` is set: a second key makes every encrypted column unreadable |
 | Secrets stay out | The generated key and the admin password are never echoed or logged |
 | One at a time | A lock in the file cache; a second call gets 409 |
