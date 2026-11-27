@@ -1020,6 +1020,37 @@ describe("<UnmatchedBadgesCard> confirmation before assigning", () => {
     );
   });
 
+  it("says something changed when the server holds the badge back after Confirm", async () => {
+    const user = userEvent.setup();
+    renderCard([ROW], () => {});
+    server.use(
+      http.post("*/api/v1/devices/unmatched-punches/assign", () =>
+        HttpResponse.json(
+          {
+            message: "Confirm that this is the right person and try again.",
+            errors: { accept_warnings: ["Confirm."] },
+            warnings: ["other_badge"],
+          },
+          { status: 422 },
+        ),
+      ),
+    );
+
+    await user.click(await screen.findByRole("button", { name: "Pick Selam" }));
+    await user.click(screen.getByRole("button", { name: "Assign" }));
+    const dialog = await screen.findByRole("dialog");
+    await user.click(
+      await within(dialog).findByRole("button", { name: "Confirm and assign" }),
+    );
+
+    expect(
+      await screen.findByText(
+        "Something changed since the check. Open Assign again to read the warnings.",
+      ),
+    ).toBeInTheDocument();
+    expect(toast.success).not.toHaveBeenCalled();
+  });
+
   it("says another employee when the holder may not be named", async () => {
     const user = userEvent.setup();
     renderCard([ROW], () => {});

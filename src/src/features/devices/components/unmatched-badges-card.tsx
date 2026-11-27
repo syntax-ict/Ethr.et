@@ -282,12 +282,18 @@ function UnmatchedRow({
   useEffect(() => {
     if (bringIn.state.phase !== "done" || toldDone.current) return;
     toldDone.current = true;
+    if (bringIn.state.needsCheck > 0) return;
     toast.success(
       t("devices_page.unmatched.assigned", undefined, {
         count: bringIn.state.replayed,
       }),
     );
-  }, [bringIn.state.phase, bringIn.state.replayed, t]);
+  }, [
+    bringIn.state.phase,
+    bringIn.state.replayed,
+    bringIn.state.needsCheck,
+    t,
+  ]);
 
   const newEmployeeHref = `/employees/new?${new URLSearchParams({
     badge: row.badge,
@@ -358,6 +364,14 @@ function UnmatchedRow({
           onStop={bringIn.stop}
           onCarryOn={bringIn.carryOn}
         />
+        {bringIn.state.needsCheck > 0 && (
+          <p className="text-sm text-foreground" role="status">
+            {t(
+              "devices_page.unmatched.changed_since_check",
+              "Something changed since the check. Open Assign again to read the warnings.",
+            )}
+          </p>
+        )}
       </div>
       {canManage && (
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
