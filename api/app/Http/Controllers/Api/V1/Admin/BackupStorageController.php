@@ -61,6 +61,16 @@ class BackupStorageController extends Controller
             $settings->encryption_key = BackupCipher::generateKey();
         }
 
+        // Who stated where the storage is, and when: restated with every save
+        // that moves it, and withdrawn with the statement.
+        if (! $settings->located_in_ethiopia) {
+            $settings->located_confirmed_at = null;
+            $settings->located_confirmed_by = null;
+        } elseif ($settings->isDirty('located_in_ethiopia') || array_intersect(array_keys($settings->getDirty()), BackupStorageSetting::CONNECTION_FIELDS) !== []) {
+            $settings->located_confirmed_at = now();
+            $settings->located_confirmed_by = $request->user()?->getKey();
+        }
+
         $changed = array_keys($settings->getDirty());
         $reconnected = array_intersect($changed, BackupStorageSetting::CONNECTION_FIELDS) !== [];
         $switchedOff = $reconnected && $settings->enabled;
@@ -78,6 +88,7 @@ class BackupStorageController extends Controller
             'key_generated' => $created,
             'verification_cleared' => $reconnected,
             'copies_switched_off' => $switchedOff,
+            'located_in_ethiopia' => $settings->located_in_ethiopia,
         ]);
 
         return response()->json($console->state());

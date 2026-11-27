@@ -8,6 +8,7 @@ use App\Models\BackupDriveSetting;
 use App\Models\BackupStorageSetting;
 use App\Services\Backup\GoogleDrive\GoogleDriveOAuth;
 use App\Support\BackupHealth;
+use App\Support\BackupResidency;
 
 /**
  * What the Backups page of the platform console shows: the primary storage,
@@ -42,6 +43,7 @@ class BackupConsoleState
             'available' => $blocker === null,
             'blocker' => $blocker,
             'keep' => (int) config('backup.off_host_keep', 14),
+            'residency_enforced' => BackupResidency::enforced(),
             'storage' => $settings instanceof BackupStorageSetting ? [
                 'endpoint' => $settings->endpoint,
                 'region' => $settings->region,
@@ -49,6 +51,8 @@ class BackupConsoleState
                 'access_key_id' => $settings->access_key_id,
                 'secret_set' => $settings->hasSecret(),
                 'path_style' => $settings->path_style,
+                'located_in_ethiopia' => $settings->located_in_ethiopia,
+                'located_confirmed_at' => $settings->located_confirmed_at?->toIso8601String(),
                 'verified' => $settings->isVerified(),
                 'verified_at' => $settings->verified_at?->toIso8601String(),
                 'last_test_at' => $settings->last_test_at?->toIso8601String(),

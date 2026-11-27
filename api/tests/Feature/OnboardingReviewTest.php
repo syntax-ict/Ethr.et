@@ -49,6 +49,7 @@ describe('sign-up', function () {
             'admin_phone' => '0912345678',
             'password' => 'SecurePass123!',
             'password_confirmation' => 'SecurePass123!',
+            'accept_terms' => true,
             'organization_type' => 'bank',
         ])->assertCreated();
 
@@ -170,6 +171,7 @@ describe('readiness', function () {
             'admin_phone' => '0912345678',
             'password' => 'SecurePass123!',
             'password_confirmation' => 'SecurePass123!',
+            'accept_terms' => true,
         ])->assertCreated();
 
         $tenant = Tenant::query()->where('subdomain', 'day-one')->firstOrFail();

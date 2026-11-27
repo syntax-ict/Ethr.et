@@ -177,6 +177,7 @@ These are hard constraints on every slice. No exceptions.
 | Audit Logs | Never delete | Compliance requirement |
 | Webhook Deliveries | Hard delete after 30 days | Storage management |
 | Import staging data | Hard delete 30 days after its last activity | Temporary data; seven days from staging until 2026-11-10, which deleted lists still under review |
+| **An organisation that has left** | Erased by owner action, at least 30 days after it was deleted | The one exception to every *Never delete* row above, and only for an organisation that is cancelled and deleted: the DPA promises its data is destroyed at the end of the contract (Proclamation 1321/2024 Art. 50). `audit_log`, `invoices`, `subscriptions`, the address aliases and a tombstone `tenants` row stay. `App\Services\Tenancy\OrganisationErasure`; [`operations/TENANT-DELETION.md`](operations/TENANT-DELETION.md) |
 
 > **NO SUCH RULE EXISTS — measured 2026-09-22.** This line read *"Enforce via a
 > custom PHPStan rule that checks all models against this table."* There is none:

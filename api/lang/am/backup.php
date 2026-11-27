@@ -10,4 +10,6 @@ return [
     'drive_exchange_failed' => 'ጉግል መግቢያውን አልተቀበለም፡ :reason',
     'drive_no_refresh_token' => 'ጉግል ለ ETHR ዘላቂ መዳረሻ አልሰጠም። ETHRን በ myaccount.google.com/permissions ያስወግዱና እንደገና ያገናኙ።',
     'drive_folder_failed' => 'ተገናኝቷል፣ ነገር ግን የመጠባበቂያ ቅጂ አቃፊው በጉግል ድራይቭ ውስጥ መፍጠር አልተቻለም፡ :reason',
+    'storage_must_be_in_ethiopia' => 'በምርት ሥርዓቱ ውስጥ ምትኬዎች ሊቀመጡ የሚችሉት በኢትዮጵያ ውስጥ ብቻ ነው (አዋጅ 1321/2024 አንቀጽ 22)። ይህ ማከማቻ በኢትዮጵያ ውስጥ መሆኑን ያረጋግጡ፣ ወይም በኢትዮጵያ ያለ ማከማቻ ይምረጡ።',
+    'drive_outside_ethiopia' => 'Google Drive ፋይሎችን ከኢትዮጵያ ውጭ ያከማቻል፤ ስለዚህ የምርት ሥርዓቱ ምትኬዎችን ወደ እሱ አይገለብጥም (አዋጅ 1321/2024 አንቀጽ 22)። ቀደም ብለው Drive ላይ ያሉ ማህደሮች አሁንም ሊመለሱ ይችላሉ።',
 ];

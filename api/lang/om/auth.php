@@ -102,4 +102,5 @@ return [
     ],
     'phone_invalid' => 'Lakkoofsa bilbilaa Itoophiyaa galchi, fakkeenyaaf 0912345678 ykn +251912345678.',
     'phone_any_invalid' => 'Lakkoofsa bilbilaa galchi, fakkeenyaaf 0912345678 ykn +251912345678. Lakkoofsi biyya biraa koodii biyyaa isaa gaafata, fakkeenyaaf +44 20 7946 0958.',
+    'accept_terms_required' => 'Dhaabbata kee uumuuf Haalota Tajaajilaa fi Imaammata Dhuunfaa fudhadhu.',
 ];

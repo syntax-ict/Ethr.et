@@ -22,6 +22,9 @@ export interface BackupStorageState {
   access_key_id: string;
   secret_set: boolean;
   path_style: boolean;
+  /** Stated by the super admin who saved it; production copies only while true. */
+  located_in_ethiopia: boolean;
+  located_confirmed_at: string | null;
   verified: boolean;
   verified_at: string | null;
   last_test_at: string | null;
@@ -65,6 +68,11 @@ export interface BackupConsoleState {
   blocker: string | null;
   /** Copies kept in the bucket. */
   keep: number;
+  /**
+   * True in production, where copies go only to storage in Ethiopia
+   * (BackupResidency): Drive is refused and S3 needs the location statement.
+   */
+  residency_enforced: boolean;
   storage: BackupStorageState | null;
   key: { revealed_at: string | null; saved_at: string | null } | null;
   google_drive: BackupDriveState;

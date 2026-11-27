@@ -320,6 +320,7 @@ interface StorageForm {
   access_key_id: string;
   secret_access_key: string;
   path_style: boolean;
+  located_in_ethiopia: boolean;
 }
 
 function StorageCard({ state }: { state: BackupConsoleState }) {
@@ -335,9 +336,11 @@ function StorageCard({ state }: { state: BackupConsoleState }) {
     access_key_id: storage?.access_key_id ?? "",
     secret_access_key: "",
     path_style: storage?.path_style ?? true,
+    located_in_ethiopia: storage?.located_in_ethiopia ?? false,
   }));
   const [errors, setErrors] = useState<Record<string, string[]>>({});
   const pathStyleId = useId();
+  const locatedId = useId();
 
   const set = (key: keyof StorageForm) => (value: string) =>
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -469,6 +472,48 @@ function StorageCard({ state }: { state: BackupConsoleState }) {
               )}
             </Label>
           </div>
+        </div>
+
+        <div className="space-y-1">
+          <div className="flex items-start gap-3">
+            <Checkbox
+              id={locatedId}
+              checked={form.located_in_ethiopia}
+              aria-invalid={errors.located_in_ethiopia ? true : undefined}
+              aria-describedby={`${locatedId}-help`}
+              onCheckedChange={(checked) =>
+                setForm((prev) => ({
+                  ...prev,
+                  located_in_ethiopia: checked === true,
+                }))
+              }
+            />
+            <Label htmlFor={locatedId} className="leading-snug">
+              {t(
+                "admin_backups.located_in_ethiopia",
+                "This storage is in Ethiopia.",
+              )}
+            </Label>
+          </div>
+          <p
+            id={`${locatedId}-help`}
+            className="pl-7 text-xs text-muted-foreground"
+          >
+            {state.residency_enforced
+              ? t(
+                  "admin_backups.located_help_enforced",
+                  "Required. Ethiopian law (Proclamation 1321/2024, Art. 22) requires personal data to be stored in Ethiopia, and production copies nothing to storage that is not.",
+                )
+              : t(
+                  "admin_backups.located_help",
+                  "Ethiopian law (Proclamation 1321/2024, Art. 22) requires personal data to be stored in Ethiopia. Production copies only to storage confirmed here.",
+                )}
+          </p>
+          {errors.located_in_ethiopia?.[0] && (
+            <p className="pl-7 text-xs text-destructive" role="alert">
+              {errors.located_in_ethiopia[0]}
+            </p>
+          )}
         </div>
 
         <div className="flex flex-wrap gap-2">

@@ -50,6 +50,7 @@ function storagePayload(array $overrides = []): array
         'access_key_id' => 'AKIAEXAMPLE',
         'secret_access_key' => BACKUP_CONSOLE_SECRET,
         'path_style' => true,
+        'located_in_ethiopia' => true,
     ], $overrides);
 }
 

@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1\Maintenance;
 
+use App\Exceptions\ErasureIncomplete;
 use App\Http\Requests\Maintenance\CreatePlatformAdminRequest;
+use App\Http\Requests\Maintenance\EraseOrganisationRequest;
 use App\Http\Requests\Maintenance\RestoreBackupRequest;
 use App\Services\Backup\AuditLogIntegrity;
 use App\Services\Backup\BackupService;
+use App\Services\Tenancy\OrganisationErasure;
 use App\Support\MaintenanceLock;
 use Dedoc\Scramble\Attributes\ExcludeRouteFromDocs;
 use Illuminate\Http\JsonResponse;
@@ -208,6 +211,74 @@ class MaintenanceController
 
             return $steps;
         });
+    }
+
+    /**
+     * `ethr:erase-organisation`: permanently erase an organisation deleted at
+     * least `tenancy.erasure_grace_days` ago. Without `execute` it changes
+     * nothing and answers what would go; with it, the address must be typed
+     * again in `confirm`. The certificate in the answer is what the owner
+     * sends the organisation (docs/operations/TENANT-DELETION.md).
+     */
+    #[ExcludeRouteFromDocs]
+    public function eraseOrganisation(EraseOrganisationRequest $request, OrganisationErasure $erasure): JsonResponse
+    {
+        $address = (string) $request->validated('address');
+        $tenant = $erasure->find($address);
+
+        if ($tenant === null) {
+            return response()->json([
+                'task' => 'erase-organisation',
+                'status' => 'refused',
+                'reason' => 'not_found',
+                'detail' => "No deleted organisation has the address {$address}. Delete it in the platform console first.",
+            ], 404);
+        }
+
+        $refusal = $erasure->refusal($tenant);
+        if ($refusal !== null) {
+            return response()->json([
+                'task' => 'erase-organisation',
+                'status' => 'refused',
+                'reason' => $refusal,
+                'eligible_from' => $erasure->eligibleFrom($tenant)?->toIso8601String(),
+            ], 409);
+        }
+
+        if (! $request->boolean('execute')) {
+            return response()->json([
+                'task' => 'erase-organisation',
+                'status' => 'dry-run',
+                'detail' => 'Nothing was erased. Send execute: true and confirm: the address, to erase it.',
+                'would_erase' => $erasure->inventory($tenant),
+            ]);
+        }
+
+        $certificate = null;
+
+        $response = $this->exclusively('erase-organisation', function () use ($erasure, $tenant, &$certificate): array {
+            $this->allowLongRun();
+
+            try {
+                $certificate = $erasure->erase($tenant, via: 'maintenance');
+            } catch (ErasureIncomplete $e) {
+                report($e);
+
+                return [['command' => 'ethr:erase-organisation', 'exit_code' => 1, 'output' => 'Erasure INCOMPLETE: '.$e->getMessage()]];
+            } catch (Throwable $e) {
+                report($e);
+
+                return [['command' => 'ethr:erase-organisation', 'exit_code' => 1, 'output' => 'Erasure FAILED, and was rolled back: '.$e->getMessage()]];
+            }
+
+            return [['command' => 'ethr:erase-organisation', 'exit_code' => 0, 'output' => 'Erased. Send the certificate to the organisation.']];
+        });
+
+        if ($certificate !== null) {
+            $response->setData(array_merge((array) $response->getData(true), ['certificate' => $certificate]));
+        }
+
+        return $response;
     }
 
     /**

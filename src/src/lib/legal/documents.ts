@@ -21,8 +21,11 @@
  * WHAT IS ASSERTED HERE. Every factual claim below about what ETHR collects,
  * encrypts, logs or bills was read out of this repository — the migrations, the
  * casts, `BillingService`, `AuthService`, `instrumentation-client.ts`. Nothing
- * describes a control that does not exist; where a control is absent (automated
- * retention, an SLA) the text says so instead of implying one.
+ * describes a control that does not exist; where a control is absent (an SLA,
+ * an end date for the records kept on purpose) the text says so instead of
+ * implying one. The longer customer documents behind these two pages (the DPA,
+ * the record of processing, the retention schedule, the sub-processor list) are
+ * drafted in `docs/legal/`, and a change here usually means a change there.
  *
  * WHAT IS NOT. This is a drafted starting point, not legal advice, and it has
  * not been reviewed by a lawyer. See `LEGAL_REVIEW_REQUIRED` below.
@@ -55,9 +58,10 @@ export const LEGAL_REVIEW_REQUIRED = true;
 export const OWNER_SUPPLIED_FACTS = [
   "Registered legal entity name and company registration number",
   "Registered business address",
-  "A contact point for data-protection requests",
+  "A contact point for data-protection requests, and the Data Protection Officer",
+  "Registration number with the Ethiopian Communications Authority, as controller and as processor",
   "Governing law and dispute-resolution venue (assumed Ethiopia below)",
-  "Retention periods for each category of data (none are automated today)",
+  "Retention periods for the categories of data that are kept without an automatic end",
 ] as const;
 
 export interface LegalBlock {
@@ -81,7 +85,15 @@ export interface LegalDocument {
   sections: LegalSection[];
 }
 
-const EFFECTIVE_DATE = "2026-09-16";
+const EFFECTIVE_DATE = "2026-11-25";
+
+/**
+ * The version an organisation accepts at sign-up: these documents' effective
+ * date. The server records its own copy, `App\Support\LegalDocuments::VERSION`,
+ * and `legal-version.test.ts` fails when the two differ, because an acceptance
+ * recorded against a version nobody was shown proves nothing.
+ */
+export const LEGAL_VERSION = EFFECTIVE_DATE;
 
 export const privacyEn: LegalDocument = {
   slug: "privacy",
@@ -120,13 +132,17 @@ export const privacyEn: LegalDocument = {
         { text: "When you create an organization account:" },
         {
           list: [
-            "The organization's name and chosen subdomain.",
+            "The organization's name and the address it chooses for its ETHR sign-in page.",
             "The administrator's name, email address, and optionally an Ethiopian phone number.",
             "A password, which is stored only as a cryptographic hash and is never recoverable in readable form.",
+            "Which version of these terms and of this policy you accepted, when, and the IP address and browser you accepted them from.",
           ],
         },
         {
           text: "When your organization uses the product, it enters the workforce data it needs: employee records, attendance, leave, payroll. That data belongs to your organization, and the first section above explains who is responsible for it.",
+        },
+        {
+          text: "Depending on the attendance features your organization switches on, recording your attendance can also capture where you checked in from your phone, and a photo of you taken at check-in. A photo is taken only after you have agreed to it, you can withdraw that agreement from your profile, and photos are deleted automatically after a short period your organization sets. Fingerprint and face templates enrolled on an attendance terminal stay on the terminal: ETHR receives only the time you clocked in or out.",
         },
         {
           text: "Automatically, for security rather than analytics, we record the IP address and browser user-agent attached to sign-ins, active sessions, API tokens, and entries in the audit log. This is how an administrator can see which devices are signed in and revoke one they do not recognise. It is not used to build a profile of you or to measure your behaviour.",
@@ -190,7 +206,7 @@ export const privacyEn: LegalDocument = {
       heading: "Where your data is held",
       blocks: [
         {
-          text: "ETHR is deployed on infrastructure chosen by the organization operating it, and the physical location of the data follows that deployment. If you are an employee, your employer can tell you where their instance runs. If you are evaluating ETHR, ask us before you commit. We will answer specifically rather than generally.",
+          text: "ETHR at ethr.et is hosted in Ethiopia, by Ethio Telecom. Ethiopian law requires personal data collected in Ethiopia to be stored on servers in Ethiopia, and both the live service and its backups are: backup copies are encrypted before they leave the server, and are kept only on storage in Ethiopia.",
         },
       ],
     },
@@ -199,10 +215,19 @@ export const privacyEn: LegalDocument = {
       heading: "How long we keep it",
       blocks: [
         {
-          text: "Stated plainly, because the honest answer is not yet a reassuring one: ETHR does not currently delete any category of data automatically. Records persist until the organization that owns them removes them, or until an account is closed and its data is deleted on request.",
+          text: "Some data is deleted automatically, on a fixed schedule:",
         },
         {
-          text: "Defined retention periods for each category of data are being established and will be published here. Until then, if you want something deleted, ask, and we will act on it rather than point at a schedule that does not exist.",
+          list: [
+            "Attendance photos, after the period your organization sets: seven days unless it chooses otherwise, and never more than ninety.",
+            "Location checks taken during a shift, after ninety days.",
+            "In-app notifications, after ninety days.",
+            "Raw messages from attendance terminals, seven days after they are processed.",
+            "Downloaded data exports, after seven days.",
+          ],
+        },
+        {
+          text: "Other records are kept on purpose, without an automatic end, because payroll, tax and audit depend on them: attendance records, payroll, and the audit log. They persist until the organization that owns them asks for them to be deleted when it leaves ETHR. Retention periods for those records are being set and will be published here. Until then, if you want something deleted, ask, and we will act on it rather than point at a schedule that does not exist.",
         },
       ],
     },
@@ -260,7 +285,7 @@ export const termsEn: LegalDocument = {
       heading: "Accounts",
       blocks: [
         {
-          text: "Creating an organization reserves a subdomain and creates an administrator account. You are responsible for the accuracy of the details you give and for keeping the administrator's credentials secure. Multi-factor authentication is available and we recommend enabling it for every administrator.",
+          text: "Creating an organization reserves its address on ETHR (ethr.et followed by a name it chooses, or later its own domain) and creates an administrator account. Creating it requires accepting these terms and the Privacy Policy, and we record which version was accepted and when. You are responsible for the accuracy of the details you give and for keeping the administrator's credentials secure. Multi-factor authentication is available and we recommend enabling it for every administrator.",
         },
       ],
     },
