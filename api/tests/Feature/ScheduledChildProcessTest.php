@@ -106,7 +106,7 @@ it('puts the tail of a failing child output in the report and the console, and c
         },
     );
 
-    $before = glob(sys_get_temp_dir().DIRECTORY_SEPARATOR.'ethr-sched-*') ?: [];
+    $before = glob(storage_path('framework/schedule').DIRECTORY_SEPARATOR.'ethr-sched-*') ?: [];
     $event = null;
     scheduleOnly(function (Schedule $s) use (&$event) {
         $event = $s->command('ethr:no-such-task')->everyMinute()->name('failing-child');
@@ -121,7 +121,7 @@ it('puts the tail of a failing child output in the report and the console, and c
         ->and($reported[0])->toContain('Scheduled task [failing-child] exited')
         ->and($reported[0])->toContain('ethr:no-such-task')
         ->and($event->output)->toBe($event->getDefaultOutput())
-        ->and(glob(sys_get_temp_dir().DIRECTORY_SEPARATOR.'ethr-sched-*') ?: [])->toBe($before);
+        ->and(glob(storage_path('framework/schedule').DIRECTORY_SEPARATOR.'ethr-sched-*') ?: [])->toBe($before);
 
     $failure = app(QueueHealth::class)->lastTaskFailure();
     expect($failure['task'])->toBe('failing-child')

@@ -16,6 +16,8 @@ use Illuminate\Console\Scheduling\Event;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Str;
 use RuntimeException;
 use Throwable;
 
@@ -163,9 +165,15 @@ final class ScheduleCatchUpCommand extends Command
             return null;
         }
 
-        $path = tempnam(sys_get_temp_dir(), 'ethr-sched-');
+        try {
+            $directory = storage_path('framework/schedule');
+            File::ensureDirectoryExists($directory);
+            $path = $directory.DIRECTORY_SEPARATOR.'ethr-sched-'.Str::random(16).'.log';
 
-        if ($path === false) {
+            if (file_put_contents($path, '') === false) {
+                return null;
+            }
+        } catch (Throwable) {
             return null;
         }
 
