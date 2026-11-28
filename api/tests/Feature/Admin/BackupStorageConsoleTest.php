@@ -10,6 +10,7 @@ use App\Services\Backup\BackupCipher;
 use App\Services\Backup\BackupService;
 use App\Services\Backup\BackupStorageDisk;
 use App\Support\BackupHealth;
+use App\Support\MaintenanceLock;
 use App\Support\OutboundHost;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Facades\DB;
@@ -49,6 +50,7 @@ function storagePayload(array $overrides = []): array
         'access_key_id' => 'AKIAEXAMPLE',
         'secret_access_key' => BACKUP_CONSOLE_SECRET,
         'path_style' => true,
+        'located_in_ethiopia' => true,
     ], $overrides);
 }
 
@@ -384,5 +386,62 @@ describe('the nightly copy follows the console', function () {
         test()->putJson(BACKUP_CONSOLE.'/settings', ['key_saved' => true, 'enabled' => true])->assertOk();
 
         expect(app(BackupHealth::class)->snapshot()['reasons'])->toBe(['off_host_copy_missing']);
+    });
+});
+
+describe('back up now', function () {
+    beforeEach(function () {
+        config(['maintenance.cache_store' => 'array']);
+    });
+
+    it('runs a real backup for a platform admin and the console health reflects it', function () {
+        $user = backupOperator();
+        RateLimiter::clear('backup-run:'.$user->id);
+
+        $response = test()->postJson(BACKUP_CONSOLE.'/run')->assertOk()
+            ->assertJsonPath('run.ok', true)
+            ->assertJsonPath('run.exit_code', 0)
+            ->assertJsonPath('run.off_host_copied', false);
+
+        expect($response->json('health.last_backup_at'))->not->toBeNull();
+        $entry = AuditLog::withoutGlobalScopes()->where('action', 'platform.backup_run')->first();
+        expect($entry)->not->toBeNull();
+        expect($entry->payload['exit_code'] ?? $entry->new_values['exit_code'] ?? null)->toBe(0);
+    });
+
+    it('refuses a tenant admin', function () {
+        $tenant = createTenant();
+        test()->actingAs(createUser(['role' => UserRole::TENANT_ADMIN], $tenant));
+
+        expect(test()->postJson(BACKUP_CONSOLE.'/run')->status())->toBeIn([403, 404]);
+    });
+
+    it('answers 409 while the maintenance lock is held', function () {
+        $user = backupOperator();
+        RateLimiter::clear('backup-run:'.$user->id);
+
+        $lock = MaintenanceLock::make();
+        expect($lock->get())->toBeTrue();
+
+        try {
+            test()->postJson(BACKUP_CONSOLE.'/run')->assertStatus(409)
+                ->assertJsonPath('run.ok', false);
+        } finally {
+            $lock->release();
+        }
+    });
+
+    it('reports a failing run in the body, not as a 500', function () {
+        $user = backupOperator();
+        RateLimiter::clear('backup-run:'.$user->id);
+
+        test()->partialMock(BackupService::class, function ($mock) {
+            $mock->shouldReceive('create')->andThrow(new RuntimeException('disk exploded'));
+        });
+
+        test()->postJson(BACKUP_CONSOLE.'/run')->assertOk()
+            ->assertJsonPath('run.ok', false)
+            ->assertJsonPath('run.exit_code', 1)
+            ->assertJsonPath('run.output', fn (string $out) => str_contains($out, 'disk exploded'));
     });
 });

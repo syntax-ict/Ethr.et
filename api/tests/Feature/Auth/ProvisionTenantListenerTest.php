@@ -25,6 +25,7 @@ function provisionTenantRegistrationPayload(string $subdomain): array
         'admin_phone' => '0912345678',
         'password' => 'SecurePass123!',
         'password_confirmation' => 'SecurePass123!',
+        'accept_terms' => true,
         'organization_type' => 'general',
     ];
 }

@@ -2,6 +2,8 @@
 
 An employee can punch by web, QR, kiosk, biometric device, phone (online or offline) or have HR enter the day. All of it lands on one timeline per person and day.
 
+The rules that decide what a day comes to (status, minutes, overtime, absence) each have an id in [ATTENDANCE-RULES.md](ATTENDANCE-RULES.md). This document says how a punch travels; the register says what the answer must be.
+
 ## One entry point
 
 Every method calls `AttendanceEngine::record()` (`api/app/Services/Attendance/AttendanceEngine.php`). That includes web and mobile controllers, QR, kiosk and kiosk sync, offline sync, device webhooks and pull, HR's manual entry and approved missed-punch claims (through `EnteredAttendance`), and the CSV import (since 2026-11-06, also through `EnteredAttendance`, source `csv`).

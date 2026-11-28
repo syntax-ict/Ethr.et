@@ -21,7 +21,7 @@ pest()->extend(TestCase::class)
     ->beforeEach(function () {
         $this->seed(PermissionSeeder::class);
     })
-    ->in('Feature', 'Performance');
+    ->in('Feature', 'Performance', 'Accuracy');
 
 // No RefreshDatabase: these start other processes, which only see rows that
 // were committed (phpunit.concurrency.xml).

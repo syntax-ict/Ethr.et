@@ -128,17 +128,18 @@ export function periodOf(
 const PER_PAGE = 25;
 
 /**
- * The same sheet as an A4 landscape PDF: the filters of the screen, none of
- * its paging. A list too long for one printed sheet comes back as a 422 that
- * names the way to narrow it; with `responseType: "blob"` that body is a Blob,
+ * The same sheet as a file, an A4 landscape PDF or an Excel workbook: the
+ * filters of the screen, none of its paging. A list too long for one sheet
+ * comes back as a 422 that names the way to narrow it; with `responseType: "blob"` that body is a Blob,
  * so it is read here, and thrown as the message a person can act on.
  */
-export async function downloadTimesheetPdf(
+async function downloadTimesheetFile(
+  kind: "pdf" | "xlsx",
   filters: TimesheetFilters,
   period: { from: string; to: string },
 ): Promise<void> {
   try {
-    const { data } = await apiClient.get("/reports/timesheet/pdf", {
+    const { data } = await apiClient.get(`/reports/timesheet/${kind}`, {
       params: {
         ...period,
         department: filters.department || undefined,
@@ -148,7 +149,7 @@ export async function downloadTimesheetPdf(
       },
       responseType: "blob",
     });
-    saveBlob(`timesheet-${period.from}.pdf`, data);
+    saveBlob(`timesheet-${period.from}.${kind}`, data);
   } catch (error) {
     // The message is the API's own sentence for a refusal that says how to
     // put it right (a list too long for one sheet is a 422). Anything else, a
@@ -170,6 +171,26 @@ export async function downloadTimesheetPdf(
     }
     throw new Error(message);
   }
+}
+
+export function downloadTimesheetPdf(
+  filters: TimesheetFilters,
+  period: { from: string; to: string },
+): Promise<void> {
+  return downloadTimesheetFile("pdf", filters, period);
+}
+
+/**
+ * The same sheet as an Excel workbook, a sheet of the days and a sheet of the
+ * summary, by the same filters and for the same people as the PDF. A list
+ * longer than a workbook holds is a 422 that names the way to narrow it, read
+ * as the PDF's is.
+ */
+export function downloadTimesheetExcel(
+  filters: TimesheetFilters,
+  period: { from: string; to: string },
+): Promise<void> {
+  return downloadTimesheetFile("xlsx", filters, period);
 }
 
 export function useTimesheet(

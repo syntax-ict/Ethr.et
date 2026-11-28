@@ -139,7 +139,7 @@ Every row is `advisory` and unconfirmed, and an organisation's own row replaces 
 
 ## Personal Data Protection Proclamation No. 1321/2024
 
-The regulator is the Ethiopian Communications Authority (Art. 2(36)). The existing breach runbook, [`operations/DATA-BREACH-RESPONSE.md`](operations/DATA-BREACH-RESPONSE.md), already applies Arts. 43–44.
+The regulator is the Ethiopian Communications Authority (Art. 2(36)). The existing breach runbook, [`operations/DATA-BREACH-RESPONSE.md`](operations/DATA-BREACH-RESPONSE.md), already applies Arts. 43–44. What ETHR itself must register, sign and keep under this Proclamation (registration with the Authority, the DPO, the DPA with each customer, the record of processing, the impact assessment) is tracked in [`legal/LEGAL-REGISTRATION-REGISTER.md`](legal/LEGAL-REGISTRATION-REGISTER.md), not here: this register is about what the law asks of the product's features.
 
 | Article | Requirement (paraphrased) | Applied in the recruitment slice | Class |
 |---|---|---|---|

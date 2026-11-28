@@ -176,7 +176,7 @@ ETHR is an enterprise-grade, multi-tenant, offline-first Human Capital Managemen
 |---|---|---|---|
 | FR-08.1 | Ethiopian tax calculation | P0 | 7-bracket progressive tax. Correct to the cent. Configurable. |
 | FR-08.2 | Pension calculation | P0 | Employee 7% + employer 11%. Configurable. |
-| FR-08.3 | Overtime calculation | P0 | 4 rates: normal 1.25x, night 1.5x, holiday 2.0x, holiday-night 2.5x. |
+| FR-08.3 | Overtime calculation | P0 | 5 rates, never below the statutory ones: normal 1.5x, night 1.75x, rest day 2.0x, holiday 2.5x, holiday-night 2.5x ([rule AR-OT-04](ATTENDANCE-RULES.md)). |
 | FR-08.4 | Payroll processing pipeline | P0 | 14-step pipeline. All integer cents. No floating-point. |
 | FR-08.5 | Calculation audit trail | P0 | Full pipeline trace stored as immutable JSON per entry. |
 | FR-08.6 | Payslip PDF | P0 | Bilingual (EN+AM). Company branding. Earnings/deductions breakdown. |
@@ -224,7 +224,7 @@ ETHR is an enterprise-grade, multi-tenant, offline-first Human Capital Managemen
 | FR-12.1 | KPI dashboard | P1 | Headcount, attendance %, payroll cost, overtime %, turnover. < 1.5s load. |
 | FR-12.2 | Department/branch comparison | P1 | Sortable table, drill-down to detail. |
 | FR-12.3 | Dynamic report builder | P1 | 4 data sources. Filters, grouping, aggregation. |
-| FR-12.4 | Export to PDF/Excel/CSV | P1 | From report builder and list pages. |
+| FR-12.4 | Export to PDF/Excel/CSV | P1 | From report builder and list pages. Excel delivered 2026-11-27 for the report builder, quick reports and the monthly timesheet (BASELINE section 25bk); list pages and a queued file for a long report are Reports step 4b. |
 | FR-12.5 | Scheduled reports | P2 | Recurring email delivery. |
 | FR-12.6 | Pre-built reports | P1 | 8 templates: attendance, payroll, leave, directory, OT, tax, pension, hires/exits. |
 

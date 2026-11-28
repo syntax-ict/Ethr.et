@@ -64,6 +64,15 @@ return [
     'off_host_disk' => env('BACKUP_OFF_HOST_DISK', 's3'),
 
     /*
+     * The operator's statement that the `.env` off-host disk above stores in
+     * Ethiopia. Proclamation 1321/2024 Art. 22(1) requires it, and nothing in
+     * an endpoint proves where a bucket is, so in production a copy goes to
+     * that disk only while this is true (App\Support\BackupResidency). The
+     * console's storage carries its own statement, `located_in_ethiopia`.
+     */
+    'off_host_in_ethiopia' => (bool) env('BACKUP_OFF_HOST_IN_ETHIOPIA', false),
+
+    /*
      * How many archives to keep on the off-host disk. Depth lives there, not
      * on the 5 GB account: two weeks of nightly copies.
      */

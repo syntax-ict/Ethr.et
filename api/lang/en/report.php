@@ -144,6 +144,7 @@ return [
         'section_days' => 'Days',
         'section_summary' => 'Summary',
         'too_many_for_pdf' => 'A printed timesheet holds up to :max people. Choose a department, branch or shift to narrow the list.',
+        'too_many_for_excel' => 'A timesheet workbook holds up to :max people. Choose a department, branch or shift to narrow the list.',
         'payable_note' => 'Payable days are the days employed less unpaid leave and unpaid sick days. Absences are not deducted.',
     ],
     'signatures' => [

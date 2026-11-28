@@ -76,7 +76,7 @@ it('pays a reprocessed month the salary it had, not the one it has now', functio
 
     $entry = entryOf($again, $employee);
     expect($entry->basic_salary_cents)->toBe(1_000_000)
-        ->and($entry->calculation_log['version'])->toBe('1.10')
+        ->and($entry->calculation_log['version'])->toBe('1.11')
         ->and($entry->calculation_log['inputs']['salary_source'])->toBe('history')
         ->and($entry->calculation_log['inputs']['salary_changed_in_period'])->toBeFalse();
 });

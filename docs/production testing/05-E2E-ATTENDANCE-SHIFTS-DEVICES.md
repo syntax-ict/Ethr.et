@@ -51,7 +51,7 @@ rejecting a flag voids the record only for a flag about a punch, and its flag ta
 presence flag, `presence_pattern`, and the words `kiosk_wrong_person` now has. Rejecting a
 `buddy_pattern` or `grace_edge` item no longer voids a day (PRS-007).
 
-**Ground rules of the attendance engine** (what "correct" means in this document):
+**Ground rules of the attendance engine** (what "correct" means in this document). Each rule has an id in the register, [ATTENDANCE-RULES.md](../ATTENDANCE-RULES.md), and the accuracy tests cite those ids ([12](12-ATTENDANCE-ACCURACY.md)):
 
 - Times are stored in UTC and rated in the organisation's time zone, `Africa/Addis_Ababa` (UTC+3, no
   daylight saving) by default. **A punch at 09:00 EAT is 06:00 UTC.** A status calculated on the UTC
@@ -111,6 +111,13 @@ organisation-wide. `PUT /employees/{id}/attendance-mode` takes `office`, `field`
 (`attendance.manage`, audited `employee.attendance_mode_changed`). UI: "Rules by branch" under
 Settings → Attendance; "Where they punch" on the employee's Attendance tab. For this section move EMP2
 to B2, and back afterwards.
+
+**The dialog offers fewer rules than the API accepts** (read 2026-11-28 at `2e001351bc`,
+`src/src/features/attendance/components/branch-rules-card.tsx`): it has no control for a branch's
+enabled methods, its automatic check-out minutes or its office networks. Those three can be set
+through the API only, so a case that sets one of them is an API step, not a screen step. The screen is
+planned to follow (`docs/audit/ATTENDANCE-SETTINGS-REVIEW-2026-11-28.md`, PR 4); cases for it come
+with that pull request.
 
 | ID | P | Mode | Scenario | Steps | Expected |
 |---|---|---|---|---|---|

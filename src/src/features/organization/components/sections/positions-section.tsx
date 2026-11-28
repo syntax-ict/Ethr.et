@@ -26,7 +26,7 @@ import { useT } from "@/lib/i18n/useT";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { ActiveBadge, useCanDeleteOrg } from "./shared";
 
-/** The roles a job title can give; the organisation admin's is only ever given by hand. */
+/** The roles a position can give; the organisation admin's is only ever given by hand. */
 const ACCESS_ROLES = [
   "supervisor",
   "dept_admin",
@@ -130,7 +130,7 @@ export function PositionsSection() {
       emptyTitle={t("org.position.empty_title", "No positions")}
       emptyDescription={t(
         "org.position.empty_desc",
-        "Define job titles employees can be assigned to",
+        "Define positions employees can be assigned to",
       )}
       dialogTitle={{
         create: t("org.position.new_title", "New Position"),
@@ -195,7 +195,7 @@ export function PositionsSection() {
                   <span>
                     {t(
                       "org.position.access_suggest",
-                      "Give this job title :role access?",
+                      "Give this position :role access?",
                       { role: roleLabel(suggested) },
                     )}
                   </span>
@@ -213,7 +213,7 @@ export function PositionsSection() {
                 <p className="text-sm text-muted-foreground">
                   {t(
                     "org.position.access_note",
-                    ":count people hold this job title. Accounts that follow the job title change when you save. Accounts given a role by hand stay as they are.",
+                    ":count people hold this position. Accounts that follow the position change when you save. Accounts given a role by hand stay as they are.",
                     { count: holders },
                   )}
                 </p>

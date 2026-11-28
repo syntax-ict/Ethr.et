@@ -22,7 +22,7 @@ class GenerateReportRequest extends FormRequest
         return [
             'source' => ['required', 'string', 'in:employees,attendance,timesheet,absences,leave,payroll'],
             'sort_dir' => ['sometimes', 'string', 'in:asc,desc'],
-            'format' => ['sometimes', 'string', 'in:csv,pdf'],
+            'format' => ['sometimes', 'string', 'in:csv,pdf,xlsx'],
             ...$this->configRules(),
         ];
     }

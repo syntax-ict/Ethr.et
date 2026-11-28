@@ -99,6 +99,8 @@ Scores are out of 10. **Overall is the mean of the six cells, minus 1 for each S
 | Data export | 9 | 9 | 8 | 9 | 7 | 8 | **8.5** |
 | **Settings area: navigation, search, deep links, unsaved changes** | 6 | n/a | 6 | 8 | 6 | 7 | **6.5** (mean of 5) |
 
+*(Added 2026-11-28.)* The Attendance rules row was scored on a pass that tested no save and did not read the audit entry a save writes. A closer review of that one page found three S2 findings, one of them from the code alone, and is in [`ATTENDANCE-SETTINGS-REVIEW-2026-11-28.md`](ATTENDANCE-SETTINGS-REVIEW-2026-11-28.md), with its own plan. By this table's own rule (minus 1 for each S2) the row would read 5.5. The figures above are left as written.
+
 **Overall: 7.0 / 10.** The 21 rows average 7.6, with a median of 8. This one figure is a judgement, not a mean: it is held below the average because F1 reaches every visitor to the sign-in page and F2 lets a built-in role change configuration it was designed not to touch. The cross-cutting gaps (F8-F11) are the rest.
 
 ---

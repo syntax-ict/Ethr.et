@@ -93,6 +93,7 @@ In an agent sandbox, set the token in the environment's own settings, not as a s
 ./scripts/gates.sh mysql      # the backend suite against MariaDB, not SQLite
 ./scripts/gates.sh concurrency     # attendance punches racing from separate processes
 ./scripts/gates.sh e2e-attendance  # browser journeys that read back what a punch saved
+./scripts/gates.sh accuracy   # hand-typed golden attendance cases against the engine, no server
 ./scripts/gates.sh security   # composer audit + npm audit (production deps)
 ./scripts/gates.sh coverage   # backend line coverage — needs PCOV or Xdebug
 ```
@@ -107,6 +108,8 @@ Two more are opt-in for the same reason, and are the only proof of attendance ab
 
 - **`concurrency`** starts a PHP process per punch and releases them together, against MySQL or MariaDB with the `database` cache store. It commits its fixtures, so it needs a scratch database of its own (`ethr_concurrency`) and refuses any other name. `tests/Concurrency` sits outside both testsuites, like `tests/Performance`, so the collection count above is unchanged.
 - **`e2e-attendance`** drives a running stack through `src/playwright.attendance.config.ts`. It first seeds organisations of its own (`E2eAttendanceSeeder`, local and testing only) into the database `DB_*` names, which must be the one the running API reads. It never retries, and every journey asserts on what the API reads back, not on a toast. The payroll journey is queued as production is, so it needs `queue:work` running against the same database; it never uses `QUEUE_CONNECTION=sync`. **A device punch in a journey names no organisation**, as a real terminal cannot: the token finds the device and the device sets the request's organisation (`DeviceController::resolveWebhookDevice`). A backend test of a credential-authenticated route must clear what `createTenant()` left in the process first (`app()->forgetScopedInstances()`), or it passes on context a real request never has.
+
+**`accuracy`** is opt-in too, though it needs no server: it runs the golden attendance cases in `tests/Accuracy` through the engine and compares them with values typed by hand from `docs/ATTENDANCE-RULES.md`. It sits outside both testsuites on purpose, so the collection count above is unchanged. **Never change a hand value to make a case pass**: a case the engine disagrees with is listed in `tests/Accuracy/findings.php` and triaged as an engine defect, a wrong hand value or a fixture error.
 
 **CI calls `gates.sh` rather than restating it**, so the two cannot drift. Node is declared once, in `.nvmrc`. Every `scripts/*.sh` must be committed executable (`git update-index --chmod=+x`) — Git on Windows does not track the bit.
 
@@ -127,6 +130,7 @@ It runs `gates.sh quick` — every gate except the test suites — plus a check 
 | | |
 |---|---|
 | Conventions | [`docs/CLAUDE.md`](docs/CLAUDE.md) |
+| **Which model does what — hard rule** | **Owner decision 2026-11-12.** Sonnet is the default for implementation, fixes, tests and docs; Opus plans, reviews, and owns tenancy, security, payroll and attendance design; every build goes plan → implement → review → fix → E2E before a deploy. [`docs/MODEL-ROUTING.md`](docs/MODEL-ROUTING.md) → *Owner decision*. A trivial edit stays on Sonnet with no cycle |
 | How to contribute | [`CONTRIBUTING.md`](CONTRIBUTING.md) |
 | Measured state of the codebase | [`docs/audit/BASELINE.md`](docs/audit/BASELINE.md) |
 | Security reporting | [`SECURITY.md`](SECURITY.md) |

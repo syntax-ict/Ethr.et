@@ -13,9 +13,15 @@ export type OperationsStatus =
 
 export type OperationsState = OperationsStatus["status"];
 
+/**
+ * An area carries a state and is rendered as a tile. `sweeps` is excluded
+ * because it carries none: it reports what the scheduled sweeps last did, and
+ * nothing there has a measured threshold to go amber on yet. Leaving it in
+ * would make `areasNeedingAttention` read a `state` that does not exist.
+ */
 export type OperationsArea = Exclude<
   keyof OperationsStatus,
-  "status" | "checked_at"
+  "status" | "checked_at" | "sweeps"
 >;
 
 /** Rendering order, most likely to need action first. */

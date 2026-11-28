@@ -43,6 +43,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import {
+  downloadReportExcel,
   useReportSources,
   useGenerateReport,
   useSaveReport,
@@ -90,6 +91,7 @@ export function BuilderTab() {
   // The settings the preview on screen was run with. Saving and the CSV act
   // on the screen, so they are only offered while the settings still match.
   const [previewedWith, setPreviewedWith] = useState<string | null>(null);
+  const [excelBusy, setExcelBusy] = useState(false);
 
   const { hasPermission } = usePermissions();
   // The server refuses the payroll source without payroll.viewAll and drops
@@ -204,6 +206,22 @@ export function BuilderTab() {
         note: reportCutNote(t, result),
       }),
     );
+  }
+
+  async function downloadExcel() {
+    const result = generate.data;
+    if (!result?.data?.length || previewedWith === null) return;
+    setExcelBusy(true);
+    try {
+      await downloadReportExcel(
+        { ...(JSON.parse(previewedWith) as ReportConfig), format: "xlsx" },
+        `${result.source}-report-${new Date().toISOString().split("T")[0]}.xlsx`,
+      );
+    } catch (err) {
+      toast.error(apiErrorMessage(err, t("reports_page.excel_failed")));
+    } finally {
+      setExcelBusy(false);
+    }
   }
 
   const previewStale =
@@ -490,6 +508,14 @@ export function BuilderTab() {
               >
                 <Download className="mr-2 h-4 w-4" />{" "}
                 {t("reports_page.download_csv")}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={downloadExcel}
+                disabled={previewStale || excelBusy}
+              >
+                <FileSpreadsheet className="mr-2 h-4 w-4" />{" "}
+                {t("reports_page.download_excel")}
               </Button>
               {canSaveTemplates && (
                 <Button

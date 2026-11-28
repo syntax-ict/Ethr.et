@@ -20,6 +20,7 @@ use App\Services\Auth\DeviceFingerprint;
 use App\Services\Auth\SessionCookie;
 use App\Services\Auth\TrustedDeviceService;
 use App\Services\Tenancy\OrganisationProfile;
+use App\Support\LegalDocuments;
 use App\Support\Locales;
 use App\Support\OrganisationSectors;
 use Illuminate\Database\Eloquent\Model;
@@ -96,6 +97,15 @@ class AuthService
             // Whoever registers the organisation owns it, until they hand it on.
             $tenant->update(['owner_user_id' => $user->id]);
 
+            // What they agreed to, and when. RegisterTenantRequest refuses a
+            // sign-up without `accept_terms`; the IP address and browser are on
+            // the audit row, as on every other one.
+            $tenant->forceFill([
+                'terms_accepted_version' => LegalDocuments::VERSION,
+                'terms_accepted_at' => now(),
+                'terms_accepted_by' => $user->id,
+            ])->save();
+
             $starterPlan = Plan::where('slug', 'starter')->first();
             if ($starterPlan) {
                 Subscription::create([
@@ -117,6 +127,11 @@ class AuthService
 
             AuditLog::record('tenant.registered', $tenant, [
                 'admin_email' => $user->email,
+            ]);
+
+            AuditLog::record('tenant.terms_accepted', $tenant, [
+                'version' => LegalDocuments::VERSION,
+                'documents' => ['terms', 'privacy'],
             ]);
 
             $token = $user->createToken('auth', ['*'], now()->addMinutes(self::SESSION_MINUTES));

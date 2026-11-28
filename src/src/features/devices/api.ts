@@ -529,6 +529,26 @@ export function useEnrolEmployeeOnDevices() {
 // ── Unrecognised badges (UnmatchedPunchController) ─────────────────────────
 
 /**
+ * Who a suggested person is, and what speaks against choosing them. The
+ * server computes the warnings for the whole page at once:
+ * `other_badge` (they already carry another badge number, the value),
+ * `hired_after` (hired after the first day this badge punched, the value is
+ * that day) and `own_attendance` (they already have attendance of their own on
+ * that many of the badge's days).
+ */
+export interface SuggestionIdentity {
+  employee_code: string | null;
+  department: string | null;
+  position: string | null;
+  branch: string | null;
+  hire_date: string | null;
+  /** An employment status, or `archived`. */
+  status: string;
+  badge_number: string | null;
+  warnings: { code: string; value: string | number | null }[];
+}
+
+/**
  * Who a held badge may be, as the resolver sees it now. Sent only to
  * attendance managers, and naming only people they may open; `null` for the
  * badges past the server's resolve limit.
@@ -542,6 +562,7 @@ export interface UnmatchedBadgeMatch {
     employee_name: string;
     score: number;
     reasons: string[];
+    identity?: SuggestionIdentity | null;
   }[];
 }
 
@@ -551,17 +572,24 @@ export interface UnmatchedBadge {
   badge: string;
   punches: number;
   first_seen: string;
+  /** The earliest day the terminal itself stamped on a held punch (Y-m-d), or null when none carries a valid stamp. */
+  first_day?: string | null;
   last_seen: string;
   match?: UnmatchedBadgeMatch | null;
   /** What the terminal calls this number; for attendance managers, when the terminal sent a name. */
   name_on_device?: string | null;
   /** True when the badge matches one person by number and its held punches are being recorded by themselves. */
   recording_itself?: boolean;
-  /** Employees that name could be, never when the badge is already matched. */
+  /**
+   * Employees that name could be, never when the badge is already matched.
+   * `same` is the exact name, `similar` a spelling that differs a little.
+   */
   name_matches?: {
     employee_public_id: string;
     employee_name: string;
     department: string | null;
+    fit?: "same" | "similar";
+    identity?: SuggestionIdentity | null;
   }[];
 }
 
@@ -581,6 +609,40 @@ export function useUnmatchedBadges(enabled = true) {
   });
 }
 
+/**
+ * What assigning a held badge to one person would do, and what speaks against
+ * it (`GET /devices/unmatched-punches/preview`). The warnings are the server's
+ * own and the ones `assign` refuses to go past without `accept_warnings`:
+ * the three of `SuggestionIdentity`, and `moves_from` (the badge is matched to
+ * someone else today; the value is their name, or null when the viewer may not
+ * open them).
+ */
+export type AssignPreview =
+  operations["unmatchedPunch.preview"]["responses"][200]["content"]["application/json"];
+
+/** @param enabled Only while the confirmation is open: it is a read of what the click would do now. */
+export function useAssignPreview(
+  target: {
+    device_public_id: string;
+    badge: string;
+    employee_public_id: string;
+  } | null,
+  enabled: boolean,
+) {
+  return useQuery<AssignPreview>({
+    queryKey: [...UNMATCHED_KEY, "preview", target],
+    enabled: enabled && target !== null,
+    gcTime: 0,
+    queryFn: async () => {
+      const { data } = await apiClient.get<AssignPreview>(
+        "/devices/unmatched-punches/preview",
+        { params: target },
+      );
+      return data;
+    },
+  });
+}
+
 export function useAssignUnmatchedBadge() {
   const queryClient = useQueryClient();
 
@@ -589,6 +651,7 @@ export function useAssignUnmatchedBadge() {
       device_public_id: string;
       badge: string;
       employee_public_id: string;
+      accept_warnings?: boolean;
     }) => {
       const { data } = await apiClient.post<{
         replayed: number;

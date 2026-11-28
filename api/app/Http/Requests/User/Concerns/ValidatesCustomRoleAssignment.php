@@ -12,7 +12,9 @@ use Illuminate\Foundation\Http\FormRequest;
 
 /**
  * A custom role may be assigned only if it is this tenant's, and only by
- * someone who already holds everything it grants (audit N87).
+ * someone who may give it: whoever can edit roles (`settings.manage`), or
+ * someone who already holds everything it grants (audit N87;
+ * `CustomRoleAssignment` states the rule and why).
  *
  * Before: `exists:custom_roles,public_id` passed another tenant's role, which
  * the scoped lookup then resolved to null, so an update silently cleared the

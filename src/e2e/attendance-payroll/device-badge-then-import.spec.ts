@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { api } from "../helpers";
-import { addisDate, as, heldPunchTimes, hikvisionPunch, live, minutesAgo, recordsOf, unmatchedBadges } from "./support";
+import { addisDate, as, confirmAssign, heldPunchTimes, hikvisionPunch, live, minutesAgo, recordsOf, unmatchedBadges } from "./support";
 
 /**
  * A badge is held first, the person arrives later, and one click records the
@@ -102,6 +102,7 @@ test("a badge held before the import is recorded for the person it names when as
     const row = page.locator("#unmatched").locator("li", { hasText: `Badge ${badge}` });
     await expect(row).toContainText(`This is ${name}`);
     await row.getByRole("button", { name: "Assign and replay 2 punches" }).click();
+    await confirmAssign(page);
 
     const waitUntil = Date.now() + 60_000;
     let rows = live(await recordsOf(page, person!.public_id, ...range));

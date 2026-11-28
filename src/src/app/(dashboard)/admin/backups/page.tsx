@@ -1,7 +1,14 @@
 "use client";
 
 import { useId, useState } from "react";
-import { Copy, DatabaseBackup, Eye, PlugZap, Save } from "lucide-react";
+import {
+  Copy,
+  DatabaseBackup,
+  Eye,
+  HardDriveDownload,
+  PlugZap,
+  Save,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -13,15 +20,18 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { RoleGate } from "@/components/shared/role-gate";
+import { useConfirm } from "@/components/shared/use-confirm";
 import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import {
   backupErrorDetail,
   useBackupConsole,
   useRevealBackupKey,
+  useRunBackup,
   useSaveBackupStorage,
   useTestBackupStorage,
   useUpdateBackupSettings,
   type BackupConsoleState,
+  type BackupRunOutcome,
 } from "@/features/admin/backups";
 import { BackupDriveCard } from "@/features/admin/components/backup-drive-card";
 import { reasonLabel } from "@/features/admin/components/operations-labels";
@@ -48,6 +58,7 @@ export default function BackupsPage() {
       >
         {(state) => (
           <div className="space-y-6">
+            <BackupNowCard state={state} />
             <StatusCard state={state} />
             <StorageCard state={state} />
             {state.storage !== null && <KeyCard state={state} />}
@@ -60,6 +71,142 @@ export default function BackupsPage() {
 }
 
 const errorDetail = backupErrorDetail;
+
+type RunResult =
+  { kind: "done"; copied: boolean } | { kind: "failed"; output: string };
+
+/**
+ * Takes a backup now, the same one the nightly run takes. Success is read from
+ * the refreshed health, not from the POST alone: if the request times out on
+ * the client while the server finishes, `last_backup_at` still moves.
+ */
+function BackupNowCard({ state }: { state: BackupConsoleState }) {
+  const { t } = useT();
+  const { timeAgo } = useDateFormatters();
+  const run = useRunBackup();
+  const { requestConfirm, confirmDialog } = useConfirm();
+  const [answer, setAnswer] = useState<BackupRunOutcome | null>(null);
+  const [asked, setAsked] = useState(false);
+  const [before, setBefore] = useState<string | null>(null);
+  const lastAt = state.health.last_backup_at;
+
+  async function start() {
+    const ok = await requestConfirm({
+      title: t("admin_backups.run_confirm_title", "Back up now?"),
+      description: t(
+        "admin_backups.run_confirm_body",
+        "This takes a full backup of the database and documents on this server. When off-host storage is on, an encrypted copy is uploaded too. It can take a few minutes.",
+      ),
+      confirmLabel: t("admin_backups.run_confirm", "Back up now"),
+    });
+    if (!ok) return;
+
+    setBefore(lastAt);
+    setAnswer(null);
+    setAsked(true);
+    run.mutate(undefined, {
+      onSuccess: (data) => setAnswer(data.run),
+      onError: (err) => {
+        const data = (
+          err as {
+            response?: { data?: { message?: string; run?: BackupRunOutcome } };
+          }
+        ).response?.data;
+        setAnswer(
+          data?.run
+            ? { ...data.run, output: data.run.output || data.message || "" }
+            : null,
+        );
+      },
+    });
+  }
+
+  let result: RunResult | null = null;
+  if (asked && !run.isPending) {
+    const moved = lastAt !== null && lastAt !== before;
+    if (answer !== null && !answer.ok) {
+      result = { kind: "failed", output: answer.output };
+    } else if (answer?.ok === true || moved) {
+      result = { kind: "done", copied: answer?.off_host_copied === true };
+    } else {
+      result = {
+        kind: "failed",
+        output: t(
+          "admin_backups.run_no_answer",
+          "The server did not answer in time. Check the last backup time above before trying again.",
+        ),
+      };
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <HardDriveDownload className="h-5 w-5" />
+          {t("admin_backups.run_title", "Back up now")}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-sm text-muted-foreground">
+          {t(
+            "admin_backups.run_help",
+            "Take a backup without waiting for the nightly run. If off-host storage is on, an encrypted copy is uploaded as well.",
+          )}
+        </p>
+        <p className="text-sm">
+          <span className="text-muted-foreground">
+            {t("admin_backups.last_backup", "Last backup on this server")}:{" "}
+          </span>
+          <span className="font-medium text-foreground">
+            {lastAt === null
+              ? t("admin_backups.never", "Never")
+              : timeAgo(lastAt)}
+          </span>
+        </p>
+        <Button
+          type="button"
+          onClick={() => void start()}
+          disabled={run.isPending}
+        >
+          <HardDriveDownload className="mr-2 h-4 w-4" />
+          {run.isPending
+            ? t("admin_backups.run_running", "Backing up. Keep this page open.")
+            : t("admin_backups.run_button", "Back up now")}
+        </Button>
+        {result?.kind === "done" && (
+          <p
+            role="status"
+            className="rounded-lg bg-success-soft p-3 text-sm text-success-on-soft"
+          >
+            {result.copied
+              ? t(
+                  "admin_backups.run_done_copied",
+                  "Backup created and copied off the host.",
+                )
+              : t("admin_backups.run_done", "Backup created on this server.")}
+          </p>
+        )}
+        {result?.kind === "failed" && (
+          <div
+            role="alert"
+            className="space-y-2 rounded-lg bg-danger-soft p-3 text-sm text-danger-on-soft"
+          >
+            <p className="font-medium">
+              {t("admin_backups.run_failed", "The backup did not complete.")}
+            </p>
+            {result.output !== "" && (
+              <pre className="whitespace-pre-wrap break-words text-xs">
+                {result.output}
+              </pre>
+            )}
+          </div>
+        )}
+        {confirmDialog}
+      </CardContent>
+    </Card>
+  );
+}
 
 function StatusCard({ state }: { state: BackupConsoleState }) {
   const { t } = useT();
@@ -173,6 +320,7 @@ interface StorageForm {
   access_key_id: string;
   secret_access_key: string;
   path_style: boolean;
+  located_in_ethiopia: boolean;
 }
 
 function StorageCard({ state }: { state: BackupConsoleState }) {
@@ -188,9 +336,11 @@ function StorageCard({ state }: { state: BackupConsoleState }) {
     access_key_id: storage?.access_key_id ?? "",
     secret_access_key: "",
     path_style: storage?.path_style ?? true,
+    located_in_ethiopia: storage?.located_in_ethiopia ?? false,
   }));
   const [errors, setErrors] = useState<Record<string, string[]>>({});
   const pathStyleId = useId();
+  const locatedId = useId();
 
   const set = (key: keyof StorageForm) => (value: string) =>
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -322,6 +472,48 @@ function StorageCard({ state }: { state: BackupConsoleState }) {
               )}
             </Label>
           </div>
+        </div>
+
+        <div className="space-y-1">
+          <div className="flex items-start gap-3">
+            <Checkbox
+              id={locatedId}
+              checked={form.located_in_ethiopia}
+              aria-invalid={errors.located_in_ethiopia ? true : undefined}
+              aria-describedby={`${locatedId}-help`}
+              onCheckedChange={(checked) =>
+                setForm((prev) => ({
+                  ...prev,
+                  located_in_ethiopia: checked === true,
+                }))
+              }
+            />
+            <Label htmlFor={locatedId} className="leading-snug">
+              {t(
+                "admin_backups.located_in_ethiopia",
+                "This storage is in Ethiopia.",
+              )}
+            </Label>
+          </div>
+          <p
+            id={`${locatedId}-help`}
+            className="pl-7 text-xs text-muted-foreground"
+          >
+            {state.residency_enforced
+              ? t(
+                  "admin_backups.located_help_enforced",
+                  "Required. Ethiopian law (Proclamation 1321/2024, Art. 22) requires personal data to be stored in Ethiopia, and production copies nothing to storage that is not.",
+                )
+              : t(
+                  "admin_backups.located_help",
+                  "Ethiopian law (Proclamation 1321/2024, Art. 22) requires personal data to be stored in Ethiopia. Production copies only to storage confirmed here.",
+                )}
+          </p>
+          {errors.located_in_ethiopia?.[0] && (
+            <p className="pl-7 text-xs text-destructive" role="alert">
+              {errors.located_in_ethiopia[0]}
+            </p>
+          )}
         </div>
 
         <div className="flex flex-wrap gap-2">

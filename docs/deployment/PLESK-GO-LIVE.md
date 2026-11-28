@@ -156,6 +156,15 @@ The site switches over the moment you save. It will show errors until Part 5 is 
    8443 still answered. So an HTML 403 here means *the request never arrived*, not *wrong
    token*: a wrong or missing token is a JSON 404.
 
+   **From Windows PowerShell, send `--data '{}'` with `-H 'Content-Type: application/json'`
+   instead.** Windows PowerShell 5.1 drops an empty argument to a native program, so
+   `curl.exe ... --data '' -H "X-Maintenance-Token: ..."` leaves `--data` to swallow the
+   `-H` that follows: the token header is never sent, and the answer is the JSON 404 of a
+   wrong token with `curl: (3) URL rejected` printed beside it. Nothing ran. Measured
+   2026-11-28 against a local echo server: with `''` the body arrived as `-H` and no token
+   header; with `'{}'` both arrived. `backups`, `migrate` and `seed` answered 200 on the host
+   that day with `{}` as the body.
+
    **If the site says a reset email was sent but none arrives, the send failed.** Password
    reset, MFA reset and account activation still answer success, log the failure at `error`
    level (*"Sign-in email failed; retrying from the queue"* in `storage/logs`), and — since
@@ -303,16 +312,26 @@ private key is a secret like `APP_KEY`; keep it out of chats and tickets.
    `firstOrCreate`, so `seed` never overwrites a plan that exists. *(Measured 2026-10-27:
    Enterprise had been raised to 8,999 ETB in the console while the seeder said 2,999, and the
    refreshed snapshot failed four backend checks on PR #444.)*
-1. Merge to `main`, and wait for **Plesk release** to go green.
-2. Plesk Git → **Pull now**, then reload the page so the commit card is current. **Before
+1. Run the end-to-end suite before merging, and say what it answered — step 5 of the model
+   hard rule ([`../MODEL-ROUTING.md`](../MODEL-ROUTING.md) → *Owner decision*):
+
+   ```bash
+   ./scripts/gates.sh e2e-attendance
+   ```
+
+   It needs a running stack and `php artisan queue:work` against the same database. A release
+   that could not run it is recorded as **not run**, never as passing; CI's own sweep does not
+   include it.
+2. Merge to `main`, and wait for **Plesk release** to go green.
+3. Plesk Git → **Pull now**, then reload the page so the commit card is current. **Before
    pressing Deploy**, run `scripts/release-status.sh https://<APP_DOMAIN>` from a local
    checkout: it lists the commits Deploy would add and says whether the release adds a
-   migration. If it does, set `MAINTENANCE_TOKEN` first (step 3), so `migrate` can run the
+   migration. If it does, set `MAINTENANCE_TOKEN` first (step 4), so `migrate` can run the
    moment the deploy lands. Then **Deploy now**. *(On 2026-11-23 and 2026-11-24 a release
    went live with its migration unrun. Both had been checked when they were built, and the
    `production` branch had moved on to a release with a migration by the time Deploy was
    pressed. Run the script at the button, not earlier.)*
-3. Set `MAINTENANCE_TOKEN` in `.env`, then run `migrate`, `seed` (it picks up permissions a
+4. Set `MAINTENANCE_TOKEN` in `.env`, then run `migrate`, `seed` (it picks up permissions a
    release adds), as in Part 5 step 3 — or the Toolkit's Artisan, if it ever
    attaches the application. `optimize` is not needed: the first request after the deploy drops a
    config or route cache older than `public/release.json`'s `built_at`, and the next scheduler tick

@@ -201,7 +201,7 @@ describe("Users: giving a custom role", () => {
     ).toBeInTheDocument();
   });
 
-  it("says the job title does not change the built-in role while a custom role is set", async () => {
+  it("says the position does not change the built-in role while a custom role is set", async () => {
     serve([person(OTHER, DESK, true)]);
     const ui = userEvent.setup();
     renderPage();
@@ -209,7 +209,7 @@ describe("Users: giving a custom role", () => {
     await ui.click(await screen.findByRole("button", { name: /^Edit / }));
     const dialog = await screen.findByRole("dialog");
     expect(
-      within(dialog).getByText(/job title does not change the built-in role/),
+      within(dialog).getByText(/position does not change the built-in role/),
     ).toBeInTheDocument();
   });
 });

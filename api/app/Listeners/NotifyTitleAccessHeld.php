@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Notifications\TitleAccessHeldNotification;
 use App\Services\Access\PositionAccess;
 use App\Services\CurrentTenant;
+use App\Support\Access\TitleAccessHealth;
 use App\Support\RoleAssignment;
 use Illuminate\Contracts\Queue\ShouldQueue;
 
@@ -37,6 +38,9 @@ class NotifyTitleAccessHeld implements ShouldQueue
         // worker is another organisation's.
         $this->current->set($tenant);
 
+        $heldCount = 0;
+        $notified = 0;
+
         try {
             // The queue drains later than the sweep ran: an account that was
             // applied in between is not waiting any more.
@@ -44,6 +48,8 @@ class NotifyTitleAccessHeld implements ShouldQueue
                 ->whereIn('users.id', $event->userIds)
                 ->with('employee.position')
                 ->get();
+
+            $heldCount = $held->count();
 
             if ($held->isEmpty()) {
                 return;
@@ -68,9 +74,14 @@ class NotifyTitleAccessHeld implements ShouldQueue
 
                 if ($count > 0) {
                     $candidate->notify(new TitleAccessHeldNotification($count));
+                    $notified++;
                 }
             }
         } finally {
+            // In the finally so a notify that throws still leaves the counts of
+            // what was reached; held above zero with notified at zero is a
+            // listener that found the accounts and told nobody.
+            TitleAccessHealth::recordNotice($heldCount, $notified);
             $this->current->forget();
         }
     }

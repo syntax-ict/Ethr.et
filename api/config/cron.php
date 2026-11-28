@@ -46,6 +46,13 @@ return [
     'lock_seconds' => (int) env('CRON_LOCK_SECONDS', 110),
 
     /*
+    | The PHP binary scheduled commands run as child processes. Null derives it
+    | from PHP_BINARY (CLI) or PHP_BINDIR (FPM); set CRON_PHP_BINARY to an
+    | absolute path when the host's CLI lives elsewhere (App\Support\PhpCli).
+    */
+    'php_binary' => env('CRON_PHP_BINARY'),
+
+    /*
     | Background work after ordinary requests (RunBackgroundWorkAfterResponse).
     | The external timer fires only a few times a day on this host (F23), so
     | any request that reaches Laravel may, at most once a minute, drain the

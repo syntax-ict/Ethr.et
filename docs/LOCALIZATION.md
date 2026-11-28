@@ -283,7 +283,7 @@ Tenant setting: `pagumen_proration_strategy` — `full_month` (default for gover
 |---|---|
 | Leave | Holidays skipped when counting leave days |
 | Attendance | Holiday flag on attendance records, holiday shifts |
-| Payroll | Holiday overtime rate: 2.0x normal, 2.5x night |
+| Payroll | Holiday overtime rate: 2.5x, and 2.5x at night; the minimum for each kind is rule [AR-OT-04](ATTENDANCE-RULES.md) |
 | Calendar | Holiday columns highlighted in team calendar |
 | Dashboard | Upcoming holidays shown on employee dashboard |
 
