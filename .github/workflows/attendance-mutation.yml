@@ -5,7 +5,9 @@
 #
 # Two suites are measured separately, because the question is what each one
 # catches:
-#   default:  the ordinary attendance, payroll and report tests (phpunit.xml);
+#   default:  the ordinary attendance and payroll tests (phpunit.mutation.xml:
+#             phpunit.xml's settings, those tests only, as --parallel takes
+#             one path);
 #   accuracy: golden cases, the independent oracle, generated months and the
 #             properties (phpunit.accuracy.xml), with fewer generated months
 #             than the gate so each mutant stays affordable.
@@ -14,8 +16,7 @@
 # hours each, so it spends Actions minutes; start it from the Actions tab
 # (Run workflow) when that is worth it. A push to this workflow's own branch
 # mutates only the smallest group (overtime), to prove the workflow runs.
-# Needs a coverage
-# driver, so PCOV, as the backend-coverage job. No score is enforced; the
+# Needs a coverage driver, so PCOV, as the backend-coverage job. No score is enforced; the
 # first run's scores are recorded in docs/audit/BASELINE.md, and surviving
 # mutants in arithmetic or comparisons become golden cases.
 #
@@ -84,12 +85,7 @@ jobs:
         working-directory: api
         run: |
           set -o pipefail
-          php -d memory_limit=-1 vendor/bin/pest \
-            tests/Feature/Attendance tests/Feature/Payroll tests/Unit \
-            tests/Feature/AttendanceEngineTest.php tests/Feature/NightShiftAttendanceTest.php \
-            tests/Feature/AttendanceTenantClockTest.php tests/Feature/AttendanceTenantTimezoneTest.php \
-            tests/Feature/ShiftEngineTest.php tests/Feature/ShiftRotationMatchingTest.php \
-            tests/Feature/PayrollOvertimeTest.php \
+          php -d memory_limit=-1 vendor/bin/pest -c phpunit.mutation.xml \
             --mutate --covered-only --parallel --class="${{ matrix.group.classes }}" \
             2>&1 | tee ../mutation-${{ matrix.group.name }}-${{ matrix.suite }}.log
 

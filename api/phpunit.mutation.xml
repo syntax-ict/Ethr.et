@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="tests/bootstrap.php"
+         colors="true"
+>
+    <!--
+        Mutation testing of the attendance engine
+        (.github/workflows/attendance-mutation.yml): phpunit.xml with only the
+        tests that exercise attendance and payroll arithmetic, because
+        Pest in parallel mode takes a single path. Everything below the testsuite
+        is phpunit.xml's, unchanged.
+    -->
+    <testsuites>
+        <testsuite name="AttendanceMutation">
+            <directory>tests/Feature/Attendance</directory>
+            <directory>tests/Feature/Payroll</directory>
+            <directory>tests/Unit</directory>
+            <file>tests/Feature/AttendanceEngineTest.php</file>
+            <file>tests/Feature/NightShiftAttendanceTest.php</file>
+            <file>tests/Feature/AttendanceTenantClockTest.php</file>
+            <file>tests/Feature/AttendanceTenantTimezoneTest.php</file>
+            <file>tests/Feature/ShiftEngineTest.php</file>
+            <file>tests/Feature/ShiftRotationMatchingTest.php</file>
+            <file>tests/Feature/PayrollOvertimeTest.php</file>
+        </testsuite>
+    </testsuites>
+    <source>
+        <include>
+            <directory>app</directory>
+        </include>
+    </source>
+    <!--
+        force="true" is required, not cosmetic. Without it PHPUnit leaves any
+        variable that already exists in the real environment alone. The Docker
+        api container (removed 2026-09-30) exported DB_CONNECTION=mariadb and
+        redis drivers, and running the suite there pointed it at the live
+        MariaDB and the live Redis: every test tried to create its own
+        `ethr_test_N` database, which the `ethr` user has no grant for, and the
+        shared Redis carried rate-limiter state between runs so requests came
+        back 429. That surfaced as ~1200 failures that had nothing to do with
+        the code under test. Any shell that exports these variables does the
+        same, so forcing still makes this file authoritative wherever the suite
+        runs.
+    -->
+    <php>
+        <!--
+            The whole suite runs in one PHP process, so allocations accumulate
+            across ~2000 tests in a way no single web request ever does. At the
+            256M the application asks PHP-FPM for, the run dies partway
+            through with "Allowed memory size exhausted" — reported as a fatal
+            error rather than a test failure, so it reads like a broken suite
+            instead of an exhausted one. Raised here rather than in php.ini so
+            the FPM runtime keeps its production-shaped limit.
+
+            2G, not 1G (2026-10-21): this setting overrides the `-d
+            memory_limit=-1` gates.sh passes, and with coverage on Pest loads
+            the whole serialised report after the last test. That report grows
+            with the codebase; at 1G the coverage job died there with every
+            test green, on the approval engine PR (#359).
+
+            3G, not 2G (2026-11-13): the same death at 2G, on the PR that added
+            the unrecognised-badge cards (#710). Every test passed (5428), then
+            PHP failed allocating 437 MB for the report, in Pest's
+            Coverage.php. Main had passed at 2G the day before, so the report
+            sits at the edge and a few dozen tests tip it. The runner has the
+            memory; the job's 25-minute limit is the other ceiling to watch.
+
+            4G, not 3G (2026-11-13): the device state PR (#709) died the same
+            way at 2G on its own, every test green (5446), needing another
+            418 MB. Main at 3G already carried #710's extra tests; #709 adds
+            its own on top, and each PR alone needed over 400 MB beyond 2G,
+            so 3G leaves too little room. The next raise is due when the
+            report grows by about as much again.
+        -->
+        <ini name="memory_limit" value="4G"/>
+        <env name="APP_ENV" value="testing" force="true"/>
+        <env name="APP_MAINTENANCE_DRIVER" value="file" force="true"/>
+        <env name="BCRYPT_ROUNDS" value="4" force="true"/>
+        <env name="BROADCAST_CONNECTION" value="null" force="true"/>
+        <env name="FRONTEND_URL" value="" force="true"/>
+        <!-- On: adapter tests address fake devices at private hosts. DeviceHostPolicyTest turns it off to test the production shape. -->
+        <env name="DEVICE_ALLOW_PRIVATE_HOSTS" value="true" force="true"/>
+        <env name="CACHE_STORE" value="array" force="true"/>
+        <env name="SIGNALS_CACHE_DRIVER" value="array" force="true"/>
+        <env name="DISK_MEASURE_ROOT" value="tests/Unit" force="true"/>
+        <env name="DB_CONNECTION" value="sqlite" force="true"/>
+        <env name="DB_DATABASE" value=":memory:" force="true"/>
+        <env name="DB_URL" value="" force="true"/>
+        <!--
+            Pinned because FileStorageService resolves the *configured* disk,
+            and the test sites call Storage::fake('local'): a fake only replaces
+            the disk it names, so without this the suite's disk would be whatever
+            the surrounding environment's FILESYSTEM_DISK happened to be, and
+            those fakes would stop intercepting the moment it differed.
+
+            `local`, as in production. It was `minio` until 2026-09-30, and that
+            broke CI the day MinIO left .env.example: two tests that fake no disk
+            reached a real s3 client with no credentials, and the AWS SDK fell
+            back to the instance-metadata service and threw. With `local` a test
+            that forgets to fake can at worst write under storage/app — never
+            reach a network.
+        -->
+        <env name="FILESYSTEM_DISK" value="local" force="true"/>
+        <env name="MAIL_MAILER" value="array" force="true"/>
+        <env name="QUEUE_CONNECTION" value="sync" force="true"/>
+        <env name="CRON_OPPORTUNISTIC" value="false" force="true"/>
+        <env name="SESSION_DRIVER" value="array" force="true"/>
+    </php>
+</phpunit>
