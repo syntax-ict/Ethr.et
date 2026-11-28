@@ -1995,6 +1995,37 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/backups/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Back up now, from the console: the same `ethr:backup` the nightly run
+         *     performs (room check, off-host copy, prune, disk measure), so the button
+         *     proves what the schedule would do. `--off-host` is not passed: it makes
+         *     the command fail when no destination is configured, and a local backup
+         *     is worth taking on its own
+         * @description Live `max_execution_time` is 30 seconds and a backup plus an upload
+         *     outlasts it, so the limit is lifted and a closed tab does not stop it.
+         *     It takes the lock the release-step maintenance tasks take, so the two
+         *     cannot overlap. Known gap, accepted: the 01:00 scheduled run takes a
+         *     different one (the scheduler's `withoutOverlapping()` mutex), so a click
+         *     at exactly 01:00 could overlap it.
+         *
+         *     A failure is reported in the body, never as a 500.
+         */
+        post: operations["backupStorage.run"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/imports/balances/{kind}/template": {
         parameters: {
             query?: never;
@@ -9245,6 +9276,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/devices/unmatched-punches/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What assigning this badge to this person would do, read without changing
+         *     anything: the held punches and their days, who the person is, and what
+         *     speaks against it. The assign request enforces the same warnings
+         */
+        get: operations["unmatchedPunch.preview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/devices/unmatched-punches/assign": {
         parameters: {
             query?: never;
@@ -10019,6 +10071,7 @@ export interface components {
             device_public_id: string;
             badge: string;
             employee_public_id: string;
+            accept_warnings?: boolean;
         };
         /** AttendanceConflictResource */
         AttendanceConflictResource: {
@@ -20809,6 +20862,53 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "backupStorage.run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        source: "console" | "env" | "none";
+                        enabled: boolean;
+                        available: boolean;
+                        blocker: string | null;
+                        keep: number;
+                        residency_enforced: boolean;
+                        storage: {
+                            [key: string]: unknown;
+                        } | null;
+                        key: {
+                            [key: string]: unknown;
+                        } | null;
+                        google_drive: {
+                            [key: string]: unknown;
+                        };
+                        health: {
+                            [key: string]: unknown;
+                        };
+                        run: {
+                            ok: boolean;
+                            exit_code: number | null;
+                            output: string;
+                            off_host_copied: boolean;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
         };
     };
     "balanceImport.template": {
@@ -40778,6 +40878,52 @@ export interface operations {
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
+        };
+    };
+    "unmatchedPunch.preview": {
+        parameters: {
+            query: {
+                device_public_id: string;
+                badge: string;
+                employee_public_id: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        punches: number;
+                        first_day: string | null;
+                        last_day: string | null;
+                        employee: {
+                            public_id: string;
+                            name: string;
+                            employee_code: string | null;
+                            department: string | null;
+                            position: string | null;
+                            branch: string | null;
+                            hire_date: string | null;
+                            status: string;
+                            badge_number: string | null;
+                        };
+                        warnings: {
+                            code: string;
+                            value: string | number | null;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
         };
     };
     "unmatchedPunch.assign": {

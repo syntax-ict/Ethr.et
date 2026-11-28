@@ -84,9 +84,14 @@ final class UnmatchedPunches
      * link, `device.held_punches_replayed` otherwise. A call that finds
      * nothing pending writes none.
      *
+     * `$acceptedWarnings` are the codes the server itself found and the person
+     * acknowledged; they are written to the audit entry so the log shows a
+     * person assigned despite them. Automatic recording never comes here.
+     *
+     * @param  list<string>  $acceptedWarnings
      * @return array{replayed: int, refused: int, remaining: int}
      */
-    public function assign(Device $device, string $badge, Employee $employee, User $by, DevicePunchRecorder $recorder): array
+    public function assign(Device $device, string $badge, Employee $employee, User $by, DevicePunchRecorder $recorder, array $acceptedWarnings = []): array
     {
         $lock = Cache::lock(self::lockKey($device, $badge), self::LOCK_SECONDS);
 
@@ -115,6 +120,7 @@ final class UnmatchedPunches
                     'employee_id' => $employee->public_id,
                     'replayed' => $replayed,
                     'refused' => $refused,
+                    'warnings' => $acceptedWarnings,
                 ]);
             }
 
