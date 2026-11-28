@@ -114,4 +114,21 @@ return [
     $case('GC-AUTO-003', 'AR-AUTO-02', '05 AUTO-002', [$in('18:00')], [
         'days' => [$d => ['live' => 1, 'check_out' => null]],
     ], ['setup' => ['auto_checkout' => 120], 'auto_run_at' => '20:35']),
+
+    // Added 2026-11-28 after the independent review of the oracle (BASELINE 25bq).
+    // Whether a check-in exactly at the shift's end is "after" it is not stated
+    // (AR-NIGHT-05). The first draft asserted "closed at 17:30" from a literal
+    // reading; the engine and the oracle both leave it open. Kept, undecided.
+    $case('GC-AUTO-004', ['AR-NIGHT-05', 'AR-AUTO-02'], 'register', [$in('17:30:00')], [
+        'days' => [$d => ['live' => 1, 'check_out' => '17:30']],
+    ], ['setup' => ['auto_checkout' => 120], 'auto_run_at' => '20:00', 'undecided' => true]),
+    // A record left open overnight does not absorb the next morning's arrival (AR-DAY-09).
+    $case('GC-DAY-012', 'AR-DAY-09', 'register', [$in('19:00'), $in('+1 08:25')], [
+        'outcomes' => ['ok', 'ok'],
+        'live' => 2,
+        'days' => [
+            $d => ['live' => 1, 'check_in' => '19:00', 'check_out' => null],
+            '2026-10-14' => ['live' => 1, 'status' => 'present', 'check_in' => '08:25'],
+        ],
+    ]),
 ];

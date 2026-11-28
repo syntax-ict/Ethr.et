@@ -21,8 +21,8 @@ A number for one of them says nothing about the others. A conformance figure of 
 | Layer | What it does | Measure | Status |
 |---|---|---|---|
 | Rule register | Every rule with an id, a source and a state: Decided, Implemented or Undecided | all | Built: [ATTENDANCE-RULES.md](../ATTENDANCE-RULES.md) |
-| Golden cases | Hand-typed expected values, run through the engine | Conformance | Built: 70 cases, sections 3 to 5 |
-| Independent oracle | A second implementation of the rules, written from the register | Conformance | Not built yet |
+| Golden cases | Hand-typed expected values, run through the engine | Conformance | Built: 79 cases, sections 3 to 5 |
+| Independent oracle | A second implementation of the rules, written from the register alone, run on the same cases | Conformance | Built: section 3a |
 | Generated run | Seeded employee-months compared with the oracle | Conformance | Not built yet |
 | Properties | Replay, duplicate, zone, channel and order do not change the answer | Robustness | Not built yet |
 | Mutation testing | Whether the tests notice a deliberately wrong engine | Strength of the tests | Not built yet |
@@ -51,6 +51,29 @@ A run took 47 to 50 seconds on the machine it was first run on (three runs on 20
 | Skipped, "rule undecided" | The case depends on a rule the register marks Undecided. It is listed so it is not forgotten and is never asserted. |
 | Incomplete, "RECORDED FINDING" | The engine disagrees with the hand value and the case is listed in `api/tests/Accuracy/findings.php` with what the engine answered. It needs triage (section 6). |
 | Failed | The engine disagrees and the case is not listed. Either the engine changed or the case is new. |
+
+When the engine disagrees with a hand value, the message ends with a line starting `THREE-WAY`: what the oracle (section 3a) says about the same case. "The engine is outvoted two to one" means the oracle agrees with the hand value. "The oracle also disagrees" means the hand value or the register is the first suspect. Two against one names the suspect; it does not prove it.
+
+## 3a. The independent oracle
+
+`api/tests/Accuracy/Oracle/` is a second implementation of the register in plain PHP, on `DateTimeImmutable` alone. It was written by an agent that was allowed to read the register and its source documents (this pack's files 05 and 07, [ATTENDANCE-PIPELINE.md](../ATTENDANCE-PIPELINE.md)) and nothing of the engine. It is in three parts: a rater (status, late, early, worked and overtime buckets for one record), a resolver (which records a stream of punches makes: pairing, merges, repeats, breaks, second sessions, night dating, close windows, automatic check-out) and a day classifier (expected-day class and absence).
+
+| File | What it checks |
+|---|---|
+| `OracleCasesTest.php` | The oracle against every case's hand values. A disagreement is listed in `oracle-findings.php` or fails. |
+| `OracleReadingsTest.php` | Each Undecided rule blanks the field it should on an input at its boundary, and does not blank it one minute or one second away. |
+| `OracleIndependenceTest.php` | The oracle uses only its own classes and named PHP date classes (`toOnlyUse`), nothing from `App`, `Illuminate`, `Carbon` or `Database`; a recursive token scan finds no clock function, `date`, file read, environment read, `require`, variable `new` or `call_user_func`; only `Calendar.php` builds a date, and only from a validated absolute string. A self-test proves the scan catches 23 bad snippets. |
+| `GoldenCasesTest.php` | Asks the oracle for its verdict when the engine disagrees (the `THREE-WAY` line above). |
+
+All of them run under `./scripts/gates.sh accuracy`. `ORACLE_CASE=GC-A,GC-B` runs chosen oracle cases, and `ORACLE_REPORT=1` prints, per case, the rules the oracle's answer relied on.
+
+**The oracle never reads the answer.** It is given the case's punches and set-up and the dates to report, never `expect`. `tests/Accuracy/OracleComparer.php`, outside the oracle's namespace, is the only code that reads hand values. Every time the oracle returns carries its seconds.
+
+**The oracle does not guess an Undecided rule.** It works each day out under the register's plain reading and again under each alternative reading of every Undecided rule (`Oracle/Readings.php`). A field that comes out the same under all of them is answered; a field that differs is returned as "undecided" with the rule that made the difference. So an Undecided rule blanks a field only when it matters for that input: of the 79 golden cases, AR-STATUS-07 blanks one field and AR-NIGHT-05 one, and every other Undecided rule none. Each answer also carries a per-date trace of the Decided, Implemented and Undecided rules it used, for the generated run. It has no opinion on the answer given to a merged or manual punch, on the status of a record on a rest day or holiday, or on per-record fields of a date with several records unless they are asked for as a list.
+
+**Shown to fail, both ways (2026-11-28).** With the engine's grace comparison changed from "at or before" to "before", GC-STATUS-003 and GC-ZONE-002 failed and the oracle outvoted the engine. With the oracle's night window moved to start at 23:00, GC-OT-004 and GC-OT-012 failed in `OracleCasesTest` (night 60 expected, oracle said normal 330). Both files were restored.
+
+What the oracle is not: ground truth. It was written in the same week as the hand values, from the same register, so a misreading of the register that both share passes. That is what the real-data backtest, the last layer in section 2, is for.
 
 ### Read a failing case
 
@@ -111,50 +134,54 @@ Real punches from a customer's terminal are not in the repository and do not ent
 
 ## 8. Traceability
 
-Generated from the case files on 2026-11-28. A rule with no row has no golden case yet.
+Generated from the case files and the register on 2026-11-28. The State column is the rule's state in the register: a case on an Implemented rule shows the behaviour is stable, not that it was chosen. A case on an Undecided rule is not asserted.
 
-| Rule | Golden cases | QA pack case | File |
-|---|---|---|---|
-| AR-ABS-01 | GC-ABS-001, GC-ABS-002, GC-ABS-003, GC-ABS-004, GC-ABS-005 | 05 ABS-001 | `cases/expected-days.php` |
-| AR-ABS-02 | GC-ABS-003, GC-OT-007 | 05 ABS-001 | `cases/expected-days.php`, `cases/overtime.php` |
-| AR-ABS-03 | GC-ABS-002, GC-ABS-007, GC-OT-006, GC-OT-009 | 05 ABS-001; 05 HOL-003 | `cases/expected-days.php`, `cases/overtime.php` |
-| AR-ABS-04 | GC-ABS-001, GC-ABS-006, GC-ABS-007 | 05 ABS-001; 05 HOL-003 | `cases/expected-days.php` |
-| AR-ABS-05 | GC-ABS-008 | register only | `cases/expected-days.php` |
-| AR-AUTO-01 | GC-AUTO-001, GC-AUTO-002 | 05 AUTO-001 | `cases/day.php` |
-| AR-AUTO-02 | GC-AUTO-003 | 05 AUTO-002 | `cases/day.php` |
-| AR-BREAK-01 | GC-BREAK-001, GC-BREAK-002 | 05 PUNCH-011 | `cases/day.php` |
-| AR-BREAK-02 | GC-BREAK-003, GC-BREAK-004 | 05 PUNCH-012 | `cases/day.php` |
-| AR-BREAK-03 | GC-BREAK-001, GC-BREAK-005 | 05 PUNCH-011 | `cases/day.php` |
-| AR-CLOCK-01 | GC-ZONE-001, GC-ZONE-002, GC-ZONE-003 | 05 ATT-002; 05 ATT-003 | `cases/status.php` |
-| AR-CLOCK-02 | GC-DATE-001 | 05 ATT-008 | `cases/status.php` |
-| AR-CLOCK-04 | GC-MIN-001, GC-WORK-002 | register only | `cases/status.php` |
-| AR-DAY-01 | GC-DAY-010 | 05 ATT-007 | `cases/day.php` |
-| AR-DAY-02 | GC-DAY-001, GC-DAY-007 | 05 PUNCH-008 | `cases/day.php` |
-| AR-DAY-03 | GC-DAY-005, GC-DAY-006, GC-DAY-009 | 05 CON-002; 05 MAN-003 | `cases/day.php` |
-| AR-DAY-04 | GC-DAY-002 | 05 PUNCH-007 | `cases/day.php` |
-| AR-DAY-05 | GC-DAY-003, GC-DAY-004 | 05 PUNCH-007; 05 ATT-006 | `cases/day.php` |
-| AR-DAY-06 | GC-DAY-011 | 05 PUNCH-004 | `cases/day.php` |
-| AR-DAY-07 | GC-DAY-008, GC-DAY-009 | 05 CON-001; 05 MAN-003 | `cases/day.php` |
-| AR-MIN-01 | GC-BREAK-001, GC-NIGHT-002, GC-OT-008, GC-STATUS-001, GC-STATUS-002, GC-STATUS-004, GC-STATUS-009, GC-MIN-001, GC-LATE4-001, GC-CHAN-004 | 05 PUNCH-011; 05 SHF-004; 05 ATT-001; 05 ATT-002; 07 LATE-004; 05 CAP-002 | `cases/day.php`, `cases/night.php`, `cases/overtime.php`, `cases/status.php` |
-| AR-MIN-02 | GC-EARLY-001, GC-EARLY-003, GC-LATE4-002 | 05 ATT-005; 07 LATE-004 | `cases/status.php` |
-| AR-MIN-03 | GC-EARLY-005, GC-LATE4-001, GC-LATE4-002, GC-LATE4-003 | 05 PUNCH-010; 07 LATE-004 | `cases/status.php` |
-| AR-MIN-04 | GC-BREAK-001, GC-BREAK-005, GC-AUTO-001, GC-NIGHT-001, GC-CHAN-001, GC-CHAN-002, GC-CHAN-003, GC-WORK-001, GC-WORK-002 | 05 PUNCH-011; 05 AUTO-001; 05 SHF-003; 05 CAP-001; 05 CAP-001, MAN-002; 05 CAP-001, AIMP-002 | `cases/day.php`, `cases/night.php`, `cases/status.php` |
-| AR-MIN-05 | GC-WORK-003, GC-SHIFT-001 | 05 ATT-009 | `cases/status.php` |
-| AR-MIN-07 | GC-STATUS-008 | register only | `cases/status.php` |
-| AR-NIGHT-01 | GC-NIGHT-001, GC-NIGHT-002, GC-CHAN-001, GC-CHAN-002, GC-CHAN-003, GC-OT-005 | 05 SHF-003; 05 SHF-004; 05 CAP-001; 05 CAP-001, MAN-002; 05 CAP-001, AIMP-002 | `cases/night.php`, `cases/overtime.php` |
-| AR-NIGHT-02 | GC-NIGHT-003, GC-NIGHT-004 | 05 SHF-013 | `cases/night.php` |
-| AR-NIGHT-04 | GC-CHAN-002, GC-CHAN-003 | 05 CAP-001, MAN-002; 05 CAP-001, AIMP-002 | `cases/night.php` |
-| AR-OT-01 | GC-OT-001, GC-OT-002, GC-OT-003, GC-OT-004, GC-OT-005, GC-OT-008 | 07 PAY-031 | `cases/overtime.php` |
-| AR-OT-02 | GC-OT-006, GC-OT-007, GC-OT-009 | register only | `cases/overtime.php` |
-| AR-OT-03 | GC-OT-004 | register only | `cases/overtime.php` |
-| AR-OT-08 | GC-SHIFT-001 | 05 ATT-009 | `cases/status.php` |
-| AR-OT-09 | GC-OT-003 | register only | `cases/overtime.php` |
-| AR-SHIFT-05 | GC-NIGHT-002 | 05 SHF-004 | `cases/night.php` |
-| AR-SHIFT-06 | GC-SHIFT-001 | 05 ATT-009 | `cases/status.php` |
-| AR-STATUS-01 | GC-NIGHT-001, GC-OT-008, GC-STATUS-001, GC-STATUS-002, GC-STATUS-003, GC-STATUS-004, GC-STATUS-006, GC-STATUS-007, GC-STATUS-008, GC-ZONE-001, GC-ZONE-002, GC-ZONE-003 | 05 SHF-003; 05 ATT-001; 05 ATT-002; 05 ATT-003 | `cases/night.php`, `cases/overtime.php`, `cases/status.php` |
-| AR-STATUS-03 | GC-EARLY-001, GC-EARLY-002, GC-EARLY-003, GC-EARLY-004 | 05 ATT-005; 05 ATT-004 | `cases/status.php` |
-| AR-STATUS-04 | GC-EARLY-005, GC-LATE4-003 | 05 PUNCH-010; 07 LATE-004 | `cases/status.php` |
-| AR-STATUS-05 | GC-CHAN-002, GC-CHAN-003, GC-LATE4-001, GC-LATE4-002, GC-LATE4-003, GC-CHAN-004 | 05 CAP-001, MAN-002; 05 CAP-001, AIMP-002; 07 LATE-004; 05 CAP-002 | `cases/night.php`, `cases/status.php` |
-| AR-STATUS-07 | GC-STATUS-005 | register only | `cases/status.php` |
+| Rule | State | Golden cases | QA pack case | File |
+|---|---|---|---|---|
+| AR-ABS-01 | Decided | GC-ABS-001, GC-ABS-002, GC-ABS-003, GC-ABS-004, GC-ABS-005 | 05 ABS-001 | `cases/expected-days.php` |
+| AR-ABS-02 | Decided | GC-ABS-003, GC-OT-007 | 05 ABS-001 | `cases/expected-days.php`, `cases/overtime.php` |
+| AR-ABS-03 | Decided | GC-ABS-002, GC-ABS-007, GC-OT-006, GC-OT-009 | 05 ABS-001; 05 HOL-003 | `cases/expected-days.php`, `cases/overtime.php` |
+| AR-ABS-04 | Decided | GC-ABS-001, GC-ABS-006, GC-ABS-007 | 05 ABS-001; 05 HOL-003 | `cases/expected-days.php` |
+| AR-ABS-05 | Decided | GC-ABS-008 | register only | `cases/expected-days.php` |
+| AR-AUTO-01 | Decided | GC-AUTO-001, GC-AUTO-002 | 05 AUTO-001 | `cases/day.php` |
+| AR-AUTO-02 | Decided | GC-AUTO-003, GC-AUTO-004 | 05 AUTO-002 | `cases/day.php` |
+| AR-BREAK-01 | Decided | GC-BREAK-001, GC-BREAK-002 | 05 PUNCH-011 | `cases/day.php` |
+| AR-BREAK-02 | Decided | GC-BREAK-003, GC-BREAK-004 | 05 PUNCH-012 | `cases/day.php` |
+| AR-BREAK-03 | Decided | GC-BREAK-001, GC-BREAK-005 | 05 PUNCH-011 | `cases/day.php` |
+| AR-CLOCK-01 | Decided | GC-ZONE-001, GC-ZONE-002, GC-ZONE-003 | 05 ATT-002; 05 ATT-003 | `cases/status.php` |
+| AR-CLOCK-02 | Decided | GC-DATE-001 | 05 ATT-008 | `cases/status.php` |
+| AR-CLOCK-04 | Implemented | GC-MIN-001, GC-WORK-002, GC-WORK-004 | register only | `cases/status.php` |
+| AR-DAY-01 | Decided | GC-DAY-010 | 05 ATT-007 | `cases/day.php` |
+| AR-DAY-02 | Decided | GC-DAY-001, GC-DAY-007 | 05 PUNCH-008 | `cases/day.php` |
+| AR-DAY-03 | Decided | GC-DAY-005, GC-DAY-006, GC-DAY-009 | 05 CON-002; 05 MAN-003 | `cases/day.php` |
+| AR-DAY-04 | Decided | GC-DAY-002 | 05 PUNCH-007 | `cases/day.php` |
+| AR-DAY-05 | Decided | GC-DAY-003, GC-DAY-004 | 05 PUNCH-007; 05 ATT-006 | `cases/day.php` |
+| AR-DAY-06 | Decided | GC-DAY-011 | 05 PUNCH-004 | `cases/day.php` |
+| AR-DAY-07 | Decided | GC-DAY-008, GC-DAY-009 | 05 CON-001; 05 MAN-003 | `cases/day.php` |
+| AR-DAY-09 | Decided | GC-DAY-012 | register only | `cases/day.php` |
+| AR-MIN-01 | Decided | GC-BREAK-001, GC-CHAN-004, GC-LATE4-001, GC-MIN-001, GC-NIGHT-002, GC-OT-008, GC-STATUS-001, GC-STATUS-002, GC-STATUS-004, GC-STATUS-009 | 05 PUNCH-011; 05 SHF-004; 05 ATT-001; 05 ATT-002; 07 LATE-004; 05 CAP-002 | `cases/day.php`, `cases/night.php`, `cases/overtime.php`, `cases/status.php` |
+| AR-MIN-02 | Decided | GC-EARLY-001, GC-EARLY-003, GC-LATE4-002 | 05 ATT-005; 07 LATE-004 | `cases/status.php` |
+| AR-MIN-03 | Decided | GC-EARLY-005, GC-LATE4-001, GC-LATE4-002, GC-LATE4-003 | 05 PUNCH-010; 07 LATE-004 | `cases/status.php` |
+| AR-MIN-04 | Decided | GC-AUTO-001, GC-BREAK-001, GC-BREAK-005, GC-CHAN-001, GC-CHAN-002, GC-CHAN-003, GC-NIGHT-001, GC-WORK-001, GC-WORK-002, GC-WORK-004 | 05 PUNCH-011; 05 AUTO-001; 05 SHF-003; 05 CAP-001; 05 CAP-001, MAN-002; 05 CAP-001, AIMP-002 | `cases/day.php`, `cases/night.php`, `cases/status.php` |
+| AR-MIN-05 | Implemented | GC-SHIFT-001, GC-WORK-003 | 05 ATT-009 | `cases/status.php` |
+| AR-MIN-07 | Decided | GC-STATUS-008 | register only | `cases/status.php` |
+| AR-NIGHT-01 | Decided | GC-CHAN-001, GC-CHAN-002, GC-CHAN-003, GC-NIGHT-001, GC-NIGHT-002, GC-OT-005, GC-OT-013 | 05 SHF-003; 05 SHF-004; 05 CAP-001; 05 CAP-001, MAN-002; 05 CAP-001, AIMP-002 | `cases/night.php`, `cases/overtime.php` |
+| AR-NIGHT-02 | Decided | GC-NIGHT-003, GC-NIGHT-004 | 05 SHF-013 | `cases/night.php` |
+| AR-NIGHT-04 | Decided | GC-CHAN-002, GC-CHAN-003 | 05 CAP-001, MAN-002; 05 CAP-001, AIMP-002 | `cases/night.php` |
+| AR-NIGHT-05 | Undecided | GC-AUTO-004 | register only | `cases/day.php` |
+| AR-OT-01 | Decided | GC-OT-001, GC-OT-002, GC-OT-003, GC-OT-004, GC-OT-005, GC-OT-008, GC-OT-010, GC-OT-011 | 07 PAY-031; 05 PUNCH-012 | `cases/overtime.php` |
+| AR-OT-02 | Decided | GC-OT-006, GC-OT-007, GC-OT-009, GC-OT-014, GC-OT-015 | register only | `cases/overtime.php` |
+| AR-OT-03 | Decided | GC-OT-004, GC-OT-012, GC-OT-013 | register only | `cases/overtime.php` |
+| AR-OT-08 | Decided | GC-SHIFT-001 | 05 ATT-009 | `cases/status.php` |
+| AR-OT-09 | Decided | GC-OT-003 | register only | `cases/overtime.php` |
+| AR-OT-11 | Decided | GC-OT-015 | register only | `cases/overtime.php` |
+| AR-OT-12 | Implemented | GC-OT-014 | register only | `cases/overtime.php` |
+| AR-SHIFT-05 | Decided | GC-NIGHT-002 | 05 SHF-004 | `cases/night.php` |
+| AR-SHIFT-06 | Decided | GC-SHIFT-001 | 05 ATT-009 | `cases/status.php` |
+| AR-STATUS-01 | Decided | GC-NIGHT-001, GC-OT-008, GC-STATUS-001, GC-STATUS-002, GC-STATUS-003, GC-STATUS-004, GC-STATUS-006, GC-STATUS-007, GC-STATUS-008, GC-ZONE-001, GC-ZONE-002, GC-ZONE-003 | 05 SHF-003; 05 ATT-001; 05 ATT-002; 05 ATT-003 | `cases/night.php`, `cases/overtime.php`, `cases/status.php` |
+| AR-STATUS-03 | Decided | GC-EARLY-001, GC-EARLY-002, GC-EARLY-003, GC-EARLY-004 | 05 ATT-005; 05 ATT-004 | `cases/status.php` |
+| AR-STATUS-04 | Decided | GC-EARLY-005, GC-LATE4-003 | 05 PUNCH-010; 07 LATE-004 | `cases/status.php` |
+| AR-STATUS-05 | Decided | GC-CHAN-002, GC-CHAN-003, GC-CHAN-004, GC-LATE4-001, GC-LATE4-002, GC-LATE4-003 | 05 CAP-001, MAN-002; 05 CAP-001, AIMP-002; 07 LATE-004; 05 CAP-002 | `cases/night.php`, `cases/status.php` |
+| AR-STATUS-07 | Undecided | GC-STATUS-005 | register only | `cases/status.php` |
 
-Rules with no golden case yet: AR-ABS-06, AR-ABS-07 (undecided), AR-AUTO-03, AR-BREAK-04, AR-BREAK-05, AR-CLOCK-03, AR-CLOCK-05, AR-LATE-01 to AR-LATE-03, AR-MIN-06, AR-NIGHT-03, AR-OT-04 to AR-OT-07, AR-OT-10 (undecided), AR-SHIFT-01 to AR-SHIFT-04, AR-STATUS-02 and AR-STATUS-06.
+Rules with no golden case yet: AR-ABS-06, AR-ABS-07 (undecided), AR-ABS-08 (undecided), AR-AUTO-03, AR-BREAK-04, AR-BREAK-05, AR-CLOCK-03, AR-CLOCK-05, AR-CLOCK-06 (undecided), AR-CLOCK-07 (undecided), AR-DAY-08 (undecided), AR-LATE-01, AR-LATE-02, AR-LATE-03, AR-MIN-06, AR-MIN-08 (undecided), AR-NIGHT-03, AR-OT-04, AR-OT-05, AR-OT-06, AR-OT-07, AR-OT-10 (undecided), AR-OT-13 (undecided), AR-OT-14 (undecided), AR-SHIFT-01, AR-SHIFT-02, AR-SHIFT-03, AR-SHIFT-04, AR-STATUS-02, AR-STATUS-06.
