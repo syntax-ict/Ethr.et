@@ -171,7 +171,7 @@ More scopes exist:
 ```bash
 ./scripts/gates.sh quick      # everything except the test suites — for the hook
 ./scripts/gates.sh docs       # markdown links resolve; operations documents carry their At a glance block
-./scripts/gates.sh accuracy   # hand-typed golden attendance cases against the engine; opt-in, no server needed
+./scripts/gates.sh accuracy   # hand-valued golden cases for attendance, payroll, leave and the calendar; opt-in, no server needed
 ./scripts/gates.sh security   # composer audit + npm audit (production deps)
 ./scripts/gates.sh export     # the Bronze shared-hosting production build
 ```

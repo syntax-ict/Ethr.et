@@ -17,6 +17,7 @@ use App\Services\Payroll\PayrollEngine;
 use App\Services\Payroll\RunRegisterService;
 use App\Services\Payroll\StatutorySchedules;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 use Throwable;
 
 /**
@@ -112,6 +113,88 @@ final class EngineReader
             'consistency' => $consistency,
             'notes' => $built['notes'],
         ];
+    }
+
+    /**
+     * PYR-RUN-01: a preview works every figure out as a run does and writes
+     * nothing. Takes the preview, then runs the same period (no approval), and
+     * lists every field of every person that differs, and every table that
+     * moved while only the preview ran.
+     *
+     * @param  array<string, mixed>  $case
+     * @param  array<string, mixed>  $built
+     * @return array{people: int, fields: int, differences: list<string>, wrote: list<string>}
+     */
+    public static function previewAgainstRun(array $case, array $built): array
+    {
+        $start = Carbon::parse($case['period']['start']);
+        $end = Carbon::parse($case['period']['end']);
+        $tenantId = $built['tenant']->id;
+        $engine = app(PayrollEngine::class);
+        $byId = [];
+        foreach ($built['employees'] as $key => $employee) {
+            $byId[$employee->id] = $key;
+        }
+
+        $counts = static fn (): array => [
+            'runs' => PayrollRun::query()->count(),
+            'entries' => PayrollEntry::query()->count(),
+            'loan balances' => (int) EmployeeLoan::query()->sum('remaining_cents'),
+            'cost-sharing balances' => (int) EmployeeCostSharing::query()->sum('outstanding_cents'),
+            'pay differences' => DB::table('payroll_pay_differences')->count(),
+        ];
+
+        $before = $counts();
+        $preview = [];
+        foreach ($engine->preview($tenantId, $start, $end, null, null, 1000)['entries'] as $entry) {
+            $preview[$byId[$entry['employee']->id]] = $entry['attributes'];
+        }
+        $wrote = [];
+        foreach ($counts() as $what => $after) {
+            if ($after !== $before[$what]) {
+                $wrote[] = "the preview changed {$what}: {$before[$what]} to {$after}";
+            }
+        }
+
+        try {
+            $run = $engine->process($tenantId, $start, $end, $built['user']->id)->run;
+        } catch (Throwable $e) {
+            throw FixtureError::fixture('the run was refused: '.$e->getMessage());
+        }
+        $stored = [];
+        foreach (PayrollEntry::query()->where('payroll_run_id', $run->id)->get() as $entry) {
+            $stored[$byId[$entry->employee_id]] = self::storedAttributes($entry);
+        }
+
+        $people = 0;
+        $fields = 0;
+        $differences = [];
+        foreach ($case['employees'] as $key => $row) {
+            if (isset($preview[$key]) !== isset($stored[$key])) {
+                $differences[] = "{$key}: in the ".(isset($preview[$key]) ? 'preview but not in the run' : 'run but not in the preview');
+
+                continue;
+            }
+            if (! isset($preview[$key])) {
+                continue;
+            }
+            $people++;
+            [$mine] = self::fields($case, $key, $row, $preview[$key], $built, false);
+            [$theirs] = self::fields($case, $key, $row, $stored[$key], $built, false);
+            foreach ($mine as $field => $value) {
+                $fields++;
+                if (($theirs[$field] ?? null) !== $value) {
+                    $differences[] = "{$key} {$field}: preview ".json_encode($value).', run '.json_encode($theirs[$field] ?? null);
+                }
+            }
+            $a = self::normalise($preview[$key]);
+            $b = self::normalise($stored[$key]);
+            if ($a !== $b) {
+                $differences[] = "{$key} whole entry: ".self::firstDifference($a, $b);
+            }
+        }
+
+        return compact('people', 'fields', 'differences', 'wrote');
     }
 
     /**

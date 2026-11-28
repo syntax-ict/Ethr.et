@@ -79,6 +79,8 @@ Three standing caveats:
 | [`ATTENDANCE-RULES.md`](ATTENDANCE-RULES.md) | The rule register: every rule the attendance engine applies to turn punches into a day, with an id, its source and whether it is decided. The accuracy tests are written against it |
 | [`payroll/PAYROLL-RULES.md`](payroll/PAYROLL-RULES.md) | The payroll rule register: every rule the payroll engine applies, with an id, its source and whether it is decided. The payroll accuracy tests are written against it |
 | [`LEAVE-RULES.md`](LEAVE-RULES.md) | The leave rule register: entitlement, accrual and day counting, with an id, its source and whether it is decided |
+| [`production testing/13-PAYROLL-ACCURACY.md`](<production testing/13-PAYROLL-ACCURACY.md>) | How payroll accuracy is measured: the hand-valued cases, the independent oracle, how to run and add a case, what two blind runs found, and the table from rule id to case |
+| [`production testing/14-LEAVE-CALENDAR-AND-RESTATED-FIGURES.md`](<production testing/14-LEAVE-CALENDAR-AND-RESTATED-FIGURES.md>) | The leave cases and what waits on a signature, the Ethiopian calendar cross-check, and the register consistency test |
 | [`production testing/15-ACCURACY-SESSION.md`](<production testing/15-ACCURACY-SESSION.md>) | The one-day accuracy session runbook: how the calculation engines are checked against their rule registers, and what is recorded |
 | [`audit/ACCURACY-REPORT-2026-11-28.md`](audit/ACCURACY-REPORT-2026-11-28.md) | Session 0, the baseline accuracy report: what was measured for each calculating engine on 2026-11-28, what was not, and the candidate findings read from code and not run |
 | [`ATTENDANCE-PIPELINE.md`](ATTENDANCE-PIPELINE.md) | One person, one day, several methods: entry point, duplicates, payroll hand-off |

@@ -93,7 +93,7 @@ In an agent sandbox, set the token in the environment's own settings, not as a s
 ./scripts/gates.sh mysql      # the backend suite against MariaDB, not SQLite
 ./scripts/gates.sh concurrency     # attendance punches racing from separate processes
 ./scripts/gates.sh e2e-attendance  # browser journeys that read back what a punch saved
-./scripts/gates.sh accuracy   # hand-typed golden attendance cases against the engine, no server
+./scripts/gates.sh accuracy   # hand-valued golden cases for attendance, payroll, leave and the calendar, and the register checks; no server
 ./scripts/gates.sh security   # composer audit + npm audit (production deps)
 ./scripts/gates.sh coverage   # backend line coverage — needs PCOV or Xdebug
 ```
@@ -109,7 +109,7 @@ Two more are opt-in for the same reason, and are the only proof of attendance ab
 - **`concurrency`** starts a PHP process per punch and releases them together, against MySQL or MariaDB with the `database` cache store. It commits its fixtures, so it needs a scratch database of its own (`ethr_concurrency`) and refuses any other name. `tests/Concurrency` sits outside both testsuites, like `tests/Performance`, so the collection count above is unchanged.
 - **`e2e-attendance`** drives a running stack through `src/playwright.attendance.config.ts`. It first seeds organisations of its own (`E2eAttendanceSeeder`, local and testing only) into the database `DB_*` names, which must be the one the running API reads. It never retries, and every journey asserts on what the API reads back, not on a toast. The payroll journey is queued as production is, so it needs `queue:work` running against the same database; it never uses `QUEUE_CONNECTION=sync`. **A device punch in a journey names no organisation**, as a real terminal cannot: the token finds the device and the device sets the request's organisation (`DeviceController::resolveWebhookDevice`). A backend test of a credential-authenticated route must clear what `createTenant()` left in the process first (`app()->forgetScopedInstances()`), or it passes on context a real request never has.
 
-**`accuracy`** is opt-in too, though it needs no server: it runs the golden attendance cases in `tests/Accuracy` through the engine and compares them with values typed by hand from `docs/ATTENDANCE-RULES.md`. It sits outside both testsuites on purpose, so the collection count above is unchanged. **Never change a hand value to make a case pass**: a case the engine disagrees with is listed in `tests/Accuracy/findings.php` and triaged as an engine defect, a wrong hand value or a fixture error.
+**`accuracy`** is opt-in too and needs no database server (SQLite in memory, the array cache). It runs the hand-valued golden cases for attendance, payroll, leave and the calendar, the independent oracles, and the check that the rule registers and the cases cite each other. `tests/Accuracy` sits outside both testsuites, like `tests/Performance` and `tests/Concurrency`, so the collection count above is unchanged. **Never change a hand value to make a case pass**: a disagreement is listed in that engine's `findings.php` and triaged. The method is in `docs/production testing/12-ATTENDANCE-ACCURACY.md`, `13-PAYROLL-ACCURACY.md` and `14-LEAVE-CALENDAR-AND-RESTATED-FIGURES.md`.
 
 **CI calls `gates.sh` rather than restating it**, so the two cannot drift. Node is declared once, in `.nvmrc`. Every `scripts/*.sh` must be committed executable (`git update-index --chmod=+x`) — Git on Windows does not track the bit.
 

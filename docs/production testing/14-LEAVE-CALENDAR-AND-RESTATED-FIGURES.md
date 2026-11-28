@@ -1,6 +1,6 @@
 # 14. Leave, calendar and restated figures
 
-**At a glance.** This file holds the accuracy checks that sit beside the attendance ones in [12-ATTENDANCE-ACCURACY.md](12-ATTENDANCE-ACCURACY.md). Today it describes one thing that has been built and run: the Ethiopian calendar cross-check, in which the PHP class, the TypeScript module and a third implementation that counts days one at a time are compared against one shared table of month starts for every day from 1900 to 2100. It also records the register consistency test, which checks that every rule id cited by a case exists and that every Decided rule has a case or a stated reason for having none. The leave and restated-figures sections are empty on purpose.
+**At a glance.** This file holds the accuracy checks that sit beside the attendance ones in [12-ATTENDANCE-ACCURACY.md](12-ATTENDANCE-ACCURACY.md). Today it describes one thing that has been built and run: the Ethiopian calendar cross-check, in which the PHP class, the TypeScript module and a third implementation that counts days one at a time are compared against one shared table of month starts for every day from 1900 to 2100. It also records the register consistency test, which checks that every rule id cited by a case exists and that every Decided rule has a case or a stated reason for having none. It also describes the leave cases (section 7). The restated-figures section is empty on purpose.
 
 ## 1. Layers and status
 
@@ -11,7 +11,7 @@
 | TypeScript check | `ethiopian.ts` against the same table | Built: section 3 |
 | Clock check | All 1,440 minutes of a day through the Ethiopian clock and back | Built: section 3 |
 | Register consistency | Rule ids cited by cases exist; Decided rules are covered or exempted with a reason | Built: section 4 |
-| Leave cases | Hand-typed leave figures | Not written yet: section 7 |
+| Leave cases | Hand-typed leave figures, run through the leave engine, and five seeded properties | Built: section 7 |
 | Restated figures | Figures restated from the registers | Not written yet: section 8 |
 
 No percentage exists for any of these. The calendar check compares complete ranges, not a sample.
@@ -62,7 +62,7 @@ The same article carries a table of the Gregorian day on which each Ethiopian mo
 ### Findings from building it
 
 - All three implementations agreed on every date. No calendar defect was found.
-- Two comments in `api/tests/Feature/Dashboard/ExecutiveMetricCorrectnessTest.php` give a wrong Ethiopian date: "31 October 2026 is Tikimt 20, 2019" (line 100) and "3 November 2026 is Tikimt 23, 2019" (line 135). The class, the TypeScript module and the Odometer all say Tikimt 21 and Tikimt 24, which is also what the same file's own line 103 implies (11 October 2026 is Tikimt 1). The comments are wrong, not the code. Neither pair is used as an anchor.
+- Two comments in `api/tests/Feature/Dashboard/ExecutiveMetricCorrectnessTest.php` give a wrong Ethiopian date: "31 October 2026 is Tikimt 20, 2019" (line 100) and "3 November 2026 is Tikimt 23, 2019" (line 135). The class, the TypeScript module and the Odometer all say Tikimt 21 and Tikimt 24, which is also what the same file's own line 103 implies (11 October 2026 is Tikimt 1). The comments are wrong, not the code. Neither pair is used as an anchor. Both comments were corrected on 2026-11-28 (the file is `api/tests/Feature/Dashboard/ExecutiveMetricCorrectnessTest.php`; no code changed).
 - The Wikipedia article's caption for the Ethiopian Millennium says 11 September 2007. The article's own month table, the three implementations and the rule in CAL-ETH-02 give 12 September 2007 for Meskerem 1, 2000, which follows a six-day Pagume. That caption is not used.
 - There is no anchor from before 1930, and no independent anchor for a six-day Pagume: the independent ones are Meskerem 1 of 1992, 1996 and 1998 and one date in 2026. Years 1900 and 2100, which are not Gregorian leap years, are checked against the table only, and by the published table up to February 2100.
 
@@ -76,7 +76,7 @@ The same article carries a table of the Gregorian day on which each Ethiopian mo
 - no exemption is stale: its rule is Decided, exists, and is not cited by a case;
 - a leave case citing a Decided rule whose text says "Value:" and names an Undecided rule carries `waits_on`.
 
-An engine whose case directory does not exist yet is skipped, not failed. At the time of writing the payroll and leave case directories do not exist in this checkout.
+An engine whose case directory does not exist yet is skipped, not failed. The attendance, payroll and leave case directories all exist now, so all three are checked. At commit `1c833bba61` the payroll check fails on five Decided rules with neither a case nor an exemption (see [13, section 3](13-PAYROLL-ACCURACY.md#the-last-run)); the attendance and leave checks pass.
 
 On the attendance register today, 19 Decided rules have no case and each has an exemption: AR-CLOCK-03, AR-CLOCK-05, AR-SHIFT-01 to AR-SHIFT-04, AR-STATUS-02, AR-BREAK-04, AR-BREAK-05, AR-NIGHT-03, AR-AUTO-03, AR-ABS-06, AR-OT-04 to AR-OT-07 and AR-LATE-01 to AR-LATE-03. They are the rules [12-ATTENDANCE-ACCURACY.md](12-ATTENDANCE-ACCURACY.md) section 8 lists as having no golden case yet, less those that are Undecided.
 
@@ -108,7 +108,85 @@ npx prettier --write src/test/fixtures/ethiopian-calendar.json
 
 ## 7. Leave
 
-Not written yet.
+Leave is measured for conformance only: does the leave engine do what [LEAVE-RULES.md](../LEAVE-RULES.md) says? Robustness and real-world agreement are not built. There is **no oracle**, by design: a second implementation of statutory values nobody has signed would only copy the first reading. A signed reference replaces it, and none exists yet.
+
+### What exists
+
+- `api/tests/Accuracy/Leave/cases/` holds 131 designed cases in eight files: `acc` (accrual), `balreq` (the balance and whether a request is accepted), `carry` (carry-over), `days` (the days a request charges), `ent` (yearly entitlement), `recall` (cancelling and ending approved leave early), `sick` (Art. 85 sick leave) and `yearpay` (the leave year, and the unpaid days payroll counts). Each expected value was worked by hand from the register before the engine was asked, and each case carries its working lines. The format is that of the attendance cases ([12, section 4](12-ATTENDANCE-ACCURACY.md#4-how-a-case-is-built)) with a leave world instead of punches: `LeaveFixture.php` builds the organisation, leave type, person, balances, holidays and requests from the case, and `LeaveRunner.php` asks through the leave API (file, approve, reject, cancel and recall) and through the engine's own services (the days a request charges, accrual, carry-forward, the leave year, the sick-leave tiers and the payroll engine's unpaid-leave step). It returns every disagreement, one line each.
+- `LeaveGoldenCasesTest.php` runs the cases. `LeaveCases.php` loads them and fails on a mistyped key.
+- `LeavePropertiesTest.php` holds four tests over five properties, each over a small table of inputs generated from one fixed seed (`LeaveProperties::SEED`, 20261128). Each reports the seed, the number of cases and the number of disagreements, and no percentage.
+- The register consistency test ([section 4](#4-register-consistency)) checks every rule id a leave case cites, and that a case citing a Decided rule whose text says "Value:" and names an Undecided rule carries `waits_on`. `register-exemptions.php` holds the reason for each Decided leave rule that no case cites.
+
+### The cases by state
+
+Counted in `api/tests/Accuracy/Leave/cases/` on 2026-11-28.
+
+| State | Cases | What the test does |
+|---|---|---|
+| Asserted | 97 | Compares the engine with the hand value |
+| Waiting for a signature | 27 | Typed now and skipped until HR or counsel sign the expected value. The case carries `waits_on` (an item of the register's "Waiting for a decision" list) and `signed` null. The items are 1, 2, 3, 4, 7, 8 and 20 |
+| Undecided | 7 | Skipped, never asserted: GL-ACC-019, GL-ACC-022, GL-ACC-023, GL-REQ-014, GL-CARRY-008, GL-CARRY-009 and GL-RECALL-007 |
+| Total | 131 | |
+
+A case that waits can state what each reading of the question gives (`readings`) and which one the engine follows (`ruling`). A signed case would carry the date, the role and the sign-off row in `signed`; none does.
+
+### The properties
+
+| Property | What it asserts |
+|---|---|
+| Splitting | A request split in two adjacent requests charges the same total, and the days charged are never negative and never more than the calendar days of the span. Run for a Monday to Friday week, a six-day shift and a four-day rotation |
+| Holidays | Adding a holiday inside a request never raises the days charged, and lowers them by exactly one when that date was charged |
+| Accrual | The accrual of a later month of a year is never lower than that of an earlier one, whatever the type's days, the hire date and a termination date recorded part-way through |
+| Repeat | Running accrual twice for the same moment, and carry-forward twice, changes nothing |
+
+Splitting and the bound on the days charged share one test, so the four tests cover five properties. A property that fails is never weakened: the smallest failing input is named in the failure.
+
+### Two values withdrawn or corrected
+
+- **GL-DAYS-013.** First typed as 4 days, on the case writer's own reading of the word "recurring" for a holiday. That value had no source in the register. The first run showed the engine charging 5, and the case was recorded as a finding. The register then stated the rule (LVR-DAYS-08: a holiday lowers the days charged only where an active row exists for that exact date, and "recurring" is not read when days are counted; a monthly job creates next year's rows). The case was retyped as 5 and the first typing is withdrawn, with the reason recorded in the case (`4a85679d84`). It was not an engine defect.
+- **GL-REQ-020.** First typed as 4 days from the register's own worked example for 1 to 5 May 2028, which named one holiday in that week. The week holds two, Labour Day on 1 May and Patriots Day on 5 May, so the engine charges 3. The register's example was corrected first (`1403871cac`), and the case was retyped as 3 from the corrected example (`1c833bba61`). No finding is left. The wrong value was the register's, not the engine's.
+
+Both were found because the case was typed before the run and the disagreement was read, not smoothed over.
+
+### Two errors in the QA pack
+
+The engine and the register agree against two expected results in [06-E2E-LEAVE-AND-APPROVALS.md](06-E2E-LEAVE-AND-APPROVALS.md), and the cases confirm it:
+
+- **LR-002** said a request from Friday to the next Tuesday with Monday a public holiday counts 3 days. On the organisation's Monday to Friday week it counts 2 (the Friday and the Tuesday), case GL-DAYS-015. It counts 3 only for a person whose working week includes Saturday, case GL-DAYS-016. The rule is LVR-DAYS-01.
+- **LB-010** said the Ethiopian year 2019 runs from 11 September 2026 to 10 September 2027. Pagume has six days that year, so it ends on 11 September 2027, case GL-YEAR-003 (rules LVR-YEAR-01 and LVR-YEAR-04). Case GL-ACC-021 confirms the year number of the balance row and the entitlement of months 2 and 3.
+
+Both cases in file 06 are corrected, with a note in that file's change notes.
+
+### Run it
+
+```bash
+cd api
+php -d memory_limit=-1 vendor/bin/pest -c phpunit.accuracy.xml tests/Accuracy/Leave
+LEAVE_CASE=GL-DAYS-015,GL-YEAR-003 php -d memory_limit=-1 vendor/bin/pest -c phpunit.accuracy.xml tests/Accuracy/Leave
+```
+
+`./scripts/gates.sh accuracy` runs this with the rest of the suite. It needs no database server. A case that disagrees is listed in `api/tests/Accuracy/Leave/findings.php` (empty today) and reports as incomplete. Never change a hand value to make a case pass.
+
+### The last run
+
+From the session sheet of 2026-11-28 18:21 UTC, commit `1c833bba61` (worktree not clean: uncommitted edits to the session script and to documents). Leave: **102 passed, 0 failed, 0 incomplete, 7 skipped as undecided, 27 skipped as waiting for a signature.** The 102 are the 97 asserted cases, the test that checks every case's shape, and the four property tests. The properties printed:
+
+```text
+LEAVE PROPERTY splitting: seed=20261128 cases=60 disagreements=0
+LEAVE PROPERTY holidays: seed=20261128 cases=45 disagreements=0
+LEAVE PROPERTY accrual: seed=20261128 cases=10 disagreements=0
+LEAVE PROPERTY repeat: seed=20261128 cases=8 disagreements=0
+```
+
+The same run passed the 9 PHP calendar tests and the 14 TypeScript calendar and clock tests. The register consistency test failed on payroll, not on leave: see [13, section 3](13-PAYROLL-ACCURACY.md#the-last-run). These are counts of designed cases and generated inputs, not a rate.
+
+
+### What this does not prove
+
+- **Leave accuracy is not signed off.** The register's own words are "Leave accuracy is not certified": every statutory value in it waits on counsel or HR in writing ([Waiting for a decision](../LEAVE-RULES.md#waiting-for-a-decision), 23 items, none signed). The 27 cases that wait on a signature are the measure of that gap. A pass on the 97 asserted cases says the engine does what the register says where the register has an answer. It does not say the law or a customer's policy is met.
+- The cases and the register share one reading, so a misreading they share passes. The register's Implemented rows copy what the code does.
+- No real balance or request has been compared with a signed figure.
+- Not covered: attachments and medical certificates, who may read a leave reason, approval chains and their reminders, delegation, notifications and webhooks, leave reports and the team calendar (the register's "What this register does not cover"). Two requests racing from separate processes is not tested here either: the register consistency exemption for LVR-BAL-07 points to the concurrency gate.
 
 ## 8. Restated figures
 
