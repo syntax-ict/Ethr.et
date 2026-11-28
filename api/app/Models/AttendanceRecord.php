@@ -171,13 +171,6 @@ class AttendanceRecord extends Model
     }
 
     /**
-     * The worked-past-shift-end interval that counts as overtime, or null when
-     * there is none. Single source of truth for both the total OT minutes and
-     * the per-type (day/night, holiday) classification done in payroll.
-     *
-     * @return array{0: Carbon, 1: Carbon}|null [start, end]
-     */
-    /**
      * The whole span worked, for a day with no scheduled hours (a weekly rest
      * day or a public holiday), where all of it is paid as overtime.
      *
@@ -194,6 +187,19 @@ class AttendanceRecord extends Model
         return [$this->check_in->copy()->setTimezone($zone), $this->check_out->copy()->setTimezone($zone)];
     }
 
+    /**
+     * The worked-past-shift-end interval that counts as overtime, or null when
+     * there is none. Single source of truth for both the total OT minutes and
+     * the per-type (day/night, holiday) classification done in payroll.
+     *
+     * The window starts at the later of the shift's end and the check-in
+     * (rule AR-OT-01, BASELINE 25br): a record that begins after the shift's
+     * end earns the time it worked, not the gap between the shift's end and
+     * its own start. Before this, a 17:45 to 20:00 record on a shift ending
+     * 17:30 was paid 150 minutes where 135 were worked.
+     *
+     * @return array{0: Carbon, 1: Carbon}|null [start, end]
+     */
     public function overtimeWindow(): ?array
     {
         // The punches first: an open record has no overtime, and asking for
@@ -213,8 +219,11 @@ class AttendanceRecord extends Model
         $zone = $this->tenantZone();
         [, $shiftEnd] = $this->shift->windowOn($this->workDate($zone), $zone);
 
-        if ($this->check_out->gt($shiftEnd)) {
-            return [$shiftEnd, $this->check_out->copy()->setTimezone($zone)];
+        $checkIn = $this->check_in->copy()->setTimezone($zone);
+        $start = $checkIn->gt($shiftEnd) ? $checkIn : $shiftEnd;
+
+        if ($this->check_out->gt($start)) {
+            return [$start, $this->check_out->copy()->setTimezone($zone)];
         }
 
         return null;
