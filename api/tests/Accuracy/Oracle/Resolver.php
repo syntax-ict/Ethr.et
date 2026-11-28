@@ -43,6 +43,7 @@ final class Resolver
         private readonly ?array $shift,
         private readonly DateTimeZone $tz,
         private readonly Readings $readings,
+        private readonly ?string $termination = null,
     ) {}
 
     /**
@@ -53,6 +54,15 @@ final class Resolver
         $key = $punch['key'] ?? null;
         if ($key !== null && isset($this->keys[$key])) {
             $this->outcomes[] = 'duplicate';
+
+            return;
+        }
+
+        // AR-DAY-10: nothing dated after the termination date is recorded.
+        $dated = Calendar::localDate($punch['ts'] ?? $punch['in'], $this->tz);
+        if ($this->termination !== null && $dated > $this->termination) {
+            $this->hit($dated, 'AR-DAY-10');
+            $this->outcomes[] = 'refused:employee_has_left';
 
             return;
         }
@@ -136,6 +146,13 @@ final class Resolver
                 return null;
             }
 
+            if ($r['method'] === $method && abs($ts - $r['in']) < 60) {
+                // AR-DAY-03: a repeat adds no record and no time; what the person is told is not stated.
+                $this->hit($wd, 'AR-DAY-03');
+
+                return null;
+            }
+
             $this->hit($wd, 'AR-DAY-02');
 
             return 'duplicate';
@@ -174,6 +191,17 @@ final class Resolver
             $this->records[$open]['out'] = $ts;
 
             return 'ok';
+        }
+
+        // AR-AUTO-03: the person's own later check-out replaces an automatic one.
+        foreach ($this->records as $i => $r) {
+            if ($r['auto'] && $ts > $r['out'] && ($r['wd'] >= $wd || $this->withinCloseWindow($r, $ts))) {
+                $this->hit($r['wd'], 'AR-AUTO-03');
+                $this->records[$i]['out'] = $ts;
+                $this->records[$i]['auto'] = false;
+
+                return 'ok';
+            }
         }
 
         foreach ($this->records as $r) {
