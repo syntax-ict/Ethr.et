@@ -88,6 +88,7 @@
   "admin_console_page.marketing": "Marketing site",
   "admin_console_page.mfa_required_body": "This account can reach every tenant on the platform. Until two-factor authentication is enabled you can view the console but cannot make changes.",
   "admin_console_page.mfa_required_title": "Two-factor authentication required",
+  "admin_console_page.audit_needs_mfa": "The platform activity lists people from every organisation, so it needs two-factor authentication to read.",
   "admin_console_page.monthly_revenue_trend": "Monthly Revenue Trend",
   "admin_console_page.mrr": "Recurring revenue",
   "admin_console_page.no_recent_activity": "No recent activity",
