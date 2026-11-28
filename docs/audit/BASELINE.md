@@ -5627,3 +5627,21 @@ The owner asked for a close look at `/settings/attendance` on production (QA Aud
 **Shown to fail both ways.** Engine grace comparison changed from `lte` to `lt`: GC-STATUS-003 and GC-ZONE-002 failed, the oracle outvoted the engine. Oracle night window moved to 23:00: GC-OT-004 and GC-OT-012 failed in `OracleCasesTest`, before the review's changes and again after them. Each file restored.
 
 **Not claimed.** The oracle is a second reading of the same register, not ground truth: a misreading both share passes. It models no money (multipliers, rates, limits, lateness deduction), no assignment precedence or rotations, no termination beyond the date, no answer for a merged or manual punch, and not AR-AUTO-03, AR-BREAK-05, AR-CLOCK-05 or AR-ABS-07. AR-DAY-08 and AR-OT-14 are exercised only by `OracleReadingsTest`, no golden case. No accuracy percentage exists yet; the generated run is step 3.
+
+### 25br. Overtime counted from the shift's end for a record that began after it (2026-11-28)
+
+**Found by the accuracy suite** (§25bq), outvoted two to one: golden cases GC-OT-010 and GC-OT-011, the oracle and the hand values against the engine.
+
+**Cause.** `AttendanceRecord::overtimeWindow()` returned `[shift end, check-out]` whenever the check-out was after the shift's end, whatever the check-in. On a shift ending 17:30, a second session from 17:45 to 20:00 earned 150 minutes of overtime where 135 were worked after the end, and a record from 18:00 to 20:00 earned 150 where 120 were; a record from 21:30 to 23:30 earned 360 minutes (270 normal, 90 night) where 30 normal and 90 night were worked. Every overtime figure goes through that method: `OvertimeClassifier` on working days, `PeriodOvertime`, `PayrollEngine`, `TimesheetLedger`, the record API's `overtime_minutes`, `AttendanceIntelligence` and the reports. Rest days and holidays use `workedWindow()` and were right.
+
+**Fix.** The window starts at the later of the shift's end and the check-in (rule AR-OT-01). The payroll calculation log is now **1.11**. `OvertimeAfterLateStartTest` holds six scenarios through `overtimeMinutes()`, the classifier and a payroll run: red 9 of 18 before the fix (normal 150, 150 and 270), green after. The two entries leave `tests/Accuracy/findings.php`.
+
+**Measured.** `./scripts/gates.sh accuracy`: 171 passed, 4 skipped (undecided), none incomplete. `tests/Feature/Attendance`, `tests/Feature/Payroll`, `tests/Feature/Reports` and the overtime, overlap, engine, night-shift and tenant-clock tests: 1,097 passed; no existing expectation changed. Pint and PHPStan clean on the changed files.
+
+**What changes for money.**
+- **Approved and paid runs do not change**: their payslips were stored when they were calculated, and `PayrollPeriodLock` keeps their days closed.
+- **A run processed but not yet approved** whose overtime moves is refused at approval with `attendance-changed-since-processed` (§25al) until it is voided and reprocessed, which then pays from 1.11.
+- **Anything read again from records** (the timesheet, the record API, reports) shows the corrected figure, for paid months too, because overtime is calculated when read. For a paid month that held such a record, the timesheet then shows less overtime than the payslip paid. The payslip is not changed (owner decision 2026-11-10: a paid day's pay never changes).
+- **Who was affected**: only records whose check-in is after their shift's end on a working day. That is a second session (a return after the shift's end or more than 180 minutes after leaving, §25r), or a person whose shift was wrongly matched. How many such records production holds was not measured.
+
+No migration. Deploy is code only.

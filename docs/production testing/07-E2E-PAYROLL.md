@@ -139,8 +139,9 @@ hour. Pay is one fraction per kind of hour, monthly basic × minutes × multipli
 × 60), rounded once. The working days (22 unless the organisation set its own, PAY-032), 8, the night
 window, the floors and the 240 and 720 limits are statutory parameters (`payroll.working_days_per_month`,
 `payroll.hours_per_day`, `overtime.night_window`, `overtime.minimum_rates`,
-`overtime.legal_daily_minutes`, `overtime.legal_weekly_minutes`). On a normal day only time after the shift ends counts; on a
-rest day or holiday the whole worked window counts. Limits (240 min a day, 720 a week, the
+`overtime.legal_daily_minutes`, `overtime.legal_weekly_minutes`). On a normal day only time after the shift ends counts,
+from the later of the shift's end and the check-in, so a second session from 17:45 to 20:00 on a shift ending 17:30 is
+135 minutes (calculation log 1.11; before it, 150); on a rest day or holiday the whole worked window counts. Limits (240 min a day, 720 a week, the
 organisation's daily cap) **flag** the run; every minute is still paid.
 
 ### 1.4 Calculation order
