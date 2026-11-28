@@ -1,6 +1,6 @@
 # ETHR frontend upgrade plan, 2026-11-28
 
-**Status: approved by the owner on 2026-11-28. Nothing in it is built yet.** Measurements are of `main@843915da5a`. As each slice lands, record it in a status table here, the way `FRONTEND_REDESIGN_PLAN.md` §L does.
+**Status: approved by the owner on 2026-11-28. S0 is done: [`S0-BASELINE-2026-11-28.md`](S0-BASELINE-2026-11-28.md). Nothing else is built yet.** Measurements are of `main@843915da5a`. As each slice lands, record it in a status table here, the way `FRONTEND_REDESIGN_PLAN.md` §L does.
 
 ## At a glance
 
