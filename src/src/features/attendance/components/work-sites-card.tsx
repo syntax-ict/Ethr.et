@@ -39,6 +39,7 @@ import {
 } from "@/features/attendance/api";
 import { branchesApi, departmentsApi } from "@/features/organization/api";
 import { apiErrorMessage } from "@/lib/api/error-message";
+import { HowItWorks } from "@/components/patterns/SettingRow";
 import { useT } from "@/lib/i18n/useT";
 
 interface Draft {
@@ -122,11 +123,14 @@ export function WorkSitesCard() {
             {t("work_sites.title", "Work sites")}
           </CardTitle>
           <p className="mt-1 text-sm text-muted-foreground">
-            {t(
-              "work_sites.description",
-              "Places besides the branch where people may punch. A punch inside a branch or any of its sites counts as on site.",
-            )}
+            {t("work_sites.description", "Other places where staff may punch.")}
           </p>
+          <HowItWorks className="mt-1">
+            {t(
+              "work_sites.details",
+              "A punch inside a branch or any of its sites counts as on site.",
+            )}
+          </HowItWorks>
         </div>
         <Button size="sm" onClick={() => setEditing("new")}>
           <Plus className="mr-1 h-4 w-4" />

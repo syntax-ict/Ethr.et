@@ -185,6 +185,7 @@ const TRANSLATIONS = {
     "settings.landing_field_lang", // ":label (:language)" — a format
     "settings.landing_list_field_lang", // ":label :n (:language)" — a format
     "audit_logs_page.action_placeholder", // employee.created — an action code
+    "common.unit_percent", // % is the same symbol in every language
   ],
   // Oromo is written in the Latin script, so it shares more with English
   // than Amharic does: formats made only of placeholders, and loan words.
@@ -193,6 +194,8 @@ const TRANSLATIONS = {
     "admin_tenant_detail_page.custom_domain_placeholder", // hr.example.com
     "admin_features.changed", // ":when: :reason" — a format
     "admin_sms.test_status", // "HTTP :status"
+    "common.unit_percent", // % is the same symbol in every language
+    "common.unit_m", // m for metre, the SI symbol
     "attendance.source_qr", // QR
     "news.file_meta", // "PDF, :size" — a format naming a file type
     "attendance.kiosks_page.lock_ipad_title", // iPad
@@ -220,6 +223,7 @@ const TRANSLATIONS = {
     "settings.landing_list_field_lang", // ":label :n (:language)" — a format
     "settings.oromo", // Afaan Oromoo: a language is named in its own language
     "audit_logs_page.action_placeholder", // employee.created — an action code
+    "common.unit_percent", // % is the same symbol in every language
     // Plan names are brands: billing and invoices print them as stored.
     "marketing.pricing_page.starter", // Starter
     "marketing.pricing_page.professional", // Professional

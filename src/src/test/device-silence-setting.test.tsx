@@ -60,6 +60,10 @@ describe("<DeviceSilenceSetting>", () => {
     expect(screen.getByLabelText(/No punches after the day began/)).toHaveValue(
       90,
     );
+    // The caveat lives behind "How it works"; open the disclosures to read it.
+    for (const summary of screen.getAllByText("How it works")) {
+      await userEvent.click(summary);
+    }
     expect(screen.getByText(/10 to 20 minutes late/)).toBeVisible();
   });
 

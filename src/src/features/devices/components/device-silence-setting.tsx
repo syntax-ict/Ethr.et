@@ -5,11 +5,11 @@ import { Loader2, Save, WifiOff } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
-import { FormField } from "@/components/patterns/FormField";
+import { SettingRow, HowItWorks } from "@/components/patterns/SettingRow";
+import { InputWithUnit } from "@/components/shared/input-with-unit";
 import { ErrorState } from "@/components/shared/error-state";
 import { useSaveStatus } from "@/components/shared/save-status";
 import { useSettings, useUpdateSettings } from "@/features/settings/api";
@@ -125,9 +125,15 @@ export function DeviceSilenceSetting() {
           <p className="mt-1 text-sm text-muted-foreground">
             {t(
               "device_silence.description",
-              "Tell the tenant and HR admins, at most once a day per terminal, when a terminal that only sends to ETHR goes quiet during working hours.",
+              "Tells admins when a terminal goes quiet during work hours.",
             )}
           </p>
+          <HowItWorks className="mt-1">
+            {t(
+              "device_silence.details",
+              "The organisation's admins and HR admins are told, at most once a day per terminal, when a terminal that only sends to ETHR goes quiet during working hours.",
+            )}
+          </HowItWorks>
         </div>
         {isDirty && !isError && (
           <Button onClick={submit} disabled={save.isPending} size="sm">
@@ -172,58 +178,93 @@ export function DeviceSilenceSetting() {
                 }
               />
             </div>
-            <FormField
+            <SettingRow
               id="device_silence_adms_minutes"
-              label={t(
-                "device_silence.adms_label",
-                "Not connected after (minutes)",
+              title={t("device_silence.adms_label", "Not connected after")}
+              description={t(
+                "device_silence.adms_help",
+                "For terminals that call ETHR all the time.",
               )}
-              hint={t(
-                "device_silence.adms_hint",
-                "For terminals that call ETHR all the time. The scheduler on the hosting can run 10 to 20 minutes late, so a short limit is not exact.",
+              details={t(
+                "device_silence.adms_details",
+                "The scheduler on the hosting can run 10 to 20 minutes late, so a short limit is not exact.",
               )}
-              error={errors.adms}
+              error={
+                errors.adms ? (
+                  <p
+                    id="device_silence_adms_minutes-error"
+                    role="alert"
+                    className="text-caption text-destructive"
+                  >
+                    {errors.adms}
+                  </p>
+                ) : null
+              }
             >
-              <Input
+              <InputWithUnit
+                id="device_silence_adms_minutes"
+                unit={t("common.unit_min", "min")}
                 type="number"
-                inputMode="numeric"
                 min={ADMS_MINUTES.min}
                 max={ADMS_MINUTES.max}
                 value={form.adms}
                 disabled={!form.enabled}
+                aria-invalid={errors.adms ? true : undefined}
+                aria-describedby={
+                  errors.adms ? "device_silence_adms_minutes-error" : undefined
+                }
                 onChange={(e) => {
                   setEdits({ ...form, adms: e.target.value });
                   setErrors((prev) => ({ ...prev, adms: undefined }));
                 }}
-                className="mt-1"
               />
-            </FormField>
-            <FormField
+            </SettingRow>
+            <SettingRow
               id="device_silence_push_grace_minutes"
-              label={t(
+              title={t(
                 "device_silence.push_label",
-                "No punches after the day began (minutes)",
+                "No punches after the day began",
               )}
-              hint={t(
-                "device_silence.push_hint",
-                "For terminals heard only when someone punches. Counted from the start of the default shift, and only where people have badge numbers.",
+              description={t(
+                "device_silence.push_help",
+                "For terminals heard only when someone punches.",
               )}
-              error={errors.push}
+              details={t(
+                "device_silence.push_details",
+                "Counted from the start of the default shift, and only where people have badge numbers.",
+              )}
+              error={
+                errors.push ? (
+                  <p
+                    id="device_silence_push_grace_minutes-error"
+                    role="alert"
+                    className="text-caption text-destructive"
+                  >
+                    {errors.push}
+                  </p>
+                ) : null
+              }
             >
-              <Input
+              <InputWithUnit
+                id="device_silence_push_grace_minutes"
+                unit={t("common.unit_min", "min")}
                 type="number"
-                inputMode="numeric"
                 min={PUSH_GRACE_MINUTES.min}
                 max={PUSH_GRACE_MINUTES.max}
                 value={form.push}
                 disabled={!form.enabled}
+                aria-invalid={errors.push ? true : undefined}
+                aria-describedby={
+                  errors.push
+                    ? "device_silence_push_grace_minutes-error"
+                    : undefined
+                }
                 onChange={(e) => {
                   setEdits({ ...form, push: e.target.value });
                   setErrors((prev) => ({ ...prev, push: undefined }));
                 }}
-                className="mt-1"
               />
-            </FormField>
+            </SettingRow>
           </>
         )}
       </CardContent>

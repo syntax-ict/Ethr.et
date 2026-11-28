@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
+import en from "@/lib/i18n/locales/en.json";
 
 /**
  * Two ratchets from docs/FRONTEND_REDESIGN_PLAN.md (Phase 1, 2026-10-20).
@@ -29,6 +30,12 @@ import { join, relative } from "node:path";
  *    value in the sentence with a placeholder:
  *    `t("x.count", ":count records", { count })`. Accessible names
  *    ("Delete" and a name) are exempt. 60 on 2026-10-22, 0 the same day.
+ * 6. A help line over 120 characters in en.json (a key ending `_desc`, `_help`,
+ *    `_hint`, `description` or `_note`). One line says what happens when the
+ *    setting is on; the law, the limits and the edge cases go in a `_details`
+ *    key, behind SettingRow's "How it works", and `_details` is not counted.
+ *    Public page copy is out of scope. 116 on 2026-11-28 (frontend plan S3),
+ *    96 after /settings/attendance; it must reach 0.
  */
 
 const SRC = join(process.cwd(), "src");
@@ -48,12 +55,29 @@ const GLUED_SENTENCE =
   /(\{[A-Za-z_][\w.?]*\}\s*\{t\(")|(\{t\("[^"]+"[^)]*\)\}\s*\{[A-Za-z_][\w.?]*\})|(\$\{t\([^`]*?\)\}\s+\$\{)|(\$\{[A-Za-z_][\w.]*\}\s+\$\{t\()/;
 const ACCESSIBLE_NAME = /aria-label|placeholder=|sr-only/;
 
+const HELP_KEY = /(_desc|_help|_hint|description|_note)$/;
+const HELP_MAX_LENGTH = 120;
+// Public copy, not settings help: a page's own wording, not a line under a row.
+const NOT_APPLICATION_HELP = [
+  "marketing",
+  "site_content",
+  "landing",
+  "legal",
+  "news",
+  "api_reference",
+  "pricing",
+  "faq",
+  "features_page",
+  "solutions",
+];
+
 const CEILINGS = {
   sub12pxText: 82,
   nativeConfirm: 0,
   discardedErrors: 0,
   silentLoadFailures: 0,
   gluedSentences: 0,
+  helpTextLength: 96,
 };
 
 function walk(dir: string): string[] {
@@ -161,5 +185,21 @@ describe("design ratchets", () => {
       total,
       `A value glued to a translated word fixes English word order in every language. Use one key with a placeholder: t("x.count", ":count records", { count }). Files:\n${byFile.join("\n")}`,
     ).toBeLessThanOrEqual(CEILINGS.gluedSentences);
+  });
+
+  it(`has no more than ${CEILINGS.helpTextLength} help lines over ${HELP_MAX_LENGTH} characters`, () => {
+    const long = Object.entries(en as Record<string, string>)
+      .filter(
+        ([key, value]) =>
+          HELP_KEY.test(key) &&
+          !NOT_APPLICATION_HELP.some((prefix) => key.startsWith(prefix)) &&
+          value.length > HELP_MAX_LENGTH,
+      )
+      .map(([key, value]) => `${key}: ${value.length}`)
+      .sort();
+    expect(
+      long.length,
+      `Help text over ${HELP_MAX_LENGTH} characters grew past the ceiling of ${CEILINGS.helpTextLength}. Keep one line in the _help key and move the law, the limits and the edge cases to a _details key, shown behind SettingRow's "How it works". Keys:\n${long.join("\n")}`,
+    ).toBeLessThanOrEqual(CEILINGS.helpTextLength);
   });
 });

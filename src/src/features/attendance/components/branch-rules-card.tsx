@@ -32,6 +32,7 @@ import {
   type BranchOverrides,
 } from "@/features/attendance/api";
 import { apiErrorMessage } from "@/lib/api/error-message";
+import { HowItWorks } from "@/components/patterns/SettingRow";
 import { useT } from "@/lib/i18n/useT";
 
 type Rules = BranchAttendanceRow["effective"];
@@ -106,9 +107,15 @@ export function BranchRulesCard() {
         <p className="text-sm text-muted-foreground">
           {t(
             "branch_rules.description",
-            "A branch follows the organisation's rules unless you change one here. Retention, confidence and overtime rules stay the same everywhere.",
+            "A branch follows these rules unless you change them.",
           )}
         </p>
+        <HowItWorks>
+          {t(
+            "branch_rules.details",
+            "Retention, confidence and overtime stay the same everywhere.",
+          )}
+        </HowItWorks>
       </CardHeader>
       <CardContent>
         {isError ? (
