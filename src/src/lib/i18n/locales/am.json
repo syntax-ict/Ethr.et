@@ -1479,7 +1479,7 @@
   "attendance.settings_page.kiosk": "ኪዮስክ",
   "attendance.settings_page.kiosk_sound": "የኪዮስክ ድምፅ",
   "attendance.settings_page.kiosk_sound_details": "የንግግር መልእክቱ የኪዮስኩን ቋንቋ ይከተላል፤ ለዚያ ቋንቋ ድምፅ የሌለው ታብሌት በምትኩ የድምፅ ምልክት ያሰማል።",
-  "attendance.settings_page.kiosk_sound_help": "ሰውየው ዞር ካለ በኋላም እያንዳንዱን ምዝገባ ያረጋግጣል።",
+  "attendance.settings_page.kiosk_sound_help": "ዞር ያለ ሰው ምዝገባው መሳካቱን ወይም አለመሳካቱን እንዲያውቅ ያደርጋል።",
   "attendance.settings_page.kiosk_sound_off": "ጠፍቷል",
   "attendance.settings_page.kiosk_sound_tones": "የድምፅ ምልክት",
   "attendance.settings_page.kiosk_sound_voice": "የንግግር መልእክት",

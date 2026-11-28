@@ -761,7 +761,7 @@ export default function AttendanceSettingsPage() {
                 title={t("attendance.settings_page.kiosk_sound", "Kiosk sound")}
                 description={t(
                   "attendance.settings_page.kiosk_sound_help",
-                  "Confirms each punch, even after the person turns away.",
+                  "Tells a person who turned away whether the punch worked.",
                 )}
                 details={t(
                   "attendance.settings_page.kiosk_sound_details",

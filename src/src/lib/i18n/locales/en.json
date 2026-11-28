@@ -1479,7 +1479,7 @@
   "attendance.settings_page.kiosk": "Kiosk",
   "attendance.settings_page.kiosk_sound": "Kiosk sound",
   "attendance.settings_page.kiosk_sound_details": "Spoken words follow the kiosk's language; a tablet with no voice for that language plays tones instead.",
-  "attendance.settings_page.kiosk_sound_help": "Confirms each punch, even after the person turns away.",
+  "attendance.settings_page.kiosk_sound_help": "Tells a person who turned away whether the punch worked.",
   "attendance.settings_page.kiosk_sound_off": "Off",
   "attendance.settings_page.kiosk_sound_tones": "Tones",
   "attendance.settings_page.kiosk_sound_voice": "Spoken words",
