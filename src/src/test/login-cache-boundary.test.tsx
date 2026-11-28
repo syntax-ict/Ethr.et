@@ -31,6 +31,7 @@ vi.mock("next/navigation", () => ({
  * cache held before, it is empty once authentication succeeds.
  */
 const originalLocation = window.location;
+const originalCaches = globalThis.caches;
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -67,6 +68,11 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  Object.defineProperty(globalThis, "caches", {
+    value: originalCaches,
+    configurable: true,
+    writable: true,
+  });
   Object.defineProperty(window, "location", {
     configurable: true,
     writable: true,
@@ -116,5 +122,54 @@ describe("the login cache boundary", () => {
     // on the next screen, which is the whole problem.
     expect(client.getQueryData(["auth", "me"])).toBeUndefined();
     expect(client.getQueryData(["employees", { page: 1 }])).toBeUndefined();
+  });
+
+  it("clears what the last session kept on the device before it navigates", async () => {
+    localStorage.setItem("impersonating", "true");
+    localStorage.setItem("original_tenant", "platform");
+    localStorage.setItem("ethr.search.recent.U1", '[{"title":"Abebe Bekele"}]');
+    const cachesDeleted: string[] = [];
+    Object.defineProperty(globalThis, "caches", {
+      value: {
+        keys: async () => ["ethr-v6-api", "ethr-v6-static"],
+        delete: async (key: string) => {
+          cachesDeleted.push(key);
+          return true;
+        },
+      },
+      configurable: true,
+      writable: true,
+    });
+
+    // What was on the device at the moment the form moved on.
+    let atNavigation: Record<string, string | null> = {};
+    push.mockImplementation(() => {
+      atNavigation = {
+        impersonating: localStorage.getItem("impersonating"),
+        recent: localStorage.getItem("ethr.search.recent.U1"),
+        api: cachesDeleted.join(","),
+      };
+    });
+
+    const { container } = render(
+      <QueryClientProvider client={new QueryClient()}>
+        <LoginForm />
+      </QueryClientProvider>,
+    );
+    const email = container.querySelector("#identifier") as HTMLInputElement;
+    const password = container.querySelector("#password") as HTMLInputElement;
+    await waitFor(() => expect(email).toBeInTheDocument());
+
+    fireEvent.change(email, { target: { value: "new.user@acme.et" } });
+    fireEvent.change(password, { target: { value: "correct-horse" } });
+    fireEvent.submit(container.querySelector("form") as HTMLFormElement);
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/dashboard"));
+
+    expect(atNavigation).toEqual({
+      impersonating: null,
+      recent: null,
+      api: "ethr-v6-api",
+    });
   });
 });

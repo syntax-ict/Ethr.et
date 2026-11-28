@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { server } from "./msw/server";
 import { SsoReturn } from "@/app/(auth)/login/sso/sso-return";
@@ -12,7 +13,11 @@ vi.mock("next/navigation", () => ({
 
 function landAt(query: string) {
   window.history.replaceState({}, "", `/login/sso?${query}`);
-  return render(<SsoReturn />);
+  return render(
+    <QueryClientProvider client={new QueryClient()}>
+      <SsoReturn />
+    </QueryClientProvider>,
+  );
 }
 
 function serveMe(status: number) {

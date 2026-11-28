@@ -29,6 +29,7 @@ import { initiateSso, login, prepareCsrfCookie } from "@/features/auth/sign-in";
 import { PASSWORD_CHANGE_PATH } from "@/api/client";
 import { InstallAppBanner } from "@/components/shared/install-app";
 import { useT } from "@/lib/i18n/useT";
+import { clearSessionData } from "@/lib/session-cleanup";
 import { useHydrated } from "@/lib/hooks/useHydrated";
 import { useAuthHostContext } from "@/lib/auth/use-auth-host-context";
 import { TenantLookupErrorState } from "@/components/shared/tenant-lookup-error-state";
@@ -228,6 +229,11 @@ export function LoginForm() {
         tenant: effectiveTenant,
       });
 
+      // A new session starts here, so what the last one left on this device
+      // goes first: the stored API answers are keyed by address, not by
+      // organisation. Before the tenant is written below, which this leaves be.
+      await clearSessionData(queryClient);
+
       // A super admin signs in without one; storing "" would then be sent as
       // an X-Tenant header on every later request and resolve to nothing.
       if (effectiveTenant !== "") {
@@ -249,8 +255,8 @@ export function LoginForm() {
       // to /dashboard with `router.push` would then hand the next person whatever
       // the previous one had cached, including across tenants.
       //
-      // Authenticating starts a new session, so it starts a new cache.
-      queryClient.clear();
+      // Authenticating starts a new session, so it starts a new cache
+      // (cleared above, with everything else the last session left).
       // A starting password opens one screen only; going there directly saves
       // a dashboard load the API would refuse.
       router.push(

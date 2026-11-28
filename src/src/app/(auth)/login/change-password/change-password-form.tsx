@@ -17,6 +17,9 @@ import { useAuthHostContext } from "@/lib/auth/use-auth-host-context";
 import { useT } from "@/lib/i18n/useT";
 import { useHydrated } from "@/lib/hooks/useHydrated";
 import { EthrSymbol } from "@/components/shared/ethr-logo";
+import { readOfflineIdentity } from "@/features/auth/offline-identity";
+import { clearOfflineOnSignOut } from "@/lib/offline-signout";
+import { clearSessionData } from "@/lib/session-cleanup";
 
 const changeSchema = z
   .object({
@@ -80,13 +83,21 @@ export function ChangePasswordForm() {
 
   async function signOut() {
     setLeaving(true);
+    // Read before the identity goes: it names who is leaving.
+    let departing: string | null = null;
+    try {
+      departing = readOfflineIdentity()?.user?.employee_public_id ?? null;
+    } catch {
+      // Signing out goes ahead regardless.
+    }
     try {
       await apiClient.post("/auth/logout");
     } catch {
       // Leaving is a decision about this device; the request only asks the
       // server to end the session as well.
     }
-    queryClient.clear();
+    await clearSessionData(queryClient);
+    await clearOfflineOnSignOut(departing);
     window.location.assign("/login");
   }
 
