@@ -23,7 +23,7 @@ All times below are wall-clock times in the organisation's zone unless a row say
 | AR-CLOCK-01 | Punch times are stored in UTC and rated in the organisation's zone, `Africa/Addis_Ababa` unless the organisation set another. 09:00 in Addis is 06:00 UTC. | 05 ground rules | Decided |
 | AR-CLOCK-02 | A record's date is the work date in the organisation's zone, never the UTC date. A punch at 01:30 is dated that local day. | 05 ATT-008 | Decided |
 | AR-CLOCK-03 | The Ethiopian clock and calendar change what a reader sees and types, never what is stored or rated. 08:40 reads 2:40 and 17:35 reads 11:35. | 05 ATT-014 | Decided |
-| AR-CLOCK-04 | Every count of minutes is a whole number, cut down, never rounded: 16 minutes 59 seconds is 16. No punch time is rounded to a quarter hour or any other step. | `api/app/Models/AttendanceRecord.php` `workedMinutes()` | Implemented |
+| AR-CLOCK-04 | Every count of minutes is a whole number, cut down, never rounded: 16 minutes 59 seconds is 16. The difference between two moments is cut down, not each moment first: 08:30:40 to 17:30:20 is 8 hours 59 minutes 40 seconds, so 539 minutes. No punch time is rounded to a quarter hour or any other step. | `api/app/Models/AttendanceRecord.php` `workedMinutes()` | Implemented |
 | AR-CLOCK-05 | A terminal's time with no zone offset is read in the terminal's own zone, or the organisation's when the terminal has none. A punch more than 10 minutes ahead of the server is refused as `clock_ahead`. | BASE 25y | Decided |
 
 ## 2. Which shift rates the day
@@ -53,7 +53,7 @@ All times below are wall-clock times in the organisation's zone unless a row say
 
 | Id | Rule | Source | State |
 |---|---|---|---|
-| AR-MIN-01 | Late minutes count from shift start, not from the end of grace, and only on a late day. 08:46 on an 08:30 shift is 16. | 05 ATT-002; 07 LATE-004 | Decided |
+| AR-MIN-01 | Late minutes count from shift start, not from the end of grace, and only on a late day. 08:46 on an 08:30 shift is 16, and so is 08:46:59 (AR-CLOCK-04). | 05 ATT-002; 07 LATE-004 | Decided |
 | AR-MIN-02 | Early minutes count from the check-out to shift end, only when the check-out is early by AR-STATUS-03. 17:10 against 17:30 is 20. | 05 ATT-005; 07 LATE-004 | Decided |
 | AR-MIN-03 | A late day that also ends early missed late plus early minutes: 08:46 to 17:10 is 16 + 20 = 36. | 07 LATE-004 | Decided |
 | AR-MIN-04 | Worked minutes are check-out minus check-in, minus the shift's fixed `break_minutes` once, never below zero. The break actually taken is stored and is not what is subtracted. 08:50 to 17:00 with a 60 minute break is 430. | 05 PUNCH-011; PIPE "A break inside the day" | Decided |
@@ -111,9 +111,11 @@ All times below are wall-clock times in the organisation's zone unless a row say
 
 | Id | Rule | Source | State |
 |---|---|---|---|
-| AR-OT-01 | On a working day, overtime is the time from the shift's end to the check-out. 08:40 to 19:00 on a shift ending 17:30 is 90 minutes. | 07 section 1.3, PAY-031 | Decided |
+| AR-OT-01 | On a working day, overtime is the time worked after the shift's end: from the later of the shift's end and the check-in, to the check-out. 08:40 to 19:00 on a shift ending 17:30 is 90 minutes. A record checked in at 17:45 and out at 20:00 on that shift is 135, not 150: the quarter hour before the check-in was not worked. Each record counts its own; a day with two records adds them. | 07 section 1.3 ("only time after the shift ends counts"), PAY-031 | Decided |
 | AR-OT-02 | On a rest day or a public holiday, the whole span from check-in to check-out is overtime, with no break subtracted. | 07 section 1.3 | Decided |
-| AR-OT-03 | The night window is 22:00 to 06:00. Minutes inside it are night minutes; a holiday's are holiday night minutes. | STAT `overtime.night_window` | Decided |
+| AR-OT-03 | The night window runs from 22:00 up to, not including, 06:00: the minute 22:00 to 22:01 is night and the minute 06:00 to 06:01 is not. It applies on every calendar day an overtime span touches. On a working day, minutes inside it are night minutes and the rest are normal; on a holiday they are holiday night minutes and the rest are holiday minutes. | STAT `overtime.night_window` | Decided |
+| AR-OT-11 | Overtime on a day takes the day's class (AR-ABS-01): a holiday that falls on a rest day is paid as a holiday. | AR-ABS-01, 07 section 1.3 | Decided |
+| AR-OT-12 | On a rest day every minute is rest day overtime, the night window included: there is no rest day night rate, and the rest day rate (2.0) is above the night rate (1.75). | 07 section 1.3 (the table has no rest day night row) | Implemented |
 | AR-OT-04 | Multipliers are never below normal 1.5, night 1.75, rest day 2.0, holiday 2.5, holiday night 2.5. An organisation may set higher ones. | STAT `overtime.minimum_rates` | Decided |
 | AR-OT-05 | Hourly rate is the contract's monthly basic, before proration and deductions, divided by working days in the month (22 unless set, 20 to 31) times 8. Pay per kind is basic times minutes times multiplier, divided by working days times 480, rounded once. Basic 8,800 gives 50.00 an hour; two normal hours pay 150.00, night 175.00, rest day 200.00, holiday 250.00. | 07 section 1.3 | Decided |
 | AR-OT-06 | The limits (240 minutes a day, 720 a week, the organisation's daily cap) flag a run. Every minute is still paid, approved or not. | 07 section 1.3, PAY-029 | Decided |

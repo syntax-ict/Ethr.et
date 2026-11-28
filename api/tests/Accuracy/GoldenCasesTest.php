@@ -69,19 +69,16 @@ function accuracyFindings(): array
 }
 
 /**
- * The shifts a case may name. S1 and S2 are the two the brief and the QA pack
- * use; S3 is a plain 08:00 to 17:00 day.
+ * A shift a case may name, from fixtures/shifts.php, which the oracle reads
+ * too.
  *
  * @return array<string, mixed>
  */
 function accuracyShift(string $name): array
 {
-    return match ($name) {
-        'S1' => ['name' => 'S1', 'start_time' => '08:30', 'end_time' => '17:30', 'crosses_midnight' => false, 'grace_minutes' => 15, 'early_departure_minutes' => 15, 'break_minutes' => 60, 'working_days' => '1,2,3,4,5'],
-        'S2' => ['name' => 'S2', 'start_time' => '22:00', 'end_time' => '06:00', 'crosses_midnight' => true, 'grace_minutes' => 15, 'early_departure_minutes' => 15, 'break_minutes' => 60, 'working_days' => '1,2,3,4,5,6,7'],
-        'S3' => ['name' => 'S3', 'start_time' => '08:00', 'end_time' => '17:00', 'crosses_midnight' => false, 'grace_minutes' => 15, 'early_departure_minutes' => 15, 'break_minutes' => 60, 'working_days' => '1,2,3,4,5'],
-        default => throw new InvalidArgumentException("Unknown shift {$name}"),
-    };
+    $shifts = require __DIR__.'/fixtures/shifts.php';
+
+    return $shifts[$name] ?? throw new InvalidArgumentException("Unknown shift {$name}");
 }
 
 /**
