@@ -15,6 +15,7 @@ final class PayrollReadings
     {
         return [
             ['PYR-PAG-06', new self(['pagume_only_period_pays_zero' => true])],
+            ['PYR-PRO-05', new self(['termination_before_start_pays_nothing' => true])],
             ['PYR-PAG-05', new self(['pagume_after_proration' => true])],
             ['PYR-LATE-06', new self(['ceiling_base' => 'prorated_basic'])],
             ['PYR-LATE-06', new self(['ceiling_base' => 'monthly_basic'])],

@@ -17,7 +17,7 @@ final class PayslipCalculator
         'PYR-PER-01' => 'I', 'PYR-PER-03' => 'D', 'PYR-PER-06' => 'I',
         'PYR-SAL-01' => 'I', 'PYR-SAL-02' => 'D', 'PYR-SAL-03' => 'I', 'PYR-SAL-04' => 'D', 'PYR-SAL-05' => 'D',
         'PYR-SAL-06' => 'I', 'PYR-SAL-07' => 'I',
-        'PYR-PRO-01' => 'D', 'PYR-PRO-02' => 'D', 'PYR-PRO-03' => 'I', 'PYR-PRO-04' => 'I',
+        'PYR-PRO-01' => 'D', 'PYR-LOAN-06' => 'I', 'PYR-SAL-08' => 'I', 'PYR-PRO-02' => 'D', 'PYR-PRO-03' => 'I', 'PYR-PRO-04' => 'I',
         'PYR-PAG-01' => 'I', 'PYR-PAG-02' => 'I', 'PYR-PAG-03' => 'I', 'PYR-PAG-04' => 'I',
         'PYR-RATE-01' => 'I', 'PYR-LEAVE-01' => 'D', 'PYR-LEAVE-02' => 'I', 'PYR-LEAVE-03' => 'I',
         'PYR-LEAVE-05' => 'I', 'PYR-LEAVE-06' => 'I',
@@ -283,9 +283,12 @@ final class PayslipCalculator
         $hire = Dates::date($e['hire_date']);
         $term = $e['termination_date'] ?? null;
         $first = strcmp($hire, $ctx['start']) > 0 ? $hire : $ctx['start'];
-        $last = ($term !== null && strcmp($term, $ctx['end']) < 0) ? $term : $ctx['end'];
+        $last = ($term !== null && strcmp($term, $ctx['start']) >= 0 && strcmp($term, $ctx['end']) < 0) ? $term : $ctx['end'];
         $de = strcmp($first, $last) > 0 ? 0 : self::countDays($first, $last);
-        self::mark($t, 'PYR-PRO-01', 'PYR-PRO-03', 'PYR-PRO-04', 'PYR-PRO-02', 'PYR-PAG-01', 'PYR-PAG-02');
+        if ($r->flag('termination_before_start_pays_nothing') === true && $term !== null && strcmp($term, $ctx['start']) < 0) {
+            $de = 0;
+        }
+        self::mark($t, 'PYR-PRO-01', 'PYR-PRO-03', 'PYR-PRO-04', 'PYR-PRO-02', 'PYR-LOAN-06', 'PYR-SAL-08', 'PYR-PAG-01', 'PYR-PAG-02');
 
         // The Pagume step (PYR-PAG-02, -03, -04, -06).
         $O = $days - $P;
@@ -522,7 +525,7 @@ final class PayslipCalculator
         $out['net'] = $net;
         foreach ($e['loans'] ?? [] as $key => $loan) {
             $active = ($loan['status'] ?? 'active') === 'active';
-            $rem = max(0, (int) $loan['remaining_cents'] - $loanDed[$key]);
+            $rem = $active ? max(0, (int) $loan['remaining_cents'] - $loanDed[$key]) : (int) $loan['remaining_cents'];
             if (! $ctx['approve']) {
                 $out['loan.'.$key.'.remaining_after_approval'] = new NoOpinion('not an approved run');
                 $out['loan.'.$key.'.closed_after_approval'] = new NoOpinion('not an approved run');
@@ -530,7 +533,7 @@ final class PayslipCalculator
                 $out['loan.'.$key.'.remaining_after_approval'] = $rem;
                 $out['loan.'.$key.'.closed_after_approval'] = $active
                     ? ($rem === 0 ? 1 : 0)
-                    : new NoOpinion('the register does not say what approval does to a loan that is not active');
+                    : 0;
             }
         }
         $out['cost_sharing_outstanding_after_approval'] = $csAfterApproval;

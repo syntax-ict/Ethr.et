@@ -73,6 +73,10 @@ $boundary = static fn (): array => [
         $build(['employees' => ['E' => ['salary_cents' => 1000000, 'domestic_worker' => true]]]),
         'E', 'employee_pension', ['PYR-PEN-14'], 70000,
     ],
+    'PYR-PRO-05 termination before the period start' => [
+        $build(['employees' => ['E' => ['salary_cents' => 930000, 'termination_date' => '2026-09-20']]]),
+        'E', 'days_employed', ['PYR-PRO-05'], 31,
+    ],
     'PYR-BANK after_approval.delete' => [
         $build(['run' => 'approve', 'after_approval' => ['delete' => ['E']]]),
         'run', 'bank.total', $bank, 683400,
@@ -116,6 +120,10 @@ $control = static fn (): array => [
     'PYR-PEN-14 not a domestic worker' => [
         $build(['employees' => ['E' => ['salary_cents' => 1000000, 'domestic_worker' => false]]]),
         'E', 'employee_pension', 70000,
+    ],
+    'PYR-PRO-05 termination on the period start' => [
+        $build(['employees' => ['E' => ['salary_cents' => 930000, 'termination_date' => '2026-10-01']]]),
+        'E', 'days_employed', 1,
     ],
     'PYR-BANK nobody deleted' => [
         $build(['run' => 'approve']),
