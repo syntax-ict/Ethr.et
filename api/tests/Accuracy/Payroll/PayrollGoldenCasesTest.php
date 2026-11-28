@@ -32,6 +32,10 @@ it('pays what the hand values say', function (array $case): void {
         test()->markTestSkipped("{$id}: rule undecided ({$rules}), the register has no answer to assert");
     }
 
+    if (isset(PayrollCases::notCoverable()[$id])) {
+        test()->markTestSkipped("{$id}: NOT COVERABLE by the fixture: ".PayrollCases::notCoverable()[$id]);
+    }
+
     try {
         $built = PayrollFixture::build($case);
         $read = EngineReader::read($case, $built);
@@ -71,5 +75,5 @@ it('lists no engine finding for a case that does not exist', function (): void {
 
     $known = array_column(PayrollCases::raw(), 'id');
 
-    expect(array_diff(array_keys(PayrollCases::findings()), $known))->toBe([]);
+    expect(array_diff([...array_keys(PayrollCases::findings()), ...array_keys(PayrollCases::notCoverable())], $known))->toBe([]);
 });

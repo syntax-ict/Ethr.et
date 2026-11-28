@@ -108,6 +108,12 @@ final class PayrollCases
         return require __DIR__.'/findings.php';
     }
 
+    /** @return array<string, string> case id => why the fixture cannot build it */
+    public static function notCoverable(): array
+    {
+        return require __DIR__.'/not-coverable.php';
+    }
+
     /** @return array<string, string> case id => what the oracle answered */
     public static function oracleFindings(): array
     {
