@@ -1,6 +1,6 @@
 # What the browser keeps: frontend data exposure, 2026-11-28
 
-Slice SP of [`FRONTEND-UPGRADE-PLAN-2026-11-28.md`](FRONTEND-UPGRADE-PLAN-2026-11-28.md). It is a read of `src/` at `main@190fa0fd46`.
+Slice SP of the frontend upgrade plan (`docs/audit/frontend/FRONTEND-UPGRADE-PLAN-2026-11-28.md`). It is a read of `src/` at `main@190fa0fd46`.
 
 Authorisation is the server's job and is out of scope. This report asks a different question: **once the server has answered, what stays on the device, and who else can read it?** That covers storage, logs, URLs and memory.
 
