@@ -60,14 +60,31 @@ final class OracleComparer
         return $result;
     }
 
-    /** The oracle always answers `H:i:s`; a hand value of `H:i` is compared at that precision. */
+    /**
+     * The oracle answers `Y-m-d H:i:s`. A hand value of `H:i` or `H:i:s` is
+     * compared with the time part; one that carries a date, with the whole.
+     */
     private static function clock(mixed $hand, mixed $mine): mixed
     {
-        if (is_string($hand) && strlen($hand) === 5 && is_string($mine) && str_ends_with($mine, ':00')) {
-            return substr($mine, 0, 5);
+        if ($mine instanceof Undecided) {
+            return new Undecided(
+                $mine->rules,
+                self::clock($hand, $mine->literal),
+                array_map(static fn (mixed $v): mixed => self::clock($hand, $v), $mine->values),
+            );
+        }
+        if (! is_string($hand) || ! is_string($mine)) {
+            return $mine;
         }
 
-        return $mine;
+        $withDate = (bool) preg_match('/^\d{4}-\d{2}-\d{2} /', $hand);
+        $shown = $withDate ? $mine : substr($mine, 11);
+        $length = strlen($hand);
+        if (($length === 5 || $length === 16) && str_ends_with($shown, ':00')) {
+            return substr($shown, 0, -3);
+        }
+
+        return $shown;
     }
 
     /** @param array<string, mixed> $result */
@@ -85,6 +102,10 @@ final class OracleComparer
                 'rule' => $mine->label(),
                 'literal_agrees' => $mine->literal !== null && ! $mine->literal instanceof NoOpinion && $mine->literal === $hand,
             ];
+            // Undecided is no licence for any value: the hand value must be one a reading gives.
+            if (! in_array($hand, $mine->values, true)) {
+                $result['mismatches'][] = sprintf('%s expected %s, which no reading of %s gives (%s)', $field, self::show($hand), $mine->label(), self::show($mine->values));
+            }
 
             return;
         }
