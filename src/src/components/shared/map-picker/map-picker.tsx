@@ -70,6 +70,24 @@ export function MapPicker({
   const [searching, setSearching] = useState(false);
   const [locating, setLocating] = useState(false);
   const [note, setNote] = useState<string | null>(null);
+  // The radius is edited as text and clamped when the field is left; clamping
+  // on every keystroke turned a typed "50" into 10 and then 100.
+  const [radiusText, setRadiusText] = useState(String(value.radius));
+  const [radiusFocused, setRadiusFocused] = useState(false);
+  const [prevRadius, setPrevRadius] = useState(value.radius);
+  if (value.radius !== prevRadius) {
+    setPrevRadius(value.radius);
+    if (!radiusFocused) setRadiusText(String(value.radius));
+  }
+
+  function commitRadius() {
+    const clamped = Math.min(
+      maxRadius,
+      Math.max(minRadius, Number(radiusText) || minRadius),
+    );
+    setRadiusText(String(clamped));
+    if (clamped !== value.radius) onChange({ ...value, radius: clamped });
+  }
 
   const point: LatLng | null =
     value.latitude !== null && value.longitude !== null
@@ -362,16 +380,19 @@ export function MapPicker({
             type="number"
             min={minRadius}
             max={maxRadius}
-            value={value.radius}
-            onChange={(e) =>
-              onChange({
-                ...value,
-                radius: Math.min(
-                  maxRadius,
-                  Math.max(minRadius, Number(e.target.value) || minRadius),
-                ),
-              })
-            }
+            value={radiusText}
+            onChange={(e) => setRadiusText(e.target.value)}
+            onFocus={() => setRadiusFocused(true)}
+            onBlur={() => {
+              setRadiusFocused(false);
+              commitRadius();
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                commitRadius();
+              }
+            }}
           />
         </div>
       </div>

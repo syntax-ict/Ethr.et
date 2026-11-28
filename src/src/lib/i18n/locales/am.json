@@ -575,6 +575,7 @@
   "admin_tenant_detail_page.mfa_off": "ጠፍቷል",
   "admin_tenant_detail_page.last_sign_in": "የመጨረሻ መግቢያ",
   "admin_tenant_detail_page.privileged_actions": "የቅርብ ጊዜ ልዩ ፈቃድ ድርጊቶች",
+  "attendance.import_page.choose_file": "ፋይል ይምረጡ",
   "attendance.presence.failed": "መልስዎ አልተላከም። እንደገና ይሞክሩ።",
   "attendance.presence.find_location": "አካባቢዬን ፈልግ",
   "attendance.presence.i_am_here": "እዚህ ነኝ",

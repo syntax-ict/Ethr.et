@@ -56,9 +56,9 @@ describe("MFA challenge page", () => {
     );
 
     const { container } = renderPage();
-    const boxes = container.querySelectorAll('input[inputmode="numeric"]');
+    const field = container.querySelector("#mfa-code") as HTMLInputElement;
 
-    fireEvent.paste(boxes[0], {
+    fireEvent.paste(field, {
       clipboardData: { getData: () => "123456" },
     });
 
@@ -73,15 +73,19 @@ describe("MFA challenge page", () => {
     );
 
     const { container } = renderPage();
-    const boxes = () =>
-      container.querySelectorAll('input[inputmode="numeric"]');
+    const field = () =>
+      container.querySelector("#mfa-code") as HTMLInputElement;
 
-    "111111".split("").forEach((d, i) => {
-      fireEvent.change(boxes()[i], { target: { value: d } });
+    // One digit per change event. The field reads a jump of more than one
+    // digit as an autofill and submits by itself after a short delay, and this
+    // test is about typing the code and then pressing Verify: the two together
+    // verified twice, and the second landed after the test had finished.
+    "111111".split("").forEach((_, i) => {
+      fireEvent.change(field(), { target: { value: "1".repeat(i + 1) } });
     });
     fireEvent.click(screen.getByRole("button", { name: /verify/i }));
 
     expect(await screen.findByText("Invalid code.")).toBeInTheDocument();
-    boxes().forEach((box) => expect(box).toHaveValue(""));
+    expect(field()).toHaveValue("");
   });
 });

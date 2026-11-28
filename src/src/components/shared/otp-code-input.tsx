@@ -1,25 +1,40 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { cn } from "@/lib/utils";
 
 /**
- * A row of single-digit boxes for entering a numeric verification code.
+ * A numeric verification-code field: ONE real input, drawn as a row of cells.
  *
- * Extracted from the MFA challenge page when the OTP sign-in flow needed the
- * identical widget — same keyboard navigation, same "paste the whole code"
- * shortcut. Typing the last digit does not auto-submit (a mistyped digit should
- * be correctable before anything is sent); pasting a full-length code does, via
- * `onPasteComplete`, since a paste is either the whole code or nothing useful.
+ * It was six one-character inputs, which meant SMS and email autofill (which
+ * writes the whole code into the single field flagged `one-time-code`) and a
+ * paste anywhere but the first box delivered one digit and lost the rest. A
+ * single input takes both. The cells are an `aria-hidden` mirror of what was
+ * typed, so the control is one labelled field for a screen reader.
+ *
+ * Typing the last digit does not auto-submit (a mistyped digit should be
+ * correctable before anything is sent); a paste or autofill that supplies the
+ * whole code does, via `onPasteComplete`, since that is either the whole code
+ * or nothing useful.
  */
 interface OtpCodeInputProps {
   length?: number;
   digits: string[];
   onChange: (digits: string[]) => void;
-  /** Fired once, with the joined code, when a paste fills every box. */
+  /** Fired once, with the joined code, when a paste or autofill fills every cell. */
   onPasteComplete?: (code: string) => void;
   disabled?: boolean;
-  /** Focus the first box once, when the widget first becomes interactive. */
+  /** Focus the field once, when the widget first becomes interactive. */
   autoFocus?: boolean;
+  /** Point a `<Label htmlFor>` at this id so the field has an accessible name. */
+  id?: string;
+  name?: string;
+  "aria-label"?: string;
+  "aria-labelledby"?: string;
+}
+
+function toDigits(code: string, length: number): string[] {
+  return Array.from({ length }, (_, i) => code[i] ?? "");
 }
 
 export function OtpCodeInput({
@@ -29,75 +44,74 @@ export function OtpCodeInput({
   onPasteComplete,
   disabled,
   autoFocus,
+  id,
+  name,
+  "aria-label": ariaLabel,
+  "aria-labelledby": ariaLabelledBy,
 }: OtpCodeInputProps) {
-  const inputsRef = useRef<Array<HTMLInputElement | null>>([]);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [focused, setFocused] = useState(false);
+  const code = digits.join("").slice(0, length);
 
   useEffect(() => {
-    if (autoFocus) inputsRef.current[0]?.focus();
+    if (autoFocus) inputRef.current?.focus();
     // Intentionally empty deps: this is "on mount", not "whenever autoFocus
     // changes" — a caller flipping autoFocus later should not steal focus back.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function setDigit(i: number, value: string) {
-    const clean = value.replace(/\D/g, "").slice(0, 1);
-    const next = [...digits];
-    next[i] = clean;
-    onChange(next);
-    if (clean && i < length - 1) inputsRef.current[i + 1]?.focus();
+  function commit(raw: string, whole: boolean) {
+    const next = raw.replace(/\D/g, "").slice(0, length);
+    onChange(toDigits(next, length));
+    if (whole && next.length === length) onPasteComplete?.(next);
   }
 
-  function handleKeyDown(i: number, e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === "Backspace" && !digits[i] && i > 0) {
-      inputsRef.current[i - 1]?.focus();
-    } else if (e.key === "ArrowLeft" && i > 0) {
-      inputsRef.current[i - 1]?.focus();
-    } else if (e.key === "ArrowRight" && i < length - 1) {
-      inputsRef.current[i + 1]?.focus();
-    }
-  }
-
-  function handlePaste(e: React.ClipboardEvent<HTMLInputElement>) {
-    e.preventDefault();
-    const pasted = e.clipboardData
-      .getData("text")
-      .replace(/\D/g, "")
-      .slice(0, length);
-    if (pasted.length === 0) return;
-
-    const next = Array(length).fill("");
-    for (let i = 0; i < pasted.length; i++) next[i] = pasted[i];
-    onChange(next);
-
-    const focusIdx = Math.min(pasted.length, length - 1);
-    inputsRef.current[focusIdx]?.focus();
-
-    if (pasted.length === length) {
-      onPasteComplete?.(pasted);
-    }
-  }
+  const activeCell = Math.min(code.length, length - 1);
 
   return (
-    <div className="flex justify-center gap-2">
-      {digits.map((digit, i) => (
-        <input
+    <div className="relative mx-auto flex w-fit justify-center gap-2">
+      {Array.from({ length }, (_, i) => (
+        <div
           key={i}
-          ref={(el) => {
-            inputsRef.current[i] = el;
-          }}
-          type="text"
-          inputMode="numeric"
-          pattern="\d*"
-          maxLength={1}
-          value={digit}
-          onChange={(e) => setDigit(i, e.target.value)}
-          onKeyDown={(e) => handleKeyDown(i, e)}
-          onPaste={i === 0 ? handlePaste : undefined}
-          disabled={disabled}
-          className="h-12 w-10 rounded-md border border-input bg-background text-center text-xl font-mono ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
-          autoComplete={i === 0 ? "one-time-code" : "off"}
-        />
+          aria-hidden="true"
+          className={cn(
+            "flex h-12 w-10 items-center justify-center rounded-md border border-input bg-background font-mono text-xl",
+            disabled && "opacity-50",
+            focused && i === activeCell && "ring-2 ring-ring",
+          )}
+        >
+          {code[i] ?? ""}
+        </div>
       ))}
+      <input
+        ref={inputRef}
+        id={id}
+        name={name}
+        type="text"
+        inputMode="numeric"
+        autoComplete="one-time-code"
+        pattern="[0-9]*"
+        maxLength={length}
+        spellCheck={false}
+        autoCapitalize="none"
+        value={code}
+        disabled={disabled}
+        aria-label={ariaLabel}
+        aria-labelledby={ariaLabelledBy}
+        onChange={(e) => {
+          // A jump of more than one digit is an autofill or a paste the
+          // browser handled itself, not a keystroke.
+          const incoming = e.target.value.replace(/\D/g, "");
+          commit(incoming, incoming.length - code.length > 1);
+        }}
+        onPaste={(e) => {
+          e.preventDefault();
+          commit(e.clipboardData.getData("text"), true);
+        }}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        className="absolute inset-0 h-full w-full cursor-text bg-transparent text-transparent caret-transparent opacity-0 disabled:cursor-not-allowed"
+      />
     </div>
   );
 }
