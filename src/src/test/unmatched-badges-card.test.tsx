@@ -372,6 +372,15 @@ describe("<UnmatchedBadgesCard> row states", () => {
       expect(await hireDateFor({ first_day: "2026-11-25" })).toBe("2026-11-19");
     });
 
+    it("takes the terminal's day up to a week before the day it was received", async () => {
+      expect(await hireDateFor({ first_day: "2026-11-12" })).toBe("2026-11-12");
+    });
+
+    it("ignores a terminal day more than a week before it was received, as a reset clock gives", async () => {
+      expect(await hireDateFor({ first_day: "2026-11-11" })).toBe("2026-11-19");
+      expect(await hireDateFor({ first_day: "2000-01-01" })).toBe("2026-11-19");
+    });
+
     it("falls back to the day it was received when the terminal day is null", async () => {
       expect(await hireDateFor({ first_day: null })).toBe("2026-11-19");
     });
