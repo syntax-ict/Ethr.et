@@ -156,6 +156,15 @@ The site switches over the moment you save. It will show errors until Part 5 is 
    8443 still answered. So an HTML 403 here means *the request never arrived*, not *wrong
    token*: a wrong or missing token is a JSON 404.
 
+   **From Windows PowerShell, send `--data '{}'` with `-H 'Content-Type: application/json'`
+   instead.** Windows PowerShell 5.1 drops an empty argument to a native program, so
+   `curl.exe ... --data '' -H "X-Maintenance-Token: ..."` leaves `--data` to swallow the
+   `-H` that follows: the token header is never sent, and the answer is the JSON 404 of a
+   wrong token with `curl: (3) URL rejected` printed beside it. Nothing ran. Measured
+   2026-11-28 against a local echo server: with `''` the body arrived as `-H` and no token
+   header; with `'{}'` both arrived. `backups`, `migrate` and `seed` answered 200 on the host
+   that day with `{}` as the body.
+
    **If the site says a reset email was sent but none arrives, the send failed.** Password
    reset, MFA reset and account activation still answer success, log the failure at `error`
    level (*"Sign-in email failed; retrying from the queue"* in `storage/logs`), and — since
