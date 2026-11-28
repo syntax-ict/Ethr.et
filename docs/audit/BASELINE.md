@@ -5603,3 +5603,17 @@ The owner asked for a close look at `/settings/attendance` on production (QA Aud
 **Read while this was built, not yet a case.** `calculateStatus` compares to the second, so a check-in at 08:45:30 against a grace ending 08:45:00 is rated late today. Whether that is right is rule AR-STATUS-07, undecided.
 
 **Not built.** The oracle, the generated run, the metamorphic properties, mutation testing, the simulated month, the displayed-figures journey, the production check and the backtest. No accuracy percentage exists yet. Not covered by the golden cases: COR-002 (approval of a correction), the second half of CAP-002 (a rotation's rest day), and the 422 for a manual check-out 14 hours or more after the check-in, which is a request rule.
+
+### 25bq. An independent oracle for the attendance engine, and the first engine defect it confirms (2026-11-28)
+
+**Added** (tests and documents only): `api/tests/Accuracy/Oracle/`, a second implementation of `docs/ATTENDANCE-RULES.md` in plain PHP on `DateTimeImmutable`; `OracleCasesTest.php`, the oracle against every golden case; `OracleIndependenceTest.php`, an arch test and a token scan that fail if the oracle uses `App`, `Illuminate`, `Carbon` or `Database` or reads the clock; a `THREE-WAY` verdict in `GoldenCasesTest.php` when the engine disagrees with a hand value; `fixtures/shifts.php`, the shifts both sides read. The oracle was written by an agent allowed to read the register and its source documents only, never the engine.
+
+**The register was made computable first.** Five rows were too vague to calculate from: the night window's edges (AR-OT-03: from 22:00 up to, not including, 06:00), a holiday on a rest day (new AR-OT-11: paid as a holiday), a rest day's night (new AR-OT-12, Implemented: rest-day time), how seconds are cut (AR-CLOCK-04: the difference, not each moment), and AR-OT-01, now "time worked after the shift's end, from the later of the shift end and the check-in". Seven golden cases were added for them, typed before the engine was run: 77 cases in all.
+
+**Measured.** `./scripts/gates.sh accuracy`: 155 passed, 2 incomplete, 2 skipped (187 assertions, 72 seconds). The oracle agrees with all 77 hand values, and recognises GC-STATUS-005 as undecided (AR-STATUS-07) by itself.
+
+**Engine defect, outvoted two to one.** GC-OT-010 and GC-OT-011: `AttendanceRecord::overtimeWindow()` starts at the shift's end whatever the check-in, so a second session from 17:45 to 20:00 on a shift ending 17:30 earns 150 minutes of overtime where 135 were worked after the end, and a record from 18:00 to 20:00 earns 150 where 120 were. `OvertimeClassifier`, `PeriodOvertime` and `PayrollEngine` read that window, so the minutes are paid. Recorded in `findings.php`, not fixed here: the fix goes in its own failing-test-first pull request.
+
+**Shown to fail both ways.** Engine grace comparison changed from `lte` to `lt`: GC-STATUS-003 and GC-ZONE-002 failed, the oracle outvoted the engine. Oracle night window moved to 23:00: GC-OT-004 and GC-OT-012 failed in `OracleCasesTest`. Both restored.
+
+**Not claimed.** The oracle is a second reading of the same register, not ground truth: a misreading both share passes. It models no money (multipliers, rates, limits, lateness deduction), no assignment precedence or rotations, and no answer for a merged or manual punch. The builder listed 19 places the register leaves open (in the PR description); none changed a golden case. No accuracy percentage exists yet; the generated run is step 3.

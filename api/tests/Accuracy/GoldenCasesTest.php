@@ -24,6 +24,8 @@ use App\Services\Attendance\TimesheetLedger;
 use App\Services\CurrentTenant;
 use App\Services\Payroll\StatutoryRules;
 use Carbon\Carbon;
+use Tests\Accuracy\Oracle\CaseAdapter;
+use Tests\Accuracy\Oracle\Comparer;
 
 /*
  * The golden cases: every expected value in tests/Accuracy/cases is typed by
@@ -400,11 +402,38 @@ it('gives the answer typed by hand', function (array $case) {
     $misses = accuracyCompare($case, $ctx, $outcomes);
     Carbon::setTestNow();
 
+    // The third opinion. When the engine and the hand value disagree, the
+    // oracle says which of the two is outvoted.
+    $verdict = $misses === [] ? '' : "\n".accuracyVerdict($case);
+
     $finding = accuracyFindings()[$case['id']] ?? null;
     if ($finding !== null) {
         expect($misses)->not->toBeEmpty("{$case['id']} is listed in findings.php but the engine now agrees with the hand value: remove it from the list");
-        test()->markTestIncomplete("RECORDED FINDING {$case['id']} ({$rules}): {$finding}\n".implode("\n", $misses));
+        test()->markTestIncomplete("RECORDED FINDING {$case['id']} ({$rules}): {$finding}\n".implode("\n", $misses).$verdict);
     }
 
-    expect($misses)->toBe([], "\n".implode("\n", $misses));
+    expect($misses)->toBe([], "\n".implode("\n", $misses).$verdict);
 })->with(accuracyDataset());
+
+/**
+ * What the independent oracle (tests/Accuracy/Oracle) says about the same
+ * case, read only when the engine has disagreed with a hand value. Two against
+ * one names the suspect; it does not prove it.
+ *
+ * @param  array<string, mixed>  $case
+ */
+function accuracyVerdict(array $case): string
+{
+    $oracle = Comparer::compare($case, CaseAdapter::run($case, require __DIR__.'/fixtures/shifts.php'));
+
+    if ($oracle['mismatches'] === [] && $oracle['undecided'] === []) {
+        return 'THREE-WAY: the oracle agrees with every hand value of this case, so the engine is outvoted two to one. Suspect the engine.';
+    }
+
+    $lines = array_map(fn (string $m): string => '  oracle: '.$m, $oracle['mismatches']);
+    foreach ($oracle['undecided'] as $u) {
+        $lines[] = "  oracle: {$u['field']} depends on undecided rule {$u['rule']}";
+    }
+
+    return "THREE-WAY: the oracle also disagrees with the hand value here. Suspect the hand value or the register first.\n".implode("\n", $lines);
+}
