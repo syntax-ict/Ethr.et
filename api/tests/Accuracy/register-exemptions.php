@@ -48,7 +48,7 @@ return [
     'PYR-TAX-05' => 'An organisation own tax ladder; tests/Feature/Payroll/TaxLadderSourcesTest.php covers where the ladder comes from, not a golden figure.',
     'PYR-ABS-01' => 'Absences are listed only and no money moves. Covered by tests/Feature/PayrollAbsenceFlagTest.php (missed workdays are flagged and pay is unchanged); the AR-ABS cases cover what is listed.',
     'PYR-OT-05' => 'Flags only, no figure. Covered by tests/Feature/Payroll/OvertimeLimitWarningTest.php (days over the limit are flagged and every minute is still paid).',
-    'PYR-RUN-01' => 'Asserted over every coverable case by tests/Accuracy/Payroll/PayrollPreviewEqualsRunTest.php (preview against run, field by field, and nothing written), not by a hand value.',
+    'PYR-RUN-01' => 'Asserted over every coverable case by tests/Accuracy/Payroll/PayrollPreviewEqualsRunTest.php, not by a hand value: a preview persists nothing, and what a run stores equals what a preview showed. That test does not check a calculation (both paths call the same computeEntry()); the hand-valued cases check the figures.',
     'PYR-RST-04' => 'A restated figure (what the payslip prints): checked when the restated-figures tests are built. docs/production testing/14-LEAVE-CALENDAR-AND-RESTATED-FIGURES.md, section "Restated figures" (section 8, not written yet), says so.',
     // Leave: Decided rules that are not computations a golden case can pin.
     'LVR-YEAR-03' => 'A settings refusal (the leave year cannot change once leave is recorded), not a figure. 06 LB-009 and LB-011 and the Feature tests cover it.',

@@ -25,24 +25,47 @@ final class PayrollComparer
     /**
      * @param  array<string, mixed>  $case
      * @param  array{employees: array<string, array<string, mixed>>, run?: array<string, mixed>}  $answer
-     * @return array{mismatches: list<string>, undecided: list<array{field: string, rule: string, literal_agrees: bool}>, no_opinion: list<string>, agreed: int}
+     * @param  array<string, string>  $unexposed  field pattern => reason, for the engine only: fields its entry and log do not carry
+     * @return array{mismatches: list<string>, undecided: list<array{field: string, rule: string, literal_agrees: bool}>, no_opinion: list<string>, agreed: int, unanswered: list<string>, not_comparable: list<string>}
      */
-    public static function compare(array $case, array $answer, string $who = 'oracle'): array
+    public static function compare(array $case, array $answer, string $who = 'oracle', array $unexposed = []): array
     {
-        $result = ['mismatches' => [], 'undecided' => [], 'no_opinion' => [], 'agreed' => 0];
+        $result = ['mismatches' => [], 'undecided' => [], 'no_opinion' => [], 'agreed' => 0, 'unanswered' => [], 'not_comparable' => []];
 
         foreach ($case['expect'] as $key => $fields) {
             foreach ($fields as $field => $hand) {
                 $label = $key === 'run' ? (string) $field : "{$key} {$field}";
-                $mine = $key === 'run'
-                    ? ($answer['run'][$field] ?? new NoOpinion('not produced'))
-                    : ($answer['employees'][$key][$field] ?? new NoOpinion('not produced'));
+                $given = $key === 'run' ? ($answer['run'] ?? []) : ($answer['employees'][$key] ?? []);
+                if ($who === 'engine' && ! array_key_exists($field, $given)) {
+                    // Nothing passes silently: a stated field the engine reader did not answer is
+                    // either on the explicit list of fields the engine does not carry, or it fails.
+                    self::classifyMissing($result, $label, (string) $field, $unexposed);
+
+                    continue;
+                }
+                $mine = $given[$field] ?? new NoOpinion('not produced');
 
                 self::check($result, $label, (string) $field, $hand, $mine, $who);
             }
         }
 
         return $result;
+    }
+
+    /**
+     * @param  array<string, mixed>  $result
+     * @param  array<string, string>  $unexposed
+     */
+    private static function classifyMissing(array &$result, string $label, string $field, array $unexposed): void
+    {
+        foreach (array_keys($unexposed) as $pattern) {
+            if (fnmatch($pattern, $field)) {
+                $result['not_comparable'][] = $field;
+
+                return;
+            }
+        }
+        $result['unanswered'][] = $label;
     }
 
     /** @param array{mismatches: list<string>, undecided: list<array{field: string, rule: string, literal_agrees: bool}>, no_opinion: list<string>, agreed: int} $result */

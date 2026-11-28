@@ -57,60 +57,73 @@ final class IntegerOnlyScan
                 continue;
             }
 
-            $relative = ltrim(str_replace('\\', '/', substr($file->getPathname(), strlen($directory))), '/');
-            $isHelper = $relative === $helper;
-            $tokens = [];
-            foreach (token_get_all((string) file_get_contents($file->getPathname())) as $token) {
-                if (is_array($token) && in_array($token[0], [T_WHITESPACE, T_COMMENT, T_DOC_COMMENT], true)) {
+            $relative = ltrim(str_replace(chr(92), '/', substr($file->getPathname(), strlen($directory))), '/');
+            $found = [...$found, ...self::violationsOfFile($file->getPathname(), $relative, $relative === $helper)];
+        }
+
+        return $found;
+    }
+
+    /**
+     * One file: the same rules, for a file that is not in a directory of its own
+     * (the shared oracle classes the payroll oracle uses).
+     *
+     * @return list<string> `relative:line what`
+     */
+    public static function violationsOfFile(string $path, string $relative, bool $isHelper = false): array
+    {
+        $found = [];
+        $tokens = [];
+        foreach (token_get_all((string) file_get_contents($path)) as $token) {
+            if (is_array($token) && in_array($token[0], [T_WHITESPACE, T_COMMENT, T_DOC_COMMENT], true)) {
+                continue;
+            }
+            $tokens[] = $token;
+        }
+
+        foreach ($tokens as $i => $token) {
+            $where = $relative.':'.(is_array($token) ? $token[2] : self::lineBefore($tokens, $i));
+            $previous = $tokens[$i - 1] ?? null;
+            $next = $tokens[$i + 1] ?? null;
+
+            if ($token === '/' || $token === '%') {
+                if ($token === '%' && $isHelper) {
                     continue;
                 }
-                $tokens[] = $token;
+                $found[] = "{$where} the operator {$token}";
+
+                continue;
             }
 
-            foreach ($tokens as $i => $token) {
-                $where = $relative.':'.(is_array($token) ? $token[2] : self::lineBefore($tokens, $i));
-                $previous = $tokens[$i - 1] ?? null;
-                $next = $tokens[$i + 1] ?? null;
+            if (! is_array($token)) {
+                continue;
+            }
 
-                if ($token === '/' || $token === '%') {
-                    if ($token === '%' && $isHelper) {
-                        continue;
-                    }
-                    $found[] = "{$where} the operator {$token}";
+            [$id, $text] = $token;
 
+            if ($id === T_DNUMBER) {
+                $found[] = "{$where} the float literal {$text}";
+            } elseif (in_array($id, [T_DIV_EQUAL], true)) {
+                $found[] = "{$where} the operator {$text}";
+            } elseif (in_array($id, [T_MOD_EQUAL], true) && ! $isHelper) {
+                $found[] = "{$where} the operator {$text}";
+            } elseif (in_array($id, [T_POW, T_POW_EQUAL], true)) {
+                $found[] = "{$where} the operator {$text}";
+            } elseif ($id === T_DOUBLE_CAST) {
+                $found[] = "{$where} the cast {$text}";
+            } elseif ($id === T_CONSTANT_ENCAPSED_STRING && in_array(trim($text, '\'"'), self::ANSWER_KEYS, true)) {
+                $found[] = "{$where} the answer key {$text}";
+            } elseif (in_array($id, [T_STRING, T_NAME_QUALIFIED, T_NAME_FULLY_QUALIFIED], true) && $next === '(') {
+                $after = is_array($previous) ? $previous[0] : $previous;
+                if (in_array($after, [T_OBJECT_OPERATOR, T_NULLSAFE_OBJECT_OPERATOR, T_DOUBLE_COLON, T_FUNCTION, T_CONST, T_NEW], true)) {
                     continue;
                 }
-
-                if (! is_array($token)) {
-                    continue;
-                }
-
-                [$id, $text] = $token;
-
-                if ($id === T_DNUMBER) {
-                    $found[] = "{$where} the float literal {$text}";
-                } elseif (in_array($id, [T_DIV_EQUAL], true)) {
-                    $found[] = "{$where} the operator {$text}";
-                } elseif (in_array($id, [T_MOD_EQUAL], true) && ! $isHelper) {
-                    $found[] = "{$where} the operator {$text}";
-                } elseif (in_array($id, [T_POW, T_POW_EQUAL], true)) {
-                    $found[] = "{$where} the operator {$text}";
-                } elseif ($id === T_DOUBLE_CAST) {
-                    $found[] = "{$where} the cast {$text}";
-                } elseif ($id === T_CONSTANT_ENCAPSED_STRING && in_array(trim($text, '\'"'), self::ANSWER_KEYS, true)) {
-                    $found[] = "{$where} the answer key {$text}";
-                } elseif (in_array($id, [T_STRING, T_NAME_QUALIFIED, T_NAME_FULLY_QUALIFIED], true) && $next === '(') {
-                    $after = is_array($previous) ? $previous[0] : $previous;
-                    if (in_array($after, [T_OBJECT_OPERATOR, T_NULLSAFE_OBJECT_OPERATOR, T_DOUBLE_COLON, T_FUNCTION, T_CONST, T_NEW], true)) {
-                        continue;
-                    }
-                    $name = strtolower(ltrim($text, '\\'));
-                    $banned = in_array($name, $isHelper ? self::FORBIDDEN_IN_HELPER : self::FORBIDDEN_CALLS, true)
-                        || str_starts_with($name, 'bc')
-                        || str_starts_with($name, 'gmp_');
-                    if ($banned) {
-                        $found[] = "{$where} a call to {$name}()";
-                    }
+                $name = strtolower(ltrim($text, '\\'));
+                $banned = in_array($name, $isHelper ? self::FORBIDDEN_IN_HELPER : self::FORBIDDEN_CALLS, true)
+                    || str_starts_with($name, 'bc')
+                    || str_starts_with($name, 'gmp_');
+                if ($banned) {
+                    $found[] = "{$where} a call to {$name}()";
                 }
             }
         }

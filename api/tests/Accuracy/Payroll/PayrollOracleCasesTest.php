@@ -29,10 +29,10 @@ it('gives the answer an accountant would by hand', function (array $case): void 
 
     if (! empty($case['undecided'])) {
         expect($result['undecided'])->not->toBeEmpty("[{$id}] rule {$rules}: the case is marked undecided but the oracle answers every field");
-        test()->markTestSkipped("[{$id}] rule undecided: {$rules}");
+        // The fields the oracle does answer are still held to the hand values; only Undecided ones are withheld.
     }
 
-    if ($result['undecided'] !== []) {
+    if (empty($case['undecided']) && $result['undecided'] !== []) {
         $named = implode('; ', array_map(static fn (array $u): string => "{$u['field']} depends on {$u['rule']}", $result['undecided']));
         test()->fail("[{$id}] rule {$rules}: the case is not marked undecided but the oracle returns Undecided: {$named}");
     }

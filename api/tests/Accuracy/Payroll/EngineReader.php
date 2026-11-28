@@ -9,6 +9,7 @@ use App\Models\EmployeeCostSharing;
 use App\Models\EmployeeLoan;
 use App\Models\EmployeeSalaryHistory;
 use App\Models\PayrollEntry;
+use App\Models\PayrollRule;
 use App\Models\PayrollRun;
 use App\Services\Accounting\AccountingExportService;
 use App\Services\CurrentTenant;
@@ -50,7 +51,7 @@ final class EngineReader
         $engine = app(PayrollEngine::class);
         $approve = ($case['run'] ?? 'preview') === 'approve';
         $consistency = [];
-        $echo = [];
+        $echo = self::rowEcho($case, $built);
 
         $preview = $engine->preview($tenantId, $start, $end, null, null, 1000);
         $byId = [];
@@ -109,7 +110,7 @@ final class EngineReader
 
         return [
             'answer' => ['employees' => $employees, 'run' => $runFields],
-            'echo' => $echo,
+            'echo' => array_values(array_unique($echo)),
             'consistency' => $consistency,
             'notes' => $built['notes'],
         ];
@@ -211,7 +212,6 @@ final class EngineReader
         $inputs = $row['inputs'] ?? [];
         $log = $attributes['calculation_log'];
         $step = static fn (string $name): ?array => collect($log['steps'])->firstWhere('step', $name);
-        $days = (int) Carbon::parse($period['start'])->diffInDays(Carbon::parse($period['end'])) + 1;
 
         $proration = $step('proration');
         $pagume = $step('pagumen_proration');
@@ -243,7 +243,6 @@ final class EngineReader
         $f['salary_changed_in_period'] = (int) $log['inputs']['salary_changed_in_period'];
         $f['monthly_basic'] = $log['inputs']['basic_salary_cents'];
         $same('monthly_basic', $f['monthly_basic'], ['proration.original_basic_cents' => $proration['original_basic_cents'], 'overtime.hourly_rate_base_cents' => $overtime['hourly_rate_base_cents']]);
-        $f['days_employed'] = (int) round($proration['proration_factor'] * $days);
         $f['period_basic'] = $proration['period_basic_cents'];
         $same('period_basic', $f['period_basic'], ['pagumen_proration.period_basic_cents' => $pagume['period_basic_cents']]);
         $f['prorated_basic'] = $proration['prorated_basic_cents'];
@@ -305,7 +304,10 @@ final class EngineReader
         foreach ($row['loans'] ?? [] as $loanKey => $loan) {
             $line = collect($loanStep['loans'])->firstWhere('loan_id', $loanIds[$loanKey]);
             $f["loan.{$loanKey}"] = $line === null ? 0 : $line['deduction_cents'];
-            $f["loan.{$loanKey}.remaining_after"] = $line === null ? $loan['remaining_cents'] : $line['remaining_after_cents'];
+            // No line: the engine deducted nothing, so the balance it leaves is the stored row's.
+            $f["loan.{$loanKey}.remaining_after"] = $line === null
+                ? (int) EmployeeLoan::query()->where('public_id', $loanIds[$loanKey])->value('remaining_cents')
+                : $line['remaining_after_cents'];
             if ($line !== null) {
                 $same("loan.{$loanKey} remaining_before", $line['remaining_before_cents'], ['the case remaining_cents' => $loan['remaining_cents']]);
             }
@@ -348,6 +350,27 @@ final class EngineReader
                 $echo[] = "employee {$key}: {$what} is ".json_encode($mine).', the case states '.json_encode($stated);
             }
         };
+        $rulesLog = $log['statutory_rules'];
+        $value = static fn (string $code): mixed => $rulesLog['rules'][$code]['value'] ?? null;
+        $statutory = PayrollCases::statutory();
+        $kind = $org['organization_type'] ?? 'private';
+        $scheme = $org['pension_scheme'] ?? $statutory['pension_scheme_by_kind'][$kind] ?? $statutory['pension_scheme_by_kind']['*'];
+        $check('statutory_rules organization_type', $rulesLog['organization_type'], $kind);
+        $check('statutory_rules payroll.working_days_per_month', $value('payroll.working_days_per_month'), $org['working_days_per_month'] ?? $statutory['working_days_per_month']);
+        $check('statutory_rules pension.default_scheme', $value('pension.default_scheme'), $scheme);
+        $check('the pension rule applied', $pension['rule']['scheme'] ?? null, $scheme);
+        $check('lateness step logged', $lateness !== null, (bool) ($org['lateness_deductions'] ?? false));
+        foreach ($allowances['items'] as $item) {
+            $stated = $org['allowances'][$item['name']] ?? null;
+            if ($stated !== null) {
+                $check("allowance {$item['name']} type on the payslip", $item['type'], $stated['type']);
+                $check("allowance {$item['name']} taxable on the payslip", $item['taxable'], $stated['taxable']);
+            }
+        }
+        if (($costSharing['obligation_id'] ?? null) !== null) {
+            $stored = EmployeeCostSharing::query()->where('public_id', $costSharing['obligation_id'])->first();
+            $check('cost_sharing step rate_percent', (string) $costSharing['rate_percent'], (string) $stored?->deduction_rate_percent);
+        }
         $check('pagumen_proration.pagume_days_in_period', $pagume['pagume_days_in_period'], $period['pagume_days']);
         $check('pagumen_proration.strategy', $pagume['strategy'], $expectedPagume);
         $check('unpaid_leave_days x 1000', (int) round($unpaid['unpaid_leave_days'] * 1000), (int) ($inputs['unpaid_leave_thousandths'] ?? 0));
@@ -361,6 +384,71 @@ final class EngineReader
         }
 
         return [$f, $problems, $echo];
+    }
+
+    /**
+     * The stored rows the case built: what the engine reads must be what the case
+     * states (organisation kind, allowance rules, people, loans, cost sharing).
+     *
+     * @param  array<string, mixed>  $case
+     * @param  array<string, mixed>  $built
+     * @return list<string>
+     */
+    private static function rowEcho(array $case, array $built): array
+    {
+        $org = $case['org'] ?? [];
+        $echo = [];
+        $check = static function (string $what, mixed $mine, mixed $stated) use (&$echo): void {
+            if ($mine !== $stated) {
+                $echo[] = "{$what} is ".json_encode($mine).', the case states '.json_encode($stated);
+            }
+        };
+
+        $check('organisation kind', $built['tenant']->fresh()->organization_type, $org['organization_type'] ?? 'private');
+
+        foreach ($org['allowances'] ?? [] as $name => $stated) {
+            $rule = PayrollRule::query()->where('category', 'allowance')->where('name', (string) $name)->first();
+            if ($rule === null) {
+                $echo[] = "allowance {$name} was not stored";
+
+                continue;
+            }
+            $check("allowance {$name} type", $rule->type, $stated['type']);
+            $check("allowance {$name} taxable", (bool) $rule->is_taxable, $stated['taxable']);
+            $check("allowance {$name} active", (bool) $rule->is_active, true);
+            $check(
+                "allowance {$name} amount",
+                $stated['type'] === 'fixed' ? (int) ($rule->formula['amount_cents'] ?? -1) : (int) round(((float) ($rule->formula['percent'] ?? -1)) * 100),
+                $stated['type'] === 'fixed' ? $stated['amount_cents'] : $stated['percent_x100'],
+            );
+        }
+
+        foreach ($case['employees'] as $key => $row) {
+            $employee = Employee::withTrashed()->find($built['employees'][$key]->id);
+            $check("employee {$key} status", (string) $employee->status->value, $row['status']);
+            $check("employee {$key} nationality", (string) $employee->nationality_status->value, $row['nationality'] ?? 'ethiopian');
+            $check("employee {$key} hire_date", $employee->hire_date->toDateString(), $row['hire_date']);
+            $check("employee {$key} termination_date", $employee->termination_date?->toDateString(), $row['termination_date'] ?? null);
+            $check("employee {$key} deleted", $employee->trashed(), (bool) ($row['deleted'] ?? false));
+            $check("employee {$key} salary_cents", (int) $employee->salary_cents, $row['salary_cents']);
+
+            foreach ($row['loans'] ?? [] as $loanKey => $loan) {
+                $stored = EmployeeLoan::query()->where('public_id', $built['loans'][$key][$loanKey])->first();
+                $check("employee {$key} loan {$loanKey} status", $stored?->status, $loan['status']);
+                $check("employee {$key} loan {$loanKey} remaining", $stored?->remaining_cents, $loan['remaining_cents']);
+                $check("employee {$key} loan {$loanKey} instalment", $stored?->monthly_deduction_cents, $loan['instalment_cents']);
+            }
+            foreach ($row['cost_sharing'] ?? [] as $i => $share) {
+                $stored = EmployeeCostSharing::query()->where('public_id', $built['obligations'][$key][$i]['public_id'])->first();
+                $label = "employee {$key} cost sharing #".($i + 1);
+                $check("{$label} status", $stored?->status->value, $share['status']);
+                $check("{$label} outstanding", $stored?->outstanding_cents, $share['outstanding_cents']);
+                // A rate with a third decimal is kept to hundredths by the column (round half up): the engine's own reading.
+                $check("{$label} rate x100", $stored === null ? null : (int) round((float) $stored->deduction_rate_percent * 100), intdiv($share['rate_pct_x1000'] + 5, 10));
+            }
+        }
+
+        return $echo;
     }
 
     /**

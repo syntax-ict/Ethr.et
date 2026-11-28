@@ -73,12 +73,43 @@ function oracleForbiddenUses(string $directory): array
         $name = static fn (mixed $t): ?string => is_array($t) && in_array($t[0], [T_STRING, T_NAME_QUALIFIED, T_NAME_FULLY_QUALIFIED], true) ? ltrim($t[1], '\\') : null;
         $line = static fn (mixed $t): int => is_array($t) ? $t[2] : 0;
 
+        // Variables that hold a string somewhere in this file: calling one is a name built at run time.
+        $stringVariables = [];
+        foreach ($tokens as $i => $token) {
+            if (is_array($token) && $token[0] === T_VARIABLE && ($tokens[$i + 1] ?? null) === '=' && is_array($tokens[$i + 2] ?? null) && $tokens[$i + 2][0] === T_CONSTANT_ENCAPSED_STRING) {
+                $stringVariables[$token[1]] = true;
+            }
+        }
+        $callbackTakers = ['array_map', 'array_filter', 'array_walk', 'array_walk_recursive', 'array_reduce', 'usort', 'uasort', 'uksort', 'iterator_apply', 'is_callable', 'array_udiff', 'array_uintersect'];
+
         foreach ($tokens as $i => $token) {
             $previous = $tokens[$i - 1] ?? null;
             $next = $tokens[$i + 1] ?? null;
             $after = is_array($previous) ? $previous[0] : $previous;
             $member = in_array($after, [T_OBJECT_OPERATOR, T_NULLSAFE_OBJECT_OPERATOR, T_DOUBLE_COLON, T_FUNCTION, T_CONST], true);
             $where = $relative.':'.$line($token);
+
+            // $f = 'app'; $f(): a variable that holds a string, called; and $class::method()
+            if (is_array($token) && $token[0] === T_VARIABLE) {
+                if ($next === '(' && isset($stringVariables[$token[1]])) {
+                    $found[] = "{$where} a call through {$token[1]}, which holds a string";
+                }
+                if (is_array($next) && $next[0] === T_DOUBLE_COLON) {
+                    $found[] = "{$where} a static call on {$token[1]}, a class named at run time";
+                }
+            }
+
+            // array_map('strtotime', ...): a forbidden function named as a string callable
+            $taker = $name($token);
+            if ($taker !== null && $next === '(' && ! $member && in_array(strtolower($taker), $callbackTakers, true)) {
+                for ($j = $i + 2, $depth = 1; $j < count($tokens) && $depth > 0; $j++) {
+                    $t = $tokens[$j];
+                    $depth += $t === '(' ? 1 : ($t === ')' ? -1 : 0);
+                    if (is_array($t) && $t[0] === T_CONSTANT_ENCAPSED_STRING && in_array(strtolower(substr($t[1], 1, -1)), ORACLE_CLOCK_AND_WORLD_FUNCTIONS, true)) {
+                        $found[] = "{$where} {$taker}() given the string callable {$t[1]}";
+                    }
+                }
+            }
 
             // include, require, eval
             if (is_array($token) && in_array($token[0], [T_REQUIRE, T_REQUIRE_ONCE, T_INCLUDE, T_INCLUDE_ONCE, T_EVAL], true)) {
@@ -181,6 +212,9 @@ it('can find every kind of thing it forbids', function (): void {
         '$_SERVER' => '$a = $_SERVER["X"];',
         '$_ENV' => '$a = $_ENV["X"];',
         'app()' => '$a = app();',
+        'a variable function call' => '$f = "app"; $a = $f();',
+        'a string callable' => '$a = array_map("strtotime", $b);',
+        'a static call on a variable class' => '$c = X::class; $a = $c::now();',
     ];
 
     $clean = '// now() date() in a comment, "time()" in a string
@@ -295,4 +329,13 @@ it('can find every float, division and rounding it forbids', function (): void {
     $clean = "// a / b, 1.5 and round() in a comment\n\$s = 'a/b 1.5'; \$a = \$b * 3 + 7; \$r = \$x->round(); \$q = Exact::mulDivHalfUp(1, 2, 3);";
     expect($scan('Clean.php', $clean))->toBe([]);
     expect($scan('Exact.php', '$q = intdiv($a, $b); $r = $a % $b;'))->toBe([]);
+});
+
+// Calendar.php is not scanned: it is shared with the attendance oracle and only
+// steps and validates dates (the payroll oracle never passes money through it),
+// and formats clock times with intdiv and %, which the integer rule would forbid.
+it('keeps the shared oracle classes the payroll oracle uses to whole cents', function (): void {
+    foreach (['Trace.php', 'NoOpinion.php', 'Undecided.php'] as $file) {
+        expect(IntegerOnlyScan::violationsOfFile(__DIR__.'/Oracle/'.$file, $file))->toBe([], $file);
+    }
 });

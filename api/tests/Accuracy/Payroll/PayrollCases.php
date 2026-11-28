@@ -114,6 +114,12 @@ final class PayrollCases
         return require __DIR__.'/not-coverable.php';
     }
 
+    /** @return array<string, string> field pattern => why the engine does not carry it */
+    public static function engineUnexposed(): array
+    {
+        return require __DIR__.'/engine-unexposed.php';
+    }
+
     /** @return array<string, string> case id => what the oracle answered */
     public static function oracleFindings(): array
     {
@@ -411,6 +417,9 @@ final class PayrollCases
                 $err("expect.{$who} must state at least one field");
 
                 continue;
+            }
+            if ($who !== 'run' && ! array_key_exists('in_run', $fields)) {
+                $err("expect.{$who} must state in_run (1 or 0)");
             }
             $lines = self::workingLines($working[$who] ?? null);
             if (! array_key_exists($who, $working)) {
