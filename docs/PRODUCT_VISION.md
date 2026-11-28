@@ -278,7 +278,7 @@ Workflow: Employee → Supervisor → Department Head → HR
 ### Earnings
 
 - Basic salary (prorated for mid-month hire/termination/Pagumen)
-- Overtime (configurable rates: normal 1.25x, night 1.5x, holiday 2.0x, holiday-night 2.5x)
+- Overtime (configurable rates, never below the statutory ones: normal 1.5x, night 1.75x, rest day 2.0x, holiday 2.5x, holiday-night 2.5x; see [rule AR-OT-04](ATTENDANCE-RULES.md))
 - Position allowance (fixed or percentage of basic)
 - Transport allowance
 - Housing allowance
