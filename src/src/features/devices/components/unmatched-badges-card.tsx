@@ -295,10 +295,17 @@ function UnmatchedRow({
     t,
   ]);
 
+  // The earlier of the day the terminal stamped on the first punch and the day
+  // ETHR received it: a terminal that uploads late must not push the hire date
+  // past its own punches, and one whose clock runs ahead must not push it past
+  // the receipt day. Both are Y-m-d, so string order is date order.
+  const receivedDay = heldSinceDate(row.first_seen, timeZone);
+  const hireDate =
+    row.first_day && row.first_day < receivedDay ? row.first_day : receivedDay;
   const newEmployeeHref = `/employees/new?${new URLSearchParams({
     badge: row.badge,
     device: row.device_public_id,
-    hire_date: heldSinceDate(row.first_seen, timeZone),
+    hire_date: hireDate,
   }).toString()}`;
 
   return (

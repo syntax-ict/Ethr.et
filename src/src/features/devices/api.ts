@@ -572,6 +572,8 @@ export interface UnmatchedBadge {
   badge: string;
   punches: number;
   first_seen: string;
+  /** The earliest day the terminal itself stamped on a held punch (Y-m-d), or null when none carries a valid stamp. */
+  first_day?: string | null;
   last_seen: string;
   match?: UnmatchedBadgeMatch | null;
   /** What the terminal calls this number; for attendance managers, when the terminal sent a name. */

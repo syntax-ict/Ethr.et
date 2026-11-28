@@ -336,6 +336,51 @@ describe("<UnmatchedBadgesCard> row states", () => {
     expect(href.searchParams.get("hire_date")).toBe("2026-10-14");
   });
 
+  describe("the hire date in the new employee link", () => {
+    async function hireDateFor(extra: {
+      first_day?: string | null;
+    }): Promise<string | null> {
+      renderCard(
+        [
+          {
+            ...ROW,
+            first_seen: "2026-11-19 05:00:00",
+            ...extra,
+            match: {
+              outcome: "new",
+              employee_public_id: null,
+              confidence: 0,
+              candidates: [],
+            },
+          },
+        ],
+        () => {},
+      );
+      const link = await screen.findByRole("link", {
+        name: "Add as a new employee",
+      });
+      return new URL(link.getAttribute("href")!, "http://x").searchParams.get(
+        "hire_date",
+      );
+    }
+
+    it("is the day the terminal stamped when that is earlier than the day it was received", async () => {
+      expect(await hireDateFor({ first_day: "2026-11-18" })).toBe("2026-11-18");
+    });
+
+    it("stays the day it was received when the terminal's day is later", async () => {
+      expect(await hireDateFor({ first_day: "2026-11-25" })).toBe("2026-11-19");
+    });
+
+    it("falls back to the day it was received when the terminal day is null", async () => {
+      expect(await hireDateFor({ first_day: null })).toBe("2026-11-19");
+    });
+
+    it("falls back to the day it was received when the terminal day is missing", async () => {
+      expect(await hireDateFor({})).toBe("2026-11-19");
+    });
+  });
+
   it("says so instead of offering a form for a badge that cannot be a badge number", async () => {
     renderCard(
       [
