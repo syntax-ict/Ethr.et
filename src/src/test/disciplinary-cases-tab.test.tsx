@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
@@ -179,5 +179,27 @@ describe("<DisciplinaryCasesTab>", () => {
 
     expect(requestBody).toEqual({ note: "Interviewed the cashier." });
     expect(await screen.findByText("Investigating")).toBeInTheDocument();
+  });
+
+  it("closes a case only after the question is confirmed", async () => {
+    let closeCalls = 0;
+    server.use(
+      http.get(CASES_URL, () => HttpResponse.json([buildCase()])),
+      http.post(`${CASES_URL}/01HZCASE00000000000000001/close`, () => {
+        closeCalls += 1;
+        return HttpResponse.json(buildCase({ status: "closed" }));
+      }),
+    );
+    renderTab();
+    await screen.findByText("Misconduct");
+
+    await userEvent.click(screen.getByRole("button", { name: "Close case" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(closeCalls).toBe(0);
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Close case" }),
+    );
+
+    await waitFor(() => expect(closeCalls).toBe(1));
   });
 });

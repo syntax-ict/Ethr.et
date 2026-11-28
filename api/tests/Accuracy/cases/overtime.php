@@ -49,7 +49,7 @@ return [
 
     // Nobody is late or early on a day that is not a working day (AR-MIN-06),
     // on the record as on the timesheet: payroll's reconciliation reads the
-    // record. Added 2026-11-28 after the generated run (BASELINE 25bs).
+    // record. Added 2026-11-28 after the generated run (BASELINE 25bt).
     $case('GC-REST-001', ['AR-MIN-06', 'AR-OT-02'], 'register', 'S1', [$in('09:00'), $out('13:00')], ['live' => 1, 'late' => 0, 'early' => 0, 'overtime' => ['rest_day' => 240], 'class' => 'rest_day'], ['day' => '2026-10-17'], '2026-10-17'),
     $case('GC-REST-002', ['AR-MIN-06', 'AR-OT-02'], 'register', 'S1', [$in('09:00'), $out('13:00')], ['live' => 1, 'late' => 0, 'early' => 0, 'overtime' => ['holiday' => 240], 'class' => 'holiday'], ['setup' => ['holiday' => true]]),
 ];

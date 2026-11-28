@@ -350,3 +350,19 @@ running after every deploy.
   write does has not been run.
 - **That Chrome wrote nothing.** Only the guarded browser can say that. In Chrome it rests on the
   agent's care and the reviewer's reading of the session.
+
+## 9. Running an accuracy session
+
+An accuracy session ([15](15-ACCURACY-SESSION.md)) measures calculation accuracy, scope A of its section 2. A machine can run all seven of its charters unattended, through one script:
+
+```bash
+./scripts/accuracy-session.sh --list     # first: what can run here, and what is not built yet
+./scripts/accuracy-session.sh            # then the session
+```
+
+The script runs the charters in order, gives each a deadline, never retries, and writes a draft session sheet ([10, section 9](10-TEMPLATES-AND-REFERENCE.md#9-accuracy-session-sheet)). A charter whose precondition is missing is recorded `not run: <reason>`, never as a pass. The agent reads the sheet, triages each disagreement with the classes of [12, section 6](12-ATTENDANCE-ACCURACY.md#6-classify-a-finding), and drafts the report ([10, section 10](10-TEMPLATES-AND-REFERENCE.md#10-accuracy-report)). It never edits a hand value, never fixes application code inside the session, and never opens an issue itself.
+
+- **Which browser.** Only two charters use one. The browser journeys of `restated` are Playwright against a local stack, never production. The `production` charter is the scripted, guarded Playwright run of section 4: the guarded browser, never Chrome.
+- **No password, ever.** An agent never types a password, an authenticator code or a sign-in code, and never reads or prints a file under `src/e2e-production/.auth/`. The `production` charter runs only when a person has saved a session (section 3) and the pack's own check finds it fresh, which means less than 15 minutes old. Otherwise it is recorded `not run: no saved session`, and the agent hands back the one step a person must do.
+- **No database server is started by an agent.** If `races` is `not run: no database server`, the agent says so. The person starts MariaDB, in a visible window ([15, section 5](15-ACCURACY-SESSION.md#5-before-you-start)).
+- **Production is read-only and QA-only,** as in section 2 and rule 1 of [CLAUDE.md](CLAUDE.md).
