@@ -70,13 +70,14 @@ All times below are wall-clock times in the organisation's zone unless a row say
 |---|---|---|---|
 | AR-DAY-01 | The same idempotency key returns the original record and records nothing. A key answers only for the person whose punch used it. | 05 ground rules, ATT-013 | Decided |
 | AR-DAY-02 | A second check-in while the day is open adds nothing ("already checked in"). | 05 PUNCH-008 | Decided |
-| AR-DAY-03 | Two check-ins within 5 minutes from different methods are one arrival: the earliest check-in and the latest check-out are kept. Under 1 minute from the same method is a repeat. | PIPE "Duplicates"; 05 CON-002 | Decided |
+| AR-DAY-03 | Two check-ins within 5 minutes from different methods are one arrival: the earliest check-in and the latest check-out are kept. Under 1 minute from the same method is a repeat: it adds no record and no time. What the person is told for the second punch (a new punch, or "already checked in") is not stated for either case, so a test asserts the record and not the answer. | PIPE "Duplicates"; 05 CON-002 | Decided |
 | AR-DAY-04 | A check-out, or an Automatic punch, within 5 minutes of the day's check-out is a repeat. The first check-out stands. | 05 PUNCH-007 | Decided |
 | AR-DAY-05 | A check-out with nothing open and nothing closed in the last 5 minutes is refused. | 05 ATT-006 | Decided |
 | AR-DAY-06 | An Automatic punch is a check-in when nothing is open, a repeat within 5 minutes of the check-in, and a check-out otherwise. | 05 PUNCH-004, PUNCH-005 | Decided |
 | AR-DAY-07 | A manual or imported entry more than 5 minutes from an existing punch is kept as a second record and flagged as a conflict. | 05 CON-001, AIMP-004 | Decided |
 | AR-DAY-08 | Which two punches the 5 minutes of AR-DAY-07 are measured between: the two check-ins only (AR-DAY-03 is about arrivals), or any punch of the entry and any punch of the day. MAN-003 says "an existing punch". | none | Undecided |
 | AR-DAY-09 | A check-in begins a new record on its own work date unless a record of that same work date is open (AR-DAY-02). A record still open from an earlier work date does not absorb it: the closing windows of AR-NIGHT-02 are about check-outs. In at 19:00 and never out, then in at 08:25 the next morning: two records, one per work date. | AR-DAY-02, AR-NIGHT-02 | Decided |
+| AR-DAY-10 | A person who has left (resigned, terminated or retired) records nothing dated after their termination date in the organisation's zone: the punch is refused, with the reason `employee_has_left`, and makes no record. A punch dated on or before that day still counts, however late it reaches the server. A leaver with no termination date records nothing. | PIPE "One entry point" step 3; 05 ground rules ("a leaver"); the statuses and the reason code from `api/app/Services/Attendance/AttendanceEngine.php` | Decided |
 
 ## 6. A break inside the day
 

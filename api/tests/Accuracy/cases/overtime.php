@@ -46,4 +46,10 @@ return [
     // A rest day's night is rest day time (AR-OT-12); a holiday on a rest day is a holiday (AR-OT-11).
     $case('GC-OT-014', ['AR-OT-12', 'AR-OT-02'], 'register', 'S1', [$in('18:00'), $out('23:00')], ['live' => 1, 'overtime' => ['rest_day' => 300], 'class' => 'rest_day'], ['day' => '2026-10-17'], '2026-10-17'),
     $case('GC-OT-015', ['AR-OT-11', 'AR-OT-02'], 'register', 'S1', [$in('09:00'), $out('13:00')], ['live' => 1, 'overtime' => ['holiday' => 240], 'class' => 'holiday'], ['day' => '2026-10-17', 'setup' => ['holiday' => true]], '2026-10-17'),
+
+    // Nobody is late or early on a day that is not a working day (AR-MIN-06),
+    // on the record as on the timesheet: payroll's reconciliation reads the
+    // record. Added 2026-11-28 after the generated run (BASELINE 25bt).
+    $case('GC-REST-001', ['AR-MIN-06', 'AR-OT-02'], 'register', 'S1', [$in('09:00'), $out('13:00')], ['live' => 1, 'late' => 0, 'early' => 0, 'overtime' => ['rest_day' => 240], 'class' => 'rest_day'], ['day' => '2026-10-17'], '2026-10-17'),
+    $case('GC-REST-002', ['AR-MIN-06', 'AR-OT-02'], 'register', 'S1', [$in('09:00'), $out('13:00')], ['live' => 1, 'late' => 0, 'early' => 0, 'overtime' => ['holiday' => 240], 'class' => 'holiday'], ['setup' => ['holiday' => true]]),
 ];
