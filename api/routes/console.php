@@ -30,7 +30,7 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 // Pull events from all registered biometric devices every 5 minutes
-Schedule::command('devices:sync')->everyFiveMinutes()->withoutOverlapping();
+Schedule::command('devices:sync')->name('devices-sync')->everyFiveMinutes()->withoutOverlapping();
 
 // A terminal that only sends to ETHR (ADMS, Hikvision push, ZKTeco or Suprema
 // with no address) goes quiet while its organisation is at work: tell the

@@ -7,9 +7,11 @@ namespace App\Http\Controllers\Api\V1\Device;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Device\AssignUnmatchedBadgeRequest;
 use App\Http\Requests\Device\DismissUnmatchedBadgeRequest;
+use App\Http\Requests\Device\PreviewUnmatchedBadgeRequest;
 use App\Models\Device;
 use App\Models\Employee;
 use App\Models\User;
+use App\Services\Device\AssignPreview;
 use App\Services\Device\BadgeSuggestionDetails;
 use App\Services\Device\DevicePunchRecorder;
 use App\Services\Device\TerminalNames;
@@ -284,7 +286,14 @@ class UnmatchedPunchController extends Controller
         return $details;
     }
 
-    public function assign(AssignUnmatchedBadgeRequest $request, DevicePunchRecorder $recorder): JsonResponse
+    /**
+     * What assigning this badge to this person would do, read without changing
+     * anything: the held punches and their days, who the person is, and what
+     * speaks against it. The assign request enforces the same warnings.
+     *
+     * @response array{punches: int, first_day: string|null, last_day: string|null, employee: array{public_id: string, name: string, employee_code: string|null, department: string|null, position: string|null, branch: string|null, hire_date: string|null, status: string, badge_number: string|null}, warnings: list<array{code: string, value: string|int|null}>}
+     */
+    public function preview(PreviewUnmatchedBadgeRequest $request, AssignPreview $preview): JsonResponse
     {
         Gate::authorize('attendance.manage');
 
@@ -292,7 +301,45 @@ class UnmatchedPunchController extends Controller
         $employee = Employee::query()->where('public_id', $request->validated('employee_public_id'))->firstOrFail();
         abort_unless($request->user()->canAccessEmployee($employee), 404);
 
-        $result = $this->unmatched->assign($device, (string) $request->validated('badge'), $employee, $request->user(), $recorder);
+        $read = $preview->for($device, (string) $request->validated('badge'), $employee, $request->user());
+
+        return response()->json([
+            'punches' => $read['punches'],
+            'first_day' => $read['first_day'],
+            'last_day' => $read['last_day'],
+            'employee' => [
+                'public_id' => $read['employee']['public_id'],
+                'name' => $read['employee']['name'],
+                'employee_code' => $read['employee']['employee_code'],
+                'department' => $read['employee']['department'],
+                'position' => $read['employee']['position'],
+                'branch' => $read['employee']['branch'],
+                'hire_date' => $read['employee']['hire_date'],
+                'status' => $read['employee']['status'],
+                'badge_number' => $read['employee']['badge_number'],
+            ],
+            'warnings' => $read['warnings'],
+        ]);
+    }
+
+    public function assign(AssignUnmatchedBadgeRequest $request, DevicePunchRecorder $recorder, AssignPreview $preview): JsonResponse
+    {
+        Gate::authorize('attendance.manage');
+
+        $device = Device::query()->where('public_id', $request->validated('device_public_id'))->firstOrFail();
+        $employee = Employee::query()->where('public_id', $request->validated('employee_public_id'))->firstOrFail();
+        abort_unless($request->user()->canAccessEmployee($employee), 404);
+
+        $badge = (string) $request->validated('badge');
+        $warnings = $preview->warningsToAccept($device, $badge, $employee, $request->user());
+        if ($warnings !== [] && $request->boolean('accept_warnings') !== true) {
+            $codes = array_column($warnings, 'code');
+            $message = __('device.held_warnings_unaccepted');
+
+            return response()->json(['message' => $message, 'errors' => ['accept_warnings' => [$message]], 'warnings' => $codes], 422);
+        }
+
+        $result = $this->unmatched->assign($device, $badge, $employee, $request->user(), $recorder, array_column($warnings, 'code'));
 
         return response()->json($result);
     }

@@ -480,3 +480,19 @@ export function step(
 
   return found!;
 }
+
+/**
+ * Answer the confirmation Assign opens on the Unrecognised badges card: wait
+ * until it has read what the click would do, tick the box when it lists
+ * warnings (the server refuses without it), and confirm.
+ */
+export async function confirmAssign(page: Page): Promise<void> {
+  const dialog = page.getByRole("dialog");
+  const confirm = dialog.getByRole("button", { name: "Confirm and assign" });
+  await expect(confirm).toBeVisible();
+  await expect(dialog.getByText("Reading what this would do...")).toHaveCount(0);
+  const tick = dialog.getByRole("checkbox");
+  if ((await tick.count()) > 0) await tick.check();
+  await expect(confirm).toBeEnabled();
+  await confirm.click();
+}

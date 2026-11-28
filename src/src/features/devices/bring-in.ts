@@ -13,6 +13,13 @@ import { apiErrorDetail } from "@/lib/api/error-message";
  * asked, and when a call fails (the network, a 409 because another request has
  * the badge, a 5xx); either way `carryOn()` asks again from where it stopped,
  * and a punch the server already replayed is not replayed twice.
+ *
+ * One failure does not stop it: the server answers 422 with `warnings` when a
+ * badge has warnings nobody has read. This screen cannot show them, so that
+ * badge is counted in `needsCheck`, left held, and the run goes on to the next.
+ * It is never resent, with or without `acceptWarnings` (a warning can appear
+ * between the preview and the click), so it cannot loop. The Devices page is
+ * where those warnings are read and the badge assigned.
  */
 export interface BringInJob {
   device_public_id: string;
@@ -20,6 +27,8 @@ export interface BringInJob {
   employee_public_id: string;
   /** Punches held for it when the screen was drawn, for the count still to go. */
   punches?: number;
+  /** The person read the warnings and ticked the box; the server's own list is what it checks. */
+  acceptWarnings?: boolean;
 }
 
 export type BringInPhase = "idle" | "running" | "stopped" | "failed" | "done";
@@ -36,6 +45,16 @@ export interface BringInState {
   total: number;
   /** The server's reason for the last failure, when it gave one. */
   error: string | null;
+  /** Badges left held because the server found warnings nobody has read. */
+  needsCheck: number;
+}
+
+/** The server refused to assign until the warnings are read: 422 with `warnings`. */
+export function isWarningsRefusal(err: unknown): boolean {
+  const response = (
+    err as { response?: { status?: number; data?: { warnings?: unknown } } }
+  )?.response;
+  return response?.status === 422 && Array.isArray(response.data?.warnings);
 }
 
 interface AssignAnswer {
@@ -52,6 +71,7 @@ const IDLE: BringInState = {
   position: 0,
   total: 0,
   error: null,
+  needsCheck: 0,
 };
 
 export function useBringInPunches(onSettled?: () => void) {
@@ -61,6 +81,7 @@ export function useBringInPunches(onSettled?: () => void) {
   const index = useRef(0);
   const totals = useRef({ replayed: 0, refused: 0 });
   const left = useRef<number | null>(null);
+  const needsCheck = useRef(0);
   const stopRequested = useRef(false);
   const running = useRef(false);
   const alive = useRef(true);
@@ -101,6 +122,7 @@ export function useBringInPunches(onSettled?: () => void) {
         position: Math.min(index.current + 1, jobs.current.length),
         total: jobs.current.length,
         error,
+        needsCheck: needsCheck.current,
       });
     },
     [laterPunches],
@@ -135,12 +157,25 @@ export function useBringInPunches(onSettled?: () => void) {
             device_public_id: job.device_public_id,
             badge: job.badge,
             employee_public_id: job.employee_public_id,
+            ...(job.acceptWarnings ? { accept_warnings: true } : {}),
           },
         );
         totals.current.replayed += data.replayed;
         totals.current.refused += data.refused;
         left.current = data.remaining ?? 0;
       } catch (err) {
+        if (isWarningsRefusal(err)) {
+          needsCheck.current += 1;
+          index.current += 1;
+          left.current = null;
+          if (index.current >= jobs.current.length) break;
+          if (stopRequested.current || !alive.current) {
+            finish("stopped");
+            return;
+          }
+          publish("running");
+          continue;
+        }
         finish("failed", apiErrorDetail(err) ?? null);
         return;
       }
@@ -170,6 +205,7 @@ export function useBringInPunches(onSettled?: () => void) {
       index.current = 0;
       left.current = null;
       totals.current = { replayed: 0, refused: 0 };
+      needsCheck.current = 0;
       void run();
     },
     [run],

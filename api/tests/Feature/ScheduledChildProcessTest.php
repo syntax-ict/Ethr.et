@@ -21,7 +21,7 @@ use Illuminate\Support\Facades\Cache;
  */
 beforeEach(function () {
     HealthSignals::store()->forget(ScheduleCatchUpCommand::LAST_RUN_KEY);
-    HealthSignals::store()->forget('ethr:schedule:last_task_failure');
+    HealthSignals::store()->forget('ethr:schedule:task_failures');
     Cache::store()->forget(ScheduleCatchUpCommand::LAST_RUN_KEY);
     config(['cron.php_binary' => null]);
 });
@@ -123,9 +123,10 @@ it('puts the tail of a failing child output in the report and the console, and c
         ->and($event->output)->toBe($event->getDefaultOutput())
         ->and(glob(storage_path('framework/schedule').DIRECTORY_SEPARATOR.'ethr-sched-*') ?: [])->toBe($before);
 
-    $failure = app(QueueHealth::class)->lastTaskFailure();
-    expect($failure['task'])->toBe('failing-child')
-        ->and($failure['exit_code'])->toBeInt()->not->toBe(0);
+    $failing = app(QueueHealth::class)->failingTasks();
+    expect($failing)->toHaveCount(1)
+        ->and($failing[0]['task'])->toBe('failing-child')
+        ->and($failing[0]['exit_code'])->toBeInt()->not->toBe(0);
 });
 
 it('keeps output an event already sends somewhere', function () {
@@ -142,7 +143,7 @@ it('keeps output an event already sends somewhere', function () {
     @unlink($own);
 });
 
-it('shows a recorded task failure as a health problem for thirty minutes', function () {
+it('keeps a recorded task failure as a health problem until the task succeeds, for at most 48 hours', function () {
     $health = app(QueueHealth::class);
     $health->beat();
 
@@ -152,13 +153,72 @@ it('shows a recorded task failure as a health problem for thirty minutes', funct
 
     $snapshot = $health->snapshot();
     expect($snapshot['status'])->toBe('unhealthy')
-        ->and(implode(' ', $snapshot['problems']))->toContain('scheduled task "ethr-backup" failed (exit 255)');
+        ->and(implode(' ', $snapshot['problems']))->toContain('scheduled task "ethr-backup" is failing (exit 255)')
+        ->and($snapshot['failing_tasks'])->toHaveCount(1)
+        ->and($snapshot['failing_tasks'][0]['task'])->toBe('ethr-backup');
 
-    Carbon::setTestNow(now()->addMinutes(29));
+    Carbon::setTestNow(now()->addHours(47));
     $health->beat();
     expect(implode(' ', $health->snapshot()['problems']))->toContain('ethr-backup');
 
-    Carbon::setTestNow(now()->addMinutes(2));
+    Carbon::setTestNow(now()->addHours(2));
     $health->beat();
-    expect(implode(' ', $health->snapshot()['problems']))->not->toContain('scheduled task');
+    expect(implode(' ', $health->snapshot()['problems']))->not->toContain('scheduled task')
+        ->and($health->snapshot()['failing_tasks'])->toBe([]);
+});
+
+it('clears a task failure when the same task succeeds, and only that one', function () {
+    $health = app(QueueHealth::class);
+    $health->recordTaskFailure('task-a', 1);
+    $health->recordTaskFailure('task-b', null);
+
+    $health->recordTaskSuccess('task-c');
+    expect($health->failingTasks())->toHaveCount(2);
+
+    $health->recordTaskSuccess('task-a');
+    expect(array_column($health->failingTasks(), 'task'))->toBe(['task-b']);
+
+    $health->recordTaskSuccess('task-b');
+    expect($health->failingTasks())->toBe([]);
+});
+
+it('ignores the old single-value failure key', function () {
+    HealthSignals::store()->put('ethr:schedule:last_task_failure', [
+        'task' => 'legacy', 'exit_code' => 255, 'at' => now()->toIso8601String(),
+    ], 600);
+
+    expect(app(QueueHealth::class)->failingTasks())->toBe([]);
+
+    HealthSignals::store()->forget('ethr:schedule:last_task_failure');
+});
+
+it('clears a failing child once the same task runs and exits zero', function () {
+    scheduleOnly(function (Schedule $s) {
+        $s->command('ethr:no-such-task')->everyMinute()->name('flaky-child');
+    });
+
+    $this->artisan('ethr:schedule-run')->assertFailed();
+    expect(array_column(app(QueueHealth::class)->failingTasks(), 'task'))->toBe(['flaky-child']);
+
+    Carbon::setTestNow(now()->addMinutes(2));
+    scheduleOnly(function (Schedule $s) {
+        $s->command('list')->everyMinute()->name('flaky-child');
+    });
+
+    $this->artisan('ethr:schedule-run')->assertSuccessful();
+    expect(app(QueueHealth::class)->failingTasks())->toBe([]);
+});
+
+it('names every scheduled event, so a failure never publishes a command line', function () {
+    $this->artisan('schedule:list');
+    $events = app(Schedule::class)->events();
+
+    $unnamed = collect($events)
+        ->filter(fn ($event) => ! is_string($event->description) || trim($event->description) === '')
+        ->map(fn ($event) => $event->command ?? $event::class)
+        ->values()
+        ->all();
+
+    expect(count($events))->toBeGreaterThan(5)
+        ->and($unnamed)->toBe([]);
 });

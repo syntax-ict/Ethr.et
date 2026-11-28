@@ -218,9 +218,9 @@ Route::get('/health', HealthController::class)->middleware('throttle:health');
 // VerifyCronToken 404s when CRON_TOKEN is unset, so an unconfigured
 // deployment does not advertise that they exist. POST, not GET: these are not
 // safe or idempotent, and a GET would be followed by a link-prefetcher or a
-// crawler that stumbled on the URL. `/backup` is the exception, and a GET,
-// because it only reads: an uptime monitor calls it with the same header and
-// is told by a 503 that backups have stopped.
+// crawler that stumbled on the URL. `/backup` and `/tasks` are the exceptions,
+// and GETs, because they only read: an uptime monitor calls each with the same
+// header and is told by a 503 that backups, or scheduled work, have stopped.
 Route::prefix('cron')
     // ORDER IS LOAD-BEARING. throttle FIRST: VerifyCronToken abort(404)s a bad
     // token, and middleware runs in the order listed, so with the token check
@@ -231,6 +231,7 @@ Route::prefix('cron')
         Route::post('/schedule', [CronRunController::class, 'schedule']);
         Route::post('/queue', [CronRunController::class, 'queue']);
         Route::get('/backup', [CronRunController::class, 'backup']);
+        Route::get('/tasks', [CronRunController::class, 'tasks']);
     });
 
 // Public endpoints
@@ -714,6 +715,7 @@ Route::middleware(['auth:sanctum', RejectInactiveUser::class, EnforceSessionIdle
         Route::get('/dashboard', [DeviceController::class, 'dashboard']);
         // Badges no employee matched, with their held punches (UnmatchedPunches).
         Route::get('/unmatched-punches', [UnmatchedPunchController::class, 'index']);
+        Route::get('/unmatched-punches/preview', [UnmatchedPunchController::class, 'preview']);
         Route::post('/unmatched-punches/assign', [UnmatchedPunchController::class, 'assign']);
         Route::post('/unmatched-punches/dismiss', [UnmatchedPunchController::class, 'dismiss']);
         Route::post('/quarantine/replay', [DeviceQuarantineController::class, 'replay']);
