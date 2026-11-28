@@ -264,7 +264,8 @@ probe_environment() {
 
     # The origin gates.sh e2e-attendance will actually use, for tenant e2e-att.
     local pattern host port scheme
-    pattern="${E2E_ORIGIN:-http://\{tenant\}.localhost:3000}"
+    pattern="${E2E_ORIGIN:-}"
+    [[ -n "$pattern" ]] || pattern='http://{tenant}.localhost:3000'
     E2E_PROBE_URL="${pattern//\{tenant\}/e2e-att}/login"
     scheme="${E2E_PROBE_URL%%://*}"
     host="${E2E_PROBE_URL#*://}"; host="${host%%/*}"
@@ -474,6 +475,8 @@ part_result() {
 finish_charter() { # <name> <start-seconds> <skip-note-or-empty>
     local c="$1" start="$2" skipnote="$3"
     CH_DUR[$c]="$(fmt_dur $((SECONDS - start)))"
+    # The gate and Pest colour their output; the log is read as text.
+    sed -i 's/\x1b\[[0-9;]*[A-Za-z]//g' "$CUR_LOG" 2>/dev/null
     if [[ $PARTS_FAILED -gt 0 ]]; then
         CH_STATUS[$c]="failed: $PARTS_FAIL_WHY"
     else

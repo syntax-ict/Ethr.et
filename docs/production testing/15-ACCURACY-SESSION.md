@@ -53,7 +53,7 @@ The script checks most of this in `preflight` and records what it found.
 
 | Needs | For | Notes |
 |---|---|---|
-| A worktree at the release commit | Everything | The sheet records the commit and whether tracked files are clean |
+| A worktree at the release commit | Everything | The sheet records the commit and whether tracked files are clean. See "Which commit" below |
 | `api/vendor` and `api/.env` with `BROADCAST_CONNECTION=null` | Every PHP charter | A fresh checkout: [CONTRIBUTING.md](../../CONTRIBUTING.md) |
 | GNU `timeout` | Every charter | Git Bash has it. Windows' own `timeout.exe` is not it, and the script refuses it |
 | MariaDB on `127.0.0.1:3306` | `races` only | See below |
@@ -61,13 +61,34 @@ The script checks most of this in `preflight` and records what it found.
 | A saved QA session, made just before | `production` only | See below |
 | `gh` signed in | `strength` only | Not signed in is a skip, not a failure |
 
+**Which commit.** A session measures a commit, so say which. After a release, the commit under test is the one the live site reports in `release.json` on the site (every release carries it), which is also the commit of the release's tag `vYYYY.MM.DD.N`. [PLESK-GO-LIVE.md](../deployment/PLESK-GO-LIVE.md) describes how `scripts/release-status.sh https://<site>` compares the live `release.json` with the `production` branch and its tag. Check out that tag in the worktree. A session run before a release runs on the commit about to be released. The sheet's Commit line is what the report quotes.
+
 **MariaDB on the owner's Windows machine.** Start it in a visible, minimised window, never hidden:
 
 ```powershell
 Start-Process cmd.exe -ArgumentList '/c','C:\xampp\mysql_start.bat' -WindowStyle Minimized
 ```
 
-A hidden start has corrupted its system tables before. The script never starts a database server. The `races` charter also wants its own scratch database, `ethr_concurrency` (the gate says so and refuses another name).
+A hidden start has corrupted its system tables before. The script never starts a database server.
+
+**What `races` needs, as read from `concurrency_gate` in `scripts/gates.sh`, `api/phpunit.concurrency.xml` and `api/tests/Concurrency/AttendancePunchRaceTest.php`.** A MySQL or MariaDB server that answers a TCP connection at `DB_HOST:DB_PORT` (defaults `127.0.0.1` and `3306`), the database cache store, and a scratch database. The settings that locate the server come from the environment and default to host `127.0.0.1`, port `3306`, database `ethr_concurrency`, user `root` and an empty password, so on the owner's XAMPP machine nothing needs exporting; export `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME` and `DB_PASSWORD` if yours differ, and never write the password into this file or a log. **Nothing creates the database.** The suite's header gives the one statement to run once: `CREATE DATABASE ethr_concurrency CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;`. The suite then migrates it itself on its first test and leaves its rows behind (each run under a tenant of its own). The test refuses any database whose name does not contain `concurrency`, `scratch` or `suite`. I read no code that handles a missing database and did not try it, so what a missing `ethr_concurrency` looks like is not stated here: expect `races` to be recorded `failed`, and read its log. The gate itself fails rather than skips when no server answers; the script records `not run: no database server` first.
+
+**Every `not run` the script can print.** The reason is the text in the sheet's Status column.
+
+| Reason as printed | What is missing | How to provide it |
+|---|---|---|
+| `not run: no api/vendor or no php` | PHP on the PATH, or `api/vendor` | Install PHP 8.2 or newer (XAMPP's `C:\xampp\php` on the owner's machine) and run `composer install` in `api/` ([CONTRIBUTING.md](../../CONTRIBUTING.md); a cold install needs a GitHub token with no scopes) |
+| `not run: no database server` | Nothing answers at `DB_HOST:DB_PORT` (default `127.0.0.1:3306`) | Start MariaDB in a visible window (command above), and create `ethr_concurrency` once |
+| `not run: gh not signed in` | `gh` missing, or `gh auth status` fails | Install the GitHub CLI and sign in with `gh auth login`. The script only asks whether `gh` is signed in and never reads or logs the token |
+| `not run: no run of accuracy-mutation yet` | The job exists but has never run | Someone starts the manual job in GitHub Actions. The script starts nothing |
+| `not run: no completed run of accuracy-mutation in the last 10 runs` | The last 10 runs of its workflow all skipped the job | The same |
+| `not run: local stack not running; restated-figures tests not built yet` | Nothing answers at the `e2e-att` address of `E2E_ORIGIN`, and the tests do not exist | Bring up the local stack (below), and set `E2E_ORIGIN` if it is not on port 3000. The tests wait for a later merge |
+| `not run: no src/node_modules` | The frontend dependencies | `npm ci` in `src/` |
+| `not run: the session check could not be read (needs Node 22.6 or newer)` | A Node that can read `src/e2e-production/env.ts` | Node 22.6 or newer |
+| `not run: no saved session` | No saved sign-in is fresh | A person saves one just before (below). An agent never does this |
+| `not run: preflight failed` | Every charter, after a failed preflight | Fix what `01-preflight.log` names, and run again |
+
+`not built yet` is a different thing: the files do not exist in this checkout, and nothing a tester does provides them.
 
 **The local stack.** Bring up the production-shaped stack with `scripts/local-production/up.sh`, or run `php artisan serve` and `npm run dev`, and keep `php artisan queue:work --queue=attendance,notifications,default,exports --stop-when-empty` running for the payroll journey. The script probes the address that `./scripts/gates.sh e2e-attendance` itself uses (`E2E_ORIGIN`, default `http://{tenant}.localhost:3000`, tenant `e2e-att`), not only port 8081, and the journeys run only when that answers. They also seed organisations of their own into the database that `DB_*` names.
 
@@ -95,6 +116,10 @@ A hidden start has corrupted its system tables before. The script never starts a
 | 0 | Every charter that ran passed. Skips never fail the session |
 | 1 | A charter that ran failed. A deadline that expired counts as failed |
 | 2 | Preflight failed (no GNU `timeout`, no `php` or `node`, no `api/vendor`, an `--out` git would show), or the arguments were wrong |
+
+**Exit 0 means every charter that ran passed. It does not mean every charter ran.** Read the sheet's Status column, not the exit code, to see what was measured. A charter that is not built or not run writes no log. The number at the start of a log's name is the charter's number in section 7, so a session with logs 01, 02 and 04 and gaps between them is normal.
+
+The sheet's header lines "Database at 127.0.0.1:3306" and "Local stack at ..." are the same probes as the table in section 5: a bounded TCP connection to the database port, and a bounded HTTP request to the stack. The address `restated` uses is in `01-preflight.log`.
 
 A charter whose precondition is missing is recorded `not run: <reason>`. One whose files do not exist yet in this checkout is recorded `not built yet`, and starts running by itself the day the directory, gate mode or workflow job appears.
 
@@ -127,7 +152,7 @@ A charter whose precondition is missing is recorded `not run: <reason>`. One who
 **How to read each result.**
 
 - **preflight.** The two numbers are the test files under `api/tests/Unit` and `api/tests/Feature`, the same ones the root [CLAUDE.md](../../CLAUDE.md) says to compare with what Pest collects. A dirty worktree is recorded, not refused: say so in the report.
-- **conformance.** The counts come from Pest's own last `Tests:` line, per engine. **Incomplete** is a recorded finding (the engine disagrees with a hand value and the case is listed in `findings.php`). **Skipped** is a rule that is undecided in its register. **Failed** is new. The attendance row is the whole `tests/Accuracy` suite, oracle tests included, so it holds more tests than the 79 cases. Read a failing case as [12, section 3](12-ATTENDANCE-ACCURACY.md#read-a-failing-case) says. If there is no summary line, the sheet says so; it never writes zeros.
+- **conformance.** The counts come from Pest's own last `Tests:` line, per engine. **Incomplete** is a recorded finding (the engine disagrees with a hand value and the case is listed in `findings.php`). **Skipped** is a case that depends on a rule the register marks Undecided ([12, section 3](12-ATTENDANCE-ACCURACY.md#what-a-result-means)). Skips of that kind are expected while rules wait for a ruling; they are listed so they are not forgotten and are never asserted. The register's [Waiting for a decision](../ATTENDANCE-RULES.md#waiting-for-a-decision) section lists the rules and the question each asks, and a session does not decide them. To see which tests were skipped, run from `api/`: `php -d memory_limit=-1 vendor/bin/pest -c phpunit.accuracy.xml --display-skipped` (the option is in Pest's own help; it is a separate run and writes nothing). A skip that is not about an Undecided rule is not expected: file it. **Failed** is new. The attendance row is the whole `tests/Accuracy` suite, oracle tests included, so it holds more tests than the 79 cases. Read a failing case as [12, section 3](12-ATTENDANCE-ACCURACY.md#read-a-failing-case) says. If there is no summary line, the sheet says so; it never writes zeros.
 - **robustness.** Not built yet. When it exists, the sheet copies the seed, the number of cases, the disagreements and the input distribution unchanged from the test's output, and computes nothing (section 9).
 - **races.** Needs a real server: it is the only proof of attendance above a single process ([BASELINE](../audit/BASELINE.md) section 25j). Without one it is `not run`, and the report says attendance concurrency was not measured.
 - **strength.** Reads the conclusion of the latest completed run that did not skip the manual job. It starts no CI run. It also notes when that run was on another commit than this checkout.
@@ -167,6 +192,8 @@ Candidate findings (read from code, not run):
 4. **No generated figure is called real-world accuracy.** Generated inputs come from ETHR's own reading of the rules, so agreement proves consistency with that reading and nothing more.
 
 ## 10. Triage
+
+**Read first, then fill.** Before touching the sheet, read [12, section 6](12-ATTENDANCE-ACCURACY.md#6-classify-a-finding) for the four classes, then the findings files (`api/tests/Accuracy/findings.php` and `oracle-findings.php` for attendance), so a disagreement already recorded is not filed twice. Then fill the sheet in this order: first the Triage table, one row per failure, incomplete case or surprise, with its class; then the Debrief; then the report, from the sheet.
 
 Classify every disagreement with the four classes of [12, section 6](12-ATTENDANCE-ACCURACY.md#6-classify-a-finding): engine defect, wrong hand value, fixture error, rule undecided. Do not copy that table; use it. A session runs unattended, so these rules decide what happens without anyone asking:
 

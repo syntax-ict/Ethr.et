@@ -4,7 +4,7 @@ Every statutory value the payroll engine applies is a dated row, never a
 constant in code. This page lists them, what each one does, the value seeded
 for each organisation type, and whether that value is confirmed.
 
-How payroll uses each value, rule by rule, is in [`PAYROLL-RULES.md`](PAYROLL-RULES.md). Its rules that read a value not yet confirmed here are Implemented and wait for the accountant: PYR-RATE-01, PYR-RATE-03, PYR-LEAVE-02, PYR-SICK-01, PYR-SICK-02, PYR-LATE-02, PYR-LATE-03, PYR-OT-01, PYR-PAG-01 to PYR-PAG-05, PYR-PEN-09. Undecided rules waiting for a ruling: PYR-BANK-04, PYR-BANK-05, PYR-NET-02, PYR-ALW-07, PYR-ROUND-04, PYR-ROUND-05.
+How payroll uses each value, rule by rule, is in [`PAYROLL-RULES.md`](PAYROLL-RULES.md). Its rules that read a value not yet confirmed here are Implemented and wait for the accountant: PYR-RATE-01, PYR-RATE-03, PYR-LEAVE-02, PYR-SICK-01, PYR-SICK-02, PYR-LATE-02, PYR-LATE-03, PYR-OT-01, PYR-PAG-01 to PYR-PAG-04, PYR-PEN-09. Undecided rules waiting for a ruling: PYR-PAG-06, PYR-PEN-11, PYR-PEN-14, PYR-BANK-04 to PYR-BANK-06, PYR-NET-02, PYR-ALW-07, PYR-LATE-06, PYR-ROUND-04, PYR-PAG-05, PYR-ROUND-05.
 
 Since 2026-10-27 (migration `2026_10_27_000002_create_organization_types_and_statutory_parameters`).
 Before that the engine fell back to constants for the working-day divisor,
