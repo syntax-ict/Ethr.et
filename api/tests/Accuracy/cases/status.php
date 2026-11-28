@@ -54,6 +54,7 @@ return [
     $case('GC-WORK-001', 'AR-MIN-04', 'register', [$in('08:30'), $out('17:30')], ['live' => 1, 'worked' => 480]),
     $case('GC-WORK-002', ['AR-MIN-04', 'AR-CLOCK-04'], 'register', [$in('08:30:00'), $out('17:30:59')], ['live' => 1, 'worked' => 480]),
     $case('GC-WORK-003', 'AR-MIN-05', 'register', [$in('08:30')], ['live' => 1, 'worked' => 0, 'check_out' => null]),
+    $case('GC-WORK-004', ['AR-MIN-04', 'AR-CLOCK-04'], 'register', [$in('08:30:40'), $out('17:30:20')], ['live' => 1, 'worked' => 479]),
 
     // A manual or imported row is rated like a punch (05 CAP-002).
     $case('GC-CHAN-004', ['AR-STATUS-05', 'AR-MIN-01'], '05 CAP-002', [$manual('08:50', '17:30', 'csv')], ['live' => 1, 'status' => 'late', 'late' => 20]),

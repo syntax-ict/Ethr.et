@@ -24,6 +24,8 @@ use App\Services\Attendance\TimesheetLedger;
 use App\Services\CurrentTenant;
 use App\Services\Payroll\StatutoryRules;
 use Carbon\Carbon;
+use Tests\Accuracy\Oracle\CaseAdapter;
+use Tests\Accuracy\OracleComparer;
 
 /*
  * The golden cases: every expected value in tests/Accuracy/cases is typed by
@@ -69,19 +71,16 @@ function accuracyFindings(): array
 }
 
 /**
- * The shifts a case may name. S1 and S2 are the two the brief and the QA pack
- * use; S3 is a plain 08:00 to 17:00 day.
+ * A shift a case may name, from fixtures/shifts.php, which the oracle reads
+ * too.
  *
  * @return array<string, mixed>
  */
 function accuracyShift(string $name): array
 {
-    return match ($name) {
-        'S1' => ['name' => 'S1', 'start_time' => '08:30', 'end_time' => '17:30', 'crosses_midnight' => false, 'grace_minutes' => 15, 'early_departure_minutes' => 15, 'break_minutes' => 60, 'working_days' => '1,2,3,4,5'],
-        'S2' => ['name' => 'S2', 'start_time' => '22:00', 'end_time' => '06:00', 'crosses_midnight' => true, 'grace_minutes' => 15, 'early_departure_minutes' => 15, 'break_minutes' => 60, 'working_days' => '1,2,3,4,5,6,7'],
-        'S3' => ['name' => 'S3', 'start_time' => '08:00', 'end_time' => '17:00', 'crosses_midnight' => false, 'grace_minutes' => 15, 'early_departure_minutes' => 15, 'break_minutes' => 60, 'working_days' => '1,2,3,4,5'],
-        default => throw new InvalidArgumentException("Unknown shift {$name}"),
-    };
+    $shifts = require __DIR__.'/fixtures/shifts.php';
+
+    return $shifts[$name] ?? throw new InvalidArgumentException("Unknown shift {$name}");
 }
 
 /**
@@ -403,11 +402,44 @@ it('gives the answer typed by hand', function (array $case) {
     $misses = accuracyCompare($case, $ctx, $outcomes);
     Carbon::setTestNow();
 
+    // The third opinion. When the engine and the hand value disagree, the
+    // oracle says which of the two is outvoted.
+    $verdict = $misses === [] ? '' : "\n".accuracyVerdict($case);
+
     $finding = accuracyFindings()[$case['id']] ?? null;
     if ($finding !== null) {
         expect($misses)->not->toBeEmpty("{$case['id']} is listed in findings.php but the engine now agrees with the hand value: remove it from the list");
-        test()->markTestIncomplete("RECORDED FINDING {$case['id']} ({$rules}): {$finding}\n".implode("\n", $misses));
+        test()->markTestIncomplete("RECORDED FINDING {$case['id']} ({$rules}): {$finding}\n".implode("\n", $misses).$verdict);
     }
 
-    expect($misses)->toBe([], "\n".implode("\n", $misses));
+    expect($misses)->toBe([], "\n".implode("\n", $misses).$verdict);
 })->with(accuracyDataset());
+
+/**
+ * What the independent oracle (tests/Accuracy/Oracle) says about the same
+ * case, read only when the engine has disagreed with a hand value. Two against
+ * one names the suspect; it does not prove it.
+ *
+ * @param  array<string, mixed>  $case
+ */
+function accuracyVerdict(array $case): string
+{
+    // The dates are the question asked; the oracle never reads the answers.
+    $answer = CaseAdapter::run($case, require __DIR__.'/fixtures/shifts.php', array_keys($case['expect']['days'] ?? []) ?: null);
+    $oracle = OracleComparer::compare($case, $answer);
+
+    if ($oracle['mismatches'] === [] && $oracle['undecided'] === []) {
+        return 'THREE-WAY: the oracle agrees with every hand value of this case, so the engine is outvoted two to one. Suspect the engine.';
+    }
+
+    $lines = array_map(fn (string $m): string => '  oracle: '.$m, $oracle['mismatches']);
+    foreach ($oracle['undecided'] as $u) {
+        $lines[] = "  oracle: {$u['field']} depends on undecided rule {$u['rule']}";
+    }
+
+    if ($oracle['mismatches'] === []) {
+        return "THREE-WAY: the oracle has no decided answer here; the field depends on an undecided rule. The register must be ruled on first.\n".implode("\n", $lines);
+    }
+
+    return "THREE-WAY: the oracle also disagrees with the hand value here. Suspect the hand value or the register first.\n".implode("\n", $lines);
+}

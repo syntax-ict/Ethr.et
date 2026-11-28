@@ -23,8 +23,10 @@ All times below are wall-clock times in the organisation's zone unless a row say
 | AR-CLOCK-01 | Punch times are stored in UTC and rated in the organisation's zone, `Africa/Addis_Ababa` unless the organisation set another. 09:00 in Addis is 06:00 UTC. | 05 ground rules | Decided |
 | AR-CLOCK-02 | A record's date is the work date in the organisation's zone, never the UTC date. A punch at 01:30 is dated that local day. | 05 ATT-008 | Decided |
 | AR-CLOCK-03 | The Ethiopian clock and calendar change what a reader sees and types, never what is stored or rated. 08:40 reads 2:40 and 17:35 reads 11:35. | 05 ATT-014 | Decided |
-| AR-CLOCK-04 | Every count of minutes is a whole number, cut down, never rounded: 16 minutes 59 seconds is 16. No punch time is rounded to a quarter hour or any other step. | `api/app/Models/AttendanceRecord.php` `workedMinutes()` | Implemented |
+| AR-CLOCK-04 | Every count of minutes is a whole number, cut down, never rounded: 16 minutes 59 seconds is 16. The difference between two moments is cut down, not each moment first: 08:30:40 to 17:30:20 is 8 hours 59 minutes 40 seconds, so 539 minutes. No punch time is rounded to a quarter hour or any other step. | `api/app/Models/AttendanceRecord.php` `workedMinutes()` | Implemented |
 | AR-CLOCK-05 | A terminal's time with no zone offset is read in the terminal's own zone, or the organisation's when the terminal has none. A punch more than 10 minutes ahead of the server is refused as `clock_ahead`. | BASE 25y | Decided |
+| AR-CLOCK-06 | Whether a window is measured to the second or in whole minutes. Every window in this register is written in minutes (grace, early departure, the 5 minute merge and repeat, the 180 minute break, the automatic check-out minutes) or hours (14, 6); terminals report seconds. Out 10:00:00 and back 13:00:30 is a break of 180 minutes cut down, or of more than 180 to the second. AR-STATUS-07 is this question at the grace boundary. | none | Undecided |
+| AR-CLOCK-07 | How seconds are cut when one span is split into kinds of overtime: once for the span, the remainder going to one kind, or once per kind. 17:45:30 to 22:00:40 holds 254 minutes 30 seconds of day time and 40 seconds of night: 255 normal and 0 night by the first reading, 254 and 0 by the second. | none | Undecided |
 
 ## 2. Which shift rates the day
 
@@ -53,13 +55,14 @@ All times below are wall-clock times in the organisation's zone unless a row say
 
 | Id | Rule | Source | State |
 |---|---|---|---|
-| AR-MIN-01 | Late minutes count from shift start, not from the end of grace, and only on a late day. 08:46 on an 08:30 shift is 16. | 05 ATT-002; 07 LATE-004 | Decided |
+| AR-MIN-01 | Late minutes count from shift start, not from the end of grace, and only on a late day. 08:46 on an 08:30 shift is 16, and so is 08:46:59 (AR-CLOCK-04). | 05 ATT-002; 07 LATE-004 | Decided |
 | AR-MIN-02 | Early minutes count from the check-out to shift end, only when the check-out is early by AR-STATUS-03. 17:10 against 17:30 is 20. | 05 ATT-005; 07 LATE-004 | Decided |
 | AR-MIN-03 | A late day that also ends early missed late plus early minutes: 08:46 to 17:10 is 16 + 20 = 36. | 07 LATE-004 | Decided |
 | AR-MIN-04 | Worked minutes are check-out minus check-in, minus the shift's fixed `break_minutes` once, never below zero. The break actually taken is stored and is not what is subtracted. 08:50 to 17:00 with a 60 minute break is 430. | 05 PUNCH-011; PIPE "A break inside the day" | Decided |
 | AR-MIN-05 | A record with no check-out has worked minutes 0. A record with no shift subtracts no break. | `api/app/Models/AttendanceRecord.php` `workedMinutes()` | Implemented |
 | AR-MIN-06 | Late and early minutes are zero on a day that is not a working day for the person. | `api/app/Services/Attendance/TimesheetLedger.php` | Implemented |
-| AR-MIN-07 | Arriving before shift start earns nothing: it is not overtime. | none (by omission) | Undecided |
+| AR-MIN-07 | Arriving before shift start is not overtime: on a working day only time after the shift's end counts (AR-OT-01). It earns nothing else either; no document gives it a value. | 07 section 1.3 ("only time after the shift ends counts") | Decided |
+| AR-MIN-08 | Whether a day with two records (a second session, AR-BREAK-02) has the shift's break subtracted once per record or once for the day. | none | Undecided |
 
 ## 5. One record a day
 
@@ -72,6 +75,8 @@ All times below are wall-clock times in the organisation's zone unless a row say
 | AR-DAY-05 | A check-out with nothing open and nothing closed in the last 5 minutes is refused. | 05 ATT-006 | Decided |
 | AR-DAY-06 | An Automatic punch is a check-in when nothing is open, a repeat within 5 minutes of the check-in, and a check-out otherwise. | 05 PUNCH-004, PUNCH-005 | Decided |
 | AR-DAY-07 | A manual or imported entry more than 5 minutes from an existing punch is kept as a second record and flagged as a conflict. | 05 CON-001, AIMP-004 | Decided |
+| AR-DAY-08 | Which two punches the 5 minutes of AR-DAY-07 are measured between: the two check-ins only (AR-DAY-03 is about arrivals), or any punch of the entry and any punch of the day. MAN-003 says "an existing punch". | none | Undecided |
+| AR-DAY-09 | A check-in begins a new record on its own work date unless a record of that same work date is open (AR-DAY-02). A record still open from an earlier work date does not absorb it: the closing windows of AR-NIGHT-02 are about check-outs. In at 19:00 and never out, then in at 08:25 the next morning: two records, one per work date. | AR-DAY-02, AR-NIGHT-02 | Decided |
 
 ## 6. A break inside the day
 
@@ -92,6 +97,7 @@ All times below are wall-clock times in the organisation's zone unless a row say
 | AR-NIGHT-03 | An Automatic punch closes yesterday's record only until 6 hours after its shift's end. Later, it is a new arrival. | 05 SHF-013 | Decided |
 | AR-NIGHT-04 | A manual or imported check-out earlier on the clock than the check-in is the next morning. A span of 14 hours or more is refused as a mistyped time. | 05 MAN-002, AIMP-002 | Decided |
 | AR-AUTO-01 | With automatic check-out on, a record still open once shift end plus the setting's minutes (default 120) has passed is closed at the shift's end, not at the time the job ran. | 05 AUTO-001 | Decided |
+| AR-NIGHT-05 | Exact boundaries the documents do not settle: whether exactly 14 hours after the check-in, or exactly 6 hours after the shift's end, is still inside the closing window (AR-NIGHT-02, AR-NIGHT-03); whether a check-in exactly at the shift's end is "after" it (AR-AUTO-02); and what closes yesterday's record when it has no shift, so no shift end. | none | Undecided |
 | AR-AUTO-02 | A check-in made after the shift's end, or more than 2 days old, is not closed automatically. | 05 AUTO-002 | Decided |
 | AR-AUTO-03 | The person's own later check-out replaces an automatic one. | BASE 25ag | Decided |
 
@@ -106,20 +112,25 @@ All times below are wall-clock times in the organisation's zone unless a row say
 | AR-ABS-05 | An organisation with no attendance recorded in the period has no absences. | BLUEPRINT-ASSESSMENT 2026-10-24 note | Decided |
 | AR-ABS-06 | Payroll lists absences and deducts nothing for them until a person settles the day. | 07 RCN-006 | Decided |
 | AR-ABS-07 | Half a day of approved leave makes the whole day on leave. | none | Undecided |
+| AR-ABS-08 | How a record on a day of approved leave is rated: as a working day (late, early, overtime from the shift's end) or as a day off (the whole span overtime, as AR-OT-02). | none | Undecided |
 
 ## 9. Overtime
 
 | Id | Rule | Source | State |
 |---|---|---|---|
-| AR-OT-01 | On a working day, overtime is the time from the shift's end to the check-out. 08:40 to 19:00 on a shift ending 17:30 is 90 minutes. | 07 section 1.3, PAY-031 | Decided |
+| AR-OT-01 | On a working day, overtime is the time worked after the shift's end: from the later of the shift's end and the check-in, to the check-out. 08:40 to 19:00 on a shift ending 17:30 is 90 minutes. A record checked in at 17:45 and out at 20:00 on that shift is 135, not 150: the quarter hour before the check-in was not worked. Each record counts its own; a day with two records adds them. | 07 section 1.3 ("only time after the shift ends counts"), PAY-031 | Decided |
 | AR-OT-02 | On a rest day or a public holiday, the whole span from check-in to check-out is overtime, with no break subtracted. | 07 section 1.3 | Decided |
-| AR-OT-03 | The night window is 22:00 to 06:00. Minutes inside it are night minutes; a holiday's are holiday night minutes. | STAT `overtime.night_window` | Decided |
+| AR-OT-03 | The night window runs from 22:00 up to, not including, 06:00: the minute 22:00 to 22:01 is night and the minute 06:00 to 06:01 is not. It applies on every calendar day an overtime span touches. On a working day, minutes inside it are night minutes and the rest are normal; on a holiday they are holiday night minutes and the rest are holiday minutes. | STAT `overtime.night_window` | Decided |
+| AR-OT-11 | Overtime on a day takes the day's class (AR-ABS-01): a holiday that falls on a rest day is paid as a holiday. | AR-ABS-01, 07 section 1.3 | Decided |
+| AR-OT-12 | On a rest day every minute is rest day overtime, the night window included: there is no rest day night rate, and the rest day rate (2.0) is above the night rate (1.75). | 07 section 1.3 (the table has no rest day night row) | Implemented |
 | AR-OT-04 | Multipliers are never below normal 1.5, night 1.75, rest day 2.0, holiday 2.5, holiday night 2.5. An organisation may set higher ones. | STAT `overtime.minimum_rates` | Decided |
 | AR-OT-05 | Hourly rate is the contract's monthly basic, before proration and deductions, divided by working days in the month (22 unless set, 20 to 31) times 8. Pay per kind is basic times minutes times multiplier, divided by working days times 480, rounded once. Basic 8,800 gives 50.00 an hour; two normal hours pay 150.00, night 175.00, rest day 200.00, holiday 250.00. | 07 section 1.3 | Decided |
 | AR-OT-06 | The limits (240 minutes a day, 720 a week, the organisation's daily cap) flag a run. Every minute is still paid, approved or not. | 07 section 1.3, PAY-029 | Decided |
 | AR-OT-07 | Records of one person that overlap pay overtime once: the longest pays, the lowest id on a tie. A record ending exactly when the next begins does not overlap. | BASE 25ad | Decided |
 | AR-OT-08 | A record with no shift has no overtime on a working day. | 05 CAP-002; `api/app/Models/AttendanceRecord.php` `overtimeWindow()` | Decided |
-| AR-OT-09 | A minimum before overtime counts: today a check-out 3 minutes after the shift's end pays 3 minutes. | none | Undecided |
+| AR-OT-09 | There is no minimum before overtime counts: a check-out 3 minutes after the shift's end pays 3 minutes, because every minute is paid (AR-OT-06). Whether to introduce a floor is an owner decision proposed in [OVERTIME-WORKING-TIME-PLAN-2026-11-28.md](audit/OVERTIME-WORKING-TIME-PLAN-2026-11-28.md), not a gap in today's rule. | 07 section 1.3, PAY-029 | Decided |
+| AR-OT-13 | Which day's class applies to the part of a night shift's overtime that falls on its second calendar day: the work date's (the night it began, AR-NIGHT-01) or that calendar day's own. S2 worked 21:58 to 07:30 with a public holiday on the second day: 90 minutes of normal overtime by the first reading, 90 of holiday by the second. | none (AR-OT-03 speaks of every calendar day for the night window only) | Undecided |
+| AR-OT-14 | Which record pays when overlaps form a chain (A overlaps B and B overlaps C, but A does not overlap C), and whether "longest" in AR-OT-07 means the span, the worked minutes or the overtime minutes. | none | Undecided |
 | AR-OT-10 | The legal limits themselves (240 and 720) and which kinds they cover. STAT marks all three as not confirmed against the law's text. | STAT | Undecided |
 
 ## 10. Lateness deduction
@@ -143,13 +154,20 @@ From `api/app/Support/AttendanceRules.php`. A change to one of these is a change
 
 ## Waiting for a decision
 
-These are the Undecided rows, in the order they matter to pay. Each needs the owner's ruling (the accountant's too, where money moves) before a test can call the engine right or wrong on it.
+These are the Undecided rows, in the order they matter to pay. Each needs the owner's ruling (the accountant's too, where money moves) before a test can call the engine right or wrong on it. Until then a test reports a field that depends on one as undecided, and only when the rule's readings would give different answers for that input: an undecided rule does not blank a field it cannot change.
 
-1. **AR-STATUS-07**, seconds at the grace boundary. Terminals report seconds, so this decides real days.
-2. **AR-OT-09**, a floor for overtime.
-3. **AR-MIN-07**, early arrival.
-4. **AR-ABS-07**, half-day leave.
-5. **AR-OT-10**, the legal limits, which wait on reading Art. 67 of Proclamation 1156/2019 from an official copy.
+1. **AR-OT-13**, holidays on a night shift's second day. It decides whether those hours are paid at 1.5 or 2.5.
+2. **AR-ABS-08**, a record on a leave day: worked overtime at 1.5 from the shift's end, or the whole span.
+3. **AR-STATUS-07** and **AR-CLOCK-06**, seconds at every window. Terminals report seconds, so these decide real days.
+4. **AR-OT-14**, chains of overlapping records.
+5. **AR-MIN-08**, the break on a second session.
+6. **AR-NIGHT-05**, the exact 14 and 6 hour boundaries, and closing a day with no shift.
+7. **AR-DAY-08**, which punches a manual entry's 5 minutes are measured between.
+8. **AR-CLOCK-07**, seconds when a span is split into kinds of overtime: at most one minute a span.
+9. **AR-ABS-07**, half-day leave.
+10. **AR-OT-10**, the legal limits, which wait on reading Art. 67 of Proclamation 1156/2019 from an official copy.
+
+Two rows were Undecided in the first edition and are not: AR-MIN-07 (early arrival) and AR-OT-09 (no overtime floor) follow from rules already Decided, which an independent review found on 2026-11-28 (BASELINE 25bq).
 
 ## Where other documents say something else
 
