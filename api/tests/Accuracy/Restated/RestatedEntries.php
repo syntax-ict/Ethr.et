@@ -52,7 +52,7 @@ final class RestatedEntries
      */
     public static function settle(string $key, array $misses, int $compared): void
     {
-        expect($compared)->toBeGreaterThan(0);
+        expect($compared)->toBeGreaterThan(0, 'no figure was compared. '.implode(' | ', $misses));
 
         $finding = self::findings()[$key] ?? null;
         if ($finding !== null) {
