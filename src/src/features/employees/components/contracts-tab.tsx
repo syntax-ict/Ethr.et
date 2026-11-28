@@ -31,6 +31,7 @@ import { useZodForm } from "@/lib/forms/use-zod-form";
 import { rules, fieldMessage } from "@/lib/forms/rules";
 import { z } from "zod";
 import { useT } from "@/lib/i18n/useT";
+import { useConfirm } from "@/components/shared/use-confirm";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { formatETB } from "@/lib/utils/currency";
 import {
@@ -141,11 +142,43 @@ function ContractCard({
   contract: EmployeeContract;
 }) {
   const { t } = useT();
+  const { requestConfirm, confirmDialog } = useConfirm();
   const { formatDate } = useDateFormatters();
   const [renewOpen, setRenewOpen] = useState(false);
   const endContract = useEndContract(employeeId);
 
-  function submitEnd(status: "expired" | "terminated_early") {
+  async function submitEnd(status: "expired" | "terminated_early") {
+    const type = contractTypeLabel(c.contract_type, t);
+    const early = status === "terminated_early";
+    if (
+      !(await requestConfirm({
+        title: early
+          ? t(
+              "employee.contracts.end_early_confirm_title",
+              "End this :type contract early?",
+              { type },
+            )
+          : t(
+              "employee.contracts.mark_expired_confirm_title",
+              "Mark this :type contract as expired?",
+              { type },
+            ),
+        description: early
+          ? t(
+              "employee.contracts.end_early_confirm_description",
+              "The contract is closed before its end date and can no longer be renewed. This cannot be undone here.",
+            )
+          : t(
+              "employee.contracts.mark_expired_confirm_description",
+              "The contract is closed as expired and can no longer be renewed. This cannot be undone here.",
+            ),
+        confirmLabel: early
+          ? t("employee.contracts.end_early", "End early")
+          : t("employee.contracts.mark_expired", "Mark expired"),
+        variant: "destructive",
+      }))
+    )
+      return;
     endContract.mutate(
       { contractId: c.public_id, input: { status } },
       {
@@ -240,6 +273,7 @@ function ContractCard({
         open={renewOpen}
         onOpenChange={setRenewOpen}
       />
+      {confirmDialog}
     </Card>
   );
 }

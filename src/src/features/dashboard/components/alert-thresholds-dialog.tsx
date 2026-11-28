@@ -26,6 +26,7 @@ import {
 import { EmptyState } from "@/components/shared/empty-state";
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n/useT";
+import { useConfirm } from "@/components/shared/use-confirm";
 import {
   useAlertThresholds,
   useCreateAlertThreshold,
@@ -59,6 +60,7 @@ export function AlertThresholdsDialog({
   onClose: () => void;
 }) {
   const { t } = useT();
+  const { requestConfirm, confirmDialog } = useConfirm();
   const { data, isLoading, isError, refetch } = useAlertThresholds();
   const create = useCreateAlertThreshold();
   const deleteThreshold = useDeleteAlertThreshold();
@@ -93,6 +95,26 @@ export function AlertThresholdsDialog({
   }
 
   const thresholds = data?.thresholds ?? [];
+
+  async function removeThreshold(publicId: string, metricLabel: string) {
+    if (
+      !(await requestConfirm({
+        title: t(
+          "alert_dialog.remove_confirm_title",
+          "Remove the alert rule for :metric?",
+          { metric: metricLabel },
+        ),
+        description: t(
+          "alert_dialog.remove_confirm_description",
+          "You stop being alerted when this figure crosses the limit. This cannot be undone; add the rule again to bring it back.",
+        ),
+        confirmLabel: t("alert_dialog.remove_confirm", "Remove rule"),
+        variant: "destructive",
+      }))
+    )
+      return;
+    deleteThreshold.mutate(publicId);
+  }
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -241,7 +263,12 @@ export function AlertThresholdsDialog({
                         variant="ghost"
                         size="icon"
                         className="shrink-0 text-muted-foreground hover:text-destructive"
-                        onClick={() => deleteThreshold.mutate(th.public_id)}
+                        onClick={() =>
+                          removeThreshold(
+                            th.public_id,
+                            t(`alert_dialog.metric_${th.metric}`, th.metric),
+                          )
+                        }
                         disabled={deleteThreshold.isPending}
                         aria-label={t("alert_dialog.remove", "Remove")}
                       >
@@ -260,6 +287,7 @@ export function AlertThresholdsDialog({
             {t("common.close", "Close")}
           </Button>
         </DialogFooter>
+        {confirmDialog}
       </DialogContent>
     </Dialog>
   );

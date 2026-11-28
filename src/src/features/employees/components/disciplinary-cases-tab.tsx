@@ -32,6 +32,7 @@ import { useZodForm } from "@/lib/forms/use-zod-form";
 import { rules, fieldMessage } from "@/lib/forms/rules";
 import { z } from "zod";
 import { useT } from "@/lib/i18n/useT";
+import { useConfirm } from "@/components/shared/use-confirm";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import {
@@ -196,6 +197,7 @@ function CaseCard({
   case: DisciplinaryCase;
 }) {
   const { t } = useT();
+  const { requestConfirm, confirmDialog } = useConfirm();
   const { formatDate } = useDateFormatters();
   const { can } = usePermissions();
   const [noteText, setNoteText] = useState("");
@@ -236,7 +238,19 @@ function CaseCard({
     );
   }
 
-  function submitClose() {
+  async function submitClose() {
+    if (
+      !(await requestConfirm({
+        title: t("employee.discipline.close_confirm_title", "Close this case?"),
+        description: t(
+          "employee.discipline.close_confirm_description",
+          "A closed case accepts no more notes, decisions or appeals. This cannot be undone here.",
+        ),
+        confirmLabel: t("employee.discipline.close_case", "Close case"),
+        variant: "destructive",
+      }))
+    )
+      return;
     close.mutate(
       { caseId: c.public_id, input: {} },
       {
@@ -414,6 +428,7 @@ function CaseCard({
         open={resolveOpen}
         onOpenChange={setResolveOpen}
       />
+      {confirmDialog}
     </Card>
   );
 }
