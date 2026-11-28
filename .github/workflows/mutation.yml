@@ -1,0 +1,74 @@
+name: Accuracy mutation
+
+# Manual only. This is a separate workflow file so that nothing in gates.yml
+# changes: no existing job is renamed, retargeted or given a new trigger, and
+# the required checks (which are job names) are untouched. Start it with:
+#
+#   gh workflow run mutation.yml
+#
+# Restrict it to one class for a quick try:
+#
+#   gh workflow run mutation.yml -f classes='App\Support\Cents'
+#
+# It is not a pass or fail gate. Read the score and the surviving mutants in the
+# job summary and the uploaded `accuracy-mutation` artifact; each survivor is a
+# missing golden case (docs/production testing/15-ACCURACY-SESSION.md, section 7).
+on:
+  workflow_dispatch:
+    inputs:
+      classes:
+        description: "Comma separated classes, empty for the whole calculation core"
+        required: false
+        default: ""
+
+concurrency:
+  group: accuracy-mutation
+  cancel-in-progress: false
+
+jobs:
+  accuracy-mutation:
+    name: Accuracy mutation (PCOV)
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: ctype, curl, dom, fileinfo, filter, gd, hash, iconv, json, libxml, mbstring, openssl, pcre, pdo, pdo_mysql, pdo_sqlite, session, simplexml, tokenizer
+          coverage: pcov
+          ini-values: memory_limit=-1
+
+      - name: Cache Composer packages
+        uses: actions/cache@v6
+        with:
+          path: ~/.composer/cache
+          key: composer-${{ runner.os }}-${{ hashFiles('api/composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-
+
+      - name: Install PHP dependencies
+        working-directory: api
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Generate an application key
+        working-directory: api
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      - name: Run mutation testing
+        env:
+          MUTATION_CLASSES: ${{ inputs.classes }}
+          MUTATION_PARALLEL: "1"
+        run: ./scripts/gates.sh mutation
+
+      - name: Upload the output
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: accuracy-mutation
+          path: api/storage/logs/mutation.log
+          if-no-files-found: warn
