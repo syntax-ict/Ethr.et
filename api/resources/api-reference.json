@@ -13719,6 +13719,12 @@
                                                     "first_seen": {
                                                         "type": "string"
                                                     },
+                                                    "first_day": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
                                                     "last_seen": {
                                                         "type": "string"
                                                     },
@@ -13884,6 +13890,7 @@
                                                     "badge",
                                                     "punches",
                                                     "first_seen",
+                                                    "first_day",
                                                     "last_seen",
                                                     "match",
                                                     "recording_itself",

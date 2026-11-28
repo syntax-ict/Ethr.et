@@ -40838,6 +40838,7 @@ export interface operations {
                             badge: string;
                             punches: string;
                             first_seen: string;
+                            first_day: string | null;
                             last_seen: string;
                             match: {
                                 [key: string]: unknown;
