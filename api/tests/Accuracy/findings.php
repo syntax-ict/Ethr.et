@@ -13,9 +13,4 @@ declare(strict_types=1);
  * here that the engine now agrees with fails until it is.
  */
 
-return [
-    // Engine defect, triaged 2026-11-28 (BASELINE 25bq). AttendanceRecord::overtimeWindow()
-    // starts at the shift's end whatever the check-in, and PayrollEngine pays from it.
-    'GC-OT-010' => 'A second session in at 17:45, out at 20:00 on a shift ending 17:30: the engine counts 150 minutes of normal overtime, from the shift end, where 135 were worked after it.',
-    'GC-OT-011' => 'A record in at 18:00, out at 20:00 on a shift ending 17:30: the engine counts 150 minutes of normal overtime, from the shift end, where 120 were worked.',
-];
+return [];
