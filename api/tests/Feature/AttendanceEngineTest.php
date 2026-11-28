@@ -261,6 +261,10 @@ test('attendance status is present when within grace period', function () {
 });
 
 test('attendance status is late when past grace period', function () {
+    // A fixed Tuesday, set before the fixture so the shift assignment is in
+    // effect on it: the shift works Monday to Friday, and a punch on a day off
+    // is never late (AR-MIN-06), so "today" failed every weekend.
+    Carbon::setTestNow(Carbon::parse('2026-10-13 06:00'));
     $tenant = createTenant();
     $shift = Shift::factory()->create([
         'tenant_id' => $tenant->id,
@@ -278,7 +282,7 @@ test('attendance status is late when past grace period', function () {
     $user = createUser(['role' => UserRole::EMPLOYEE, 'employee_id' => $employee->id], $tenant);
     test()->actingAs($user);
 
-    Carbon::setTestNow(Carbon::today()->setTime(9, 0));
+    Carbon::setTestNow(Carbon::parse('2026-10-13 09:00'));
 
     $response = test()->postJson("http://{$tenant->subdomain}.ethr.test/api/v1/attendance/check-in", [
         'idempotency_key' => 'late-test-001',

@@ -207,13 +207,15 @@ class StoreCorrectionRequest extends FormRequest
             ->where('public_id', (string) $this->input('attendance_record_public_id'))
             ->first();
 
-        if ($record === null || ! in_array($record->status, [AttendanceStatus::LATE, AttendanceStatus::EARLY_LEAVE], true)) {
+        $engine = app(AttendanceEngine::class);
+
+        if ($record === null || ! in_array($record->status, [AttendanceStatus::LATE, AttendanceStatus::EARLY_LEAVE], true) || $engine->isDayOff($record)) {
             $validator->errors()->add('attendance_record_public_id', __('correction.lateness_not_late'));
 
             return;
         }
 
-        $measured = app(AttendanceEngine::class)->missedMinutes($record);
+        $measured = $engine->missedMinutes($record, null, false);
 
         if ((int) $this->input('deduct_minutes') > $measured) {
             $validator->errors()->add('deduct_minutes', __('correction.lateness_too_many_minutes', ['minutes' => $measured]));
