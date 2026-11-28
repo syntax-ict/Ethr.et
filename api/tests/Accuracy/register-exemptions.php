@@ -33,6 +33,7 @@ return [
     'AR-LATE-01' => 'Known gap: docs/production testing/12-ATTENDANCE-ACCURACY.md section 8 lists this rule as having no golden case yet. It is a payroll figure: the payroll cases are where a case for it belongs.',
     'AR-LATE-02' => 'Known gap: docs/production testing/12-ATTENDANCE-ACCURACY.md section 8 lists this rule as having no golden case yet. It is a payroll figure: the payroll cases are where a case for it belongs.',
     'AR-LATE-03' => 'Known gap: docs/production testing/12-ATTENDANCE-ACCURACY.md section 8 lists this rule as having no golden case yet. It is a payroll figure: the payroll cases are where a case for it belongs.',
+    'AR-DAY-10' => 'No hand-valued golden case cites it yet (the rule entered the register with #951). The oracle implements it (Oracle/Resolver.php) and the refusal reason employee_has_left is asserted in OracleReadingsTest.php, tests/Feature/MobileOfflineAttendanceTest.php and tests/Feature/Device/DeviceQuarantineTest.php. A golden case belongs with the attendance cases.',
 
     // Payroll: not figures. Each names the Feature test that covers it (read, 2026-11-28).
     'PYR-PER-02' => 'A refusal, not a figure. Covered by tests/Feature/Payroll/ContractSalaryAndRunOverlapTest.php (a partial overlap is an overlap).',

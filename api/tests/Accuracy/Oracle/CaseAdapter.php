@@ -41,7 +41,7 @@ final class CaseAdapter
             $paths = [];
             self::differences($baseline, $alternative, [], $paths);
             foreach ($paths as $path) {
-                self::blank($answer, $path, $rule);
+                self::blank($answer, $path, $rule, self::valueAt($alternative, $path));
             }
         }
 
@@ -76,8 +76,29 @@ final class CaseAdapter
         $setup = self::setup($case['setup'] ?? []);
         $shift = isset($case['shift']) ? Shifts::normalise($shifts[$case['shift']]) : null;
 
-        $resolver = new Resolver($shift, $tz, $readings);
+        $resolver = new Resolver($shift, $tz, $readings, $setup['termination_date'] ?? null);
         $lastPunch = null;
+
+        // The runs of the automatic check-out job: `auto_runs` are each run in
+        // arrival order with the punches (after every punch earlier than it,
+        // before every later one); `auto_run_at` is one run after all punches.
+        if (isset($case['auto_runs']) && isset($case['auto_run_at'])) {
+            throw new InvalidArgumentException('give auto_runs or auto_run_at, not both');
+        }
+        $pending = [];
+        foreach ($case['auto_runs'] ?? [] as $text) {
+            $pending[] = self::time((string) $text, $day, $tz)[0];
+        }
+        sort($pending);
+        $afterAll = isset($case['auto_run_at']) ? self::time($case['auto_run_at'], $day, $tz)[0] : null;
+        if (isset($setup['auto_checkout']) !== ($pending !== [] || $afterAll !== null)) {
+            throw new InvalidArgumentException('setup.auto_checkout and auto_runs / auto_run_at must be given together');
+        }
+        $lastRun = $afterAll;
+        $run = static function (int $at) use ($resolver, $setup, &$lastRun): void {
+            $resolver->runAutoCheckout($setup['auto_checkout'], $at);
+            $lastRun = max($lastRun ?? $at, $at);
+        };
 
         foreach ($case['punches'] ?? [] as $p) {
             $method = (string) ($p['method'] ?? 'web');
@@ -86,6 +107,9 @@ final class CaseAdapter
                 [$out, $explicit] = self::time($p['out'], $day, $tz);
                 if (! $explicit && $out < $in) {
                     [$out] = self::time($p['out'], Calendar::addDays($day, 1), $tz);
+                }
+                while ($pending !== [] && $pending[0] < $in) {
+                    $run(array_shift($pending));
                 }
                 $resolver->punch(['type' => 'manual', 'method' => $method, 'in' => $in, 'out' => $out]);
                 $lastPunch = max($lastPunch ?? $out, $out);
@@ -97,6 +121,9 @@ final class CaseAdapter
             }
 
             [$ts] = self::time($p['at'], $day, $tz);
+            while ($pending !== [] && $pending[0] < $ts) {
+                $run(array_shift($pending));
+            }
             $resolver->punch([
                 'type' => $p['type'],
                 'method' => $method,
@@ -105,16 +132,15 @@ final class CaseAdapter
             ]);
             $lastPunch = max($lastPunch ?? $ts, $ts);
         }
-
-        $runAt = isset($case['auto_run_at']) ? self::time($case['auto_run_at'], $day, $tz)[0] : null;
-        if (isset($setup['auto_checkout'])) {
-            if ($runAt === null) {
-                throw new InvalidArgumentException('auto_checkout is set but the case has no auto_run_at');
-            }
-            $resolver->runAutoCheckout($setup['auto_checkout'], $runAt);
+        foreach ($pending as $at) {
+            $run($at);
         }
+        if ($afterAll !== null) {
+            $run($afterAll);
+        }
+        $runAt = $lastRun;
 
-        // The day is read at `now`, else at the job's run, else at the last punch.
+        // The day is read at `now`, else at the job's last run, else at the last punch.
         $now = isset($case['now']) ? self::time($case['now'], $day, $tz)[0] : ($runAt ?? $lastPunch);
 
         $records = $resolver->records();
@@ -206,8 +232,8 @@ final class CaseAdapter
                 'late' => $notEmployed ? new NoOpinion('not employed on this date') : $rated[$i]['late'],
                 'early' => $notEmployed ? new NoOpinion('not employed on this date') : $rated[$i]['early'],
                 'worked' => $rated[$i]['worked'],
-                'check_in' => Calendar::format($r['in'], $tz, 'H:i:s'),
-                'check_out' => $r['out'] === null ? null : Calendar::format($r['out'], $tz, 'H:i:s'),
+                'check_in' => Calendar::format($r['in'], $tz, 'Y-m-d H:i:s'),
+                'check_out' => $r['out'] === null ? null : Calendar::format($r['out'], $tz, 'Y-m-d H:i:s'),
                 'breaks' => $r['breaks'],
                 'metadata' => ['auto_checkout' => $r['auto']],
                 'overtime' => $notEmployed ? new NoOpinion('not employed on this date') : $buckets,
@@ -456,15 +482,36 @@ final class CaseAdapter
     }
 
     /** @param list<string|int> $path */
-    private static function blank(array &$answer, array $path, string $rule): void
+    private static function blank(array &$answer, array $path, string $rule, mixed $other): void
     {
         $node = &$answer;
         foreach ($path as $key) {
             $node = &$node[$key];
         }
-        $node = $node instanceof Undecided
-            ? new Undecided(array_values(array_unique([...$node->rules, $rule])), $node->literal)
-            : new Undecided([$rule], $node);
+        if (! $node instanceof Undecided) {
+            $node = new Undecided([$rule], $node);
+        } else {
+            $node = new Undecided(array_values(array_unique([...$node->rules, $rule])), $node->literal, $node->values);
+        }
+
+        $known = array_map(self::canonical(...), $node->values);
+        if (! in_array(self::canonical($other), $known, true)) {
+            $node = new Undecided($node->rules, $node->literal, [...$node->values, $other]);
+        }
+    }
+
+    /** @param list<string|int> $path */
+    private static function valueAt(array $answer, array $path): mixed
+    {
+        $node = $answer;
+        foreach ($path as $key) {
+            if (! is_array($node) || ! array_key_exists($key, $node)) {
+                return new NoOpinion('absent in the alternative reading');
+            }
+            $node = $node[$key];
+        }
+
+        return $node;
     }
 
     /** @param array<string, true> $rules */
