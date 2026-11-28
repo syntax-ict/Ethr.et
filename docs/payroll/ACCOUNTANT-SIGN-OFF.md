@@ -10,6 +10,8 @@ was taken from secondary sources, and a confirmation letter to the Ministry of R
 drafted but not sent (`docs/external/ERCA_INCOME_TAX_QUERY.md`). The reviewer's signature is
 what turns "implemented as understood" into "checked".
 
+Every rule below has an id in the payroll rule register, [`PAYROLL-RULES.md`](PAYROLL-RULES.md), which states it in cents and says whether it is Decided, Implemented or Undecided. Waiting for a ruling: PYR-BANK-04, PYR-BANK-05, PYR-NET-02, PYR-ALW-07, PYR-ROUND-04, PYR-ROUND-05. Implemented and waiting for this sign-off: PYR-RATE-01, PYR-RATE-03, PYR-LEAVE-02, PYR-SICK-01, PYR-SICK-02, PYR-LATE-02, PYR-LATE-03, PYR-OT-01, PYR-PAG-01 to PYR-PAG-05, PYR-SAL-03, PYR-TAX-04, PYR-PEN-04, PYR-PEN-06, PYR-PEN-08 to PYR-PEN-11.
+
 ## 1. The rules as implemented
 
 **Monthly employment income tax — Proclamation 1395/2025, from 7 July 2025**

@@ -645,3 +645,56 @@ At the end of the pass:
 | QA organisations are public by default | QA names under "Trusted by" and in search results | LAND-007 before the pass |
 | The bulk resend emails every invited login | Invitations reach people outside the team | Run INV-002 on QA Audit only, after INV-001 shows only team addresses |
 | A merged change is not yet deployed | Cases fail for a feature that is not live | Check `/release.json` against section 2.3 first; record Blocked |
+
+## 15. Accuracy testing and what each kind of testing certifies
+
+This pack tests four different things. They use different evidence and give different verdicts. Do not read one as another.
+
+### 15.1 The four scopes
+
+| Scope | Covers | Evidence | Verdict recorded in |
+|---|---|---|---|
+| A. Calculation accuracy | Attendance, payroll, leave, calendar, restated figures | The accuracy session ([15](15-ACCURACY-SESSION.md)) | `docs/audit/ACCURACY-REPORT-<date>.md` |
+| B. Application functional testing | Every screen and flow | Files [03](03-E2E-AUTH-TENANCY-ACCESS.md) to [08](08-E2E-COMMUNICATION-INTEGRATIONS-CONSOLE.md), the execution log in [10](10-TEMPLATES-AND-REFERENCE.md#2-execution-log), `docs/audit/QA-PRODUCTION-*-log.md` | The latest QA production log |
+| C. Security and tenant isolation | Access, isolation, rate limits, dependencies | File [09](09-NON-FUNCTIONAL.md), `CrossTenantRouteSweepTest`, `TenantScopeBypassInventoryTest`, `./scripts/gates.sh security`, [SECURITY.md](../../SECURITY.md) | The latest security review in `docs/audit/` |
+| D. Real-world operational acceptance | People and hardware in use | UAT sign-off ([02, section 9](02-UAT-GUIDE.md#9-sign-off)), a backtest on signed figures, an on-site soak | The UAT sign-off sheet |
+
+The rule:
+
+- Passing one scope says nothing about another. A clean functional pass does not show the payroll is right, and a correct payroll does not show tenants are isolated.
+- ETHR is never declared certified because the calculation engines pass.
+- An engine with an open legal or accounting ruling is "not certified", whatever its tests say. A test can only check the engine against a rule someone has decided.
+
+### 15.2 Strategy, ranked by the cost of being wrong
+
+Status is what exists in the repository on 2026-11-28. "Not built yet" means no file, no test and no script.
+
+| Engine | Risk if wrong | Technique that applies | Status today |
+|---|---|---|---|
+| Attendance | High: wrong status, late and overtime minutes feed pay | Rule register, hand-valued golden cases, independent oracle | Built: [ATTENDANCE-RULES.md](../ATTENDANCE-RULES.md), 79 golden cases, an independent oracle, `./scripts/gates.sh accuracy` ([12](12-ATTENDANCE-ACCURACY.md)). Generated runs, properties, mutation testing, displayed figures and a backtest are not built yet |
+| Payroll net pay and overtime pay | High: employees paid wrongly, tax and pension filed wrongly | Rule register, golden payslips, oracle, properties | Built: 8 golden payslips in `api/tests/Feature/Payroll/PayrollGoldenPayslipsTest.php` (six tax-band payslips G1 to G6, plus the worked examples G7 and G8) and 15 tax points in `api/tests/Feature/Payroll/TaxCalculatorTest.php`. The rule register is written ([PAYROLL-RULES.md](../payroll/PAYROLL-RULES.md)). Golden cases through the engine's preview, an oracle and properties are not built yet |
+| Leave entitlement, accrual and day counting | High: balances and paid leave wrong | Rule register, hand-valued cases | The register is written ([LEAVE-RULES.md](../LEAVE-RULES.md)). The hand-valued cases need expected values signed by HR or counsel. No oracle is planned: a signed reference replaces it |
+| Ethiopian calendar and clock | Medium: a wrong date shifts periods and holidays | Shared reference table, compared across both implementations | PHP and TypeScript each have their own reference pairs (`api/tests/Unit/EthiopianCalendarTest.php`, `src/src/test/ethiopian-calendar.test.ts`). They have never been compared with each other. A shared table is not built yet |
+| Restated figures: bank file, payslip PDF, timesheet exports, screens | High: the figure a person reads or a bank pays is not the figure the engine made | Reconciliation properties | The run register ties to the run and to the journal. Nothing checks the bank file sum against total net pay, or export totals against the ledger, yet |
+| Severance, notice, final settlement | Not applicable yet | None | Not built in the product. Out of scope until it is |
+
+### 15.3 The method
+
+| Technique | What it answers |
+|---|---|
+| Rule register as the test basis | What is the engine supposed to do, in which rule, and has anyone decided it? |
+| Hand-valued golden cases, by boundary value analysis and decision tables | Does the engine give the value a person worked out by hand at each edge of each rule? |
+| Independent oracle, and three-way agreement (hand value, engine, oracle) | When the engine and a hand value disagree, which of the three is wrong? |
+| Seeded generated runs | Do the engine and the oracle agree on many inputs nobody typed? |
+| Metamorphic, reconciliation and idempotency properties | Does the answer stay the same when the same facts arrive in another order, twice, or by another channel, and do the parts add up to the whole? |
+| Mutation testing | Would the tests notice if the engine were deliberately made wrong? |
+| Displayed-figures and read-only production checks | Does each screen and file show the figure the engine made? |
+| Backtest against an outside truth (HR's signed sheet, the accountant's signed payslips) | Does the engine agree with what a responsible person signed for real people and days? |
+| Session-based testing: charters, timeboxes and a session sheet | What did a person find while exploring, in a set time, and what was left unexamined? |
+
+### 15.4 What a number may claim
+
+- A confidence bound is given only for a backtest on real days, and only for the organisation and period sampled.
+- A generated run reports the number of cases, the seed, the disagreements, the input distribution and how to reproduce it. It gives no interval.
+- Boundary cases are a count. "79 of 79 passed" is a count of listed cases, not a rate.
+- No generated figure is called real-world accuracy.

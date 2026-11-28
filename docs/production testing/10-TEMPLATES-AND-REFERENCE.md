@@ -286,3 +286,131 @@ Times are UTC (EAT is +3).
 | Earlier production QA | `docs/audit/QA-PRODUCTION-*.md`, `docs/audit/QA-ATTENDANCE-PRODUCTION-2026-10-12.md` |
 | Payroll changes and statutory parameters | `docs/payroll/PAY-CHANGES.md`, `docs/payroll/STATUTORY-PARAMETERS.md` |
 | Operations centre | `docs/operations/` (spec and gap list) |
+
+## 9. Accuracy session sheet
+
+The sheet `./scripts/accuracy-session.sh` writes as `session-sheet.md` next to its logs (runbook: [15](15-ACCURACY-SESSION.md)). One function in the script produces it, and this template shows the same headings, so the two are kept in step: change both or neither. The script fills the header, the charter table and the conformance counts; a person or an agent fills the triage table and the debrief. A row's status is `passed`, `failed: <why>`, `not run: <reason>`, `not built yet` or `not selected`.
+
+```markdown
+# Accuracy session sheet
+
+## Header
+
+| | |
+|---|---|
+| Date (UTC) | 2026-11-28 16:19 |
+| Commit | <ten characters> |
+| Branch | <branch> |
+| Worktree | clean (tracked files) |
+| Machine | <uname output> |
+| PHP, Composer, Node, gh | <versions> |
+| Test files on disk | Unit <n>, Feature <n>, together <n> |
+| Database at 127.0.0.1:3306 | answers / does not answer |
+| Local stack at http://localhost:8081 | answers / does not answer |
+| Run by | script, then a person or an agent fills the triage table |
+
+## Charters
+
+| Charter | Status | Duration | Log | Note |
+|---|---|---|---|---|
+| preflight | passed | 0:01 | 01-preflight.log | |
+| conformance | passed | 1:00 | 02-conformance.log | |
+| robustness | not built yet | - | - | |
+| races | not run: no database server | - | - | |
+| strength | not built yet | - | - | |
+| restated | not run: local stack not running; restated-figures tests not built yet | - | - | |
+| production | not run: no saved session | - | - | |
+
+## Conformance by engine
+
+Counts are copied from the last Pest "Tests:" line of each run. Incomplete means a recorded finding. Skipped means the rule is undecided.
+
+| Engine | Source | Passed | Failed | Incomplete | Skipped |
+|---|---|---|---|---|---|
+| attendance | tests/Accuracy | | | | |
+| payroll | PayrollGoldenPayslipsTest and TaxCalculatorTest | | | | |
+| leave | not measured, no cases built yet | | | | |
+| calendar | not measured, no cross-check built yet | | | | |
+
+## Robustness output
+
+Lines copied unchanged from the test output: seed, number of cases, disagreements, input distribution. No interval is computed.
+
+None: the robustness charter did not run, or printed none of those lines.
+
+## Triage
+
+One row per failure, incomplete case or surprise. Class is one of the four in file 12, section 6 (Classify a finding): engine defect, wrong hand value, fixture error, rule undecided.
+
+| # | Charter | Case or check | What happened | Class | Filed as | Owner |
+|---|---|---|---|---|---|---|
+| | | | | | | |
+
+## Debrief
+
+- What the machine could not do today, and why:
+- What surprised us:
+- What the next session should change:
+```
+
+## 10. Accuracy report
+
+Template for `docs/audit/ACCURACY-REPORT-<date>.md`, written after a session from its sheet. It covers **scope A only** ([15, section 2](15-ACCURACY-SESSION.md#2-the-four-scopes)). Fill every cell with a measured figure or the words "not measured". Never leave a figure out so that a gap reads as a pass, and never use the word certified for the product.
+
+```markdown
+# Accuracy report, <date>
+
+## Scopes
+
+| Scope | Covers | Verdict | Link and date |
+|---|---|---|---|
+| A. Calculation accuracy | Attendance, payroll, leave, calendar, restated figures | This report | This report, <date> |
+| B. Application functional testing | Every screen and flow | | <latest QA production log and its date>, or "not run for this release" |
+| C. Security and tenant isolation | Access, isolation, rate limits, dependencies | | <latest security review and its date>, or "not run for this release" |
+| D. Real-world operational acceptance | People and hardware in use | | <UAT sign-off sheet and its date>, or "not run for this release" |
+
+## Session
+
+| | |
+|---|---|
+| Date (UTC) | |
+| Commit and tag | |
+| Branch | |
+| Machine | |
+| Session sheet | <path, or kept with the report> |
+| Run by | script, <person or agent> |
+
+## Engines
+
+Each cell is a measured figure with what it was measured on, or "not measured". A designed boundary case is a count ("79 of 79 cases"), never a percentage. A generated run names its seed, cases and disagreements and carries no interval ([15, section 9](15-ACCURACY-SESSION.md#9-statistics-as-hard-rules)).
+
+| Engine | Conformance | Robustness | Real-world agreement | Open rulings |
+|---|---|---|---|---|
+| Attendance | | | | |
+| Payroll | | | | |
+| Leave | | | | |
+| Ethiopian calendar | | | | |
+| Restated figures | | | | |
+
+## Findings
+
+| # | Engine | Case or check | What the engine said, and what was expected | Class | Filed as |
+|---|---|---|---|---|---|
+| | | | | engine defect / wrong hand value / fixture error / rule undecided | |
+
+## Rules waiting for a decision
+
+| Rule id | Register | Question | Who decides | Cases waiting |
+|---|---|---|---|---|
+| | | | | |
+
+## Not run, and why
+
+| Charter or measure | Status | Reason |
+|---|---|---|
+| | not run / not built yet | |
+
+## Closing statement
+
+This report covers scope A, calculation accuracy, for the engines named above, on commit <commit>, on <date>. For each engine it states what was measured and how; "not measured" means no measurement exists. It does not cover application functional testing, security or tenant isolation, or real-world operational acceptance (scopes B, C and D), whose verdicts are recorded where the table at the top says. An engine with an open legal or accounting ruling is not certified, whatever its tests show. This report is not an approval of the ETHR product as a whole.
+```
