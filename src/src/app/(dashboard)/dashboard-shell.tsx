@@ -81,7 +81,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
                 <main
                   id="main-content"
                   tabIndex={-1}
-                  className="relative flex-1 overflow-y-auto focus:outline-none"
+                  className="relative flex-1 scroll-pb-[calc(4rem+env(safe-area-inset-bottom))] overflow-y-auto focus:outline-none lg:scroll-pb-0"
                   role="main"
                 >
                   <PageActionsSlotProvider>

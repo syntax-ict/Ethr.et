@@ -185,7 +185,6 @@ export function AppSidebar() {
 
   return (
     <aside
-      aria-label={t("nav.main_navigation", "Main navigation")}
       data-collapsed={collapsed}
       className={cn(
         "hidden shrink-0 border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-[width] duration-200 ease-in-out lg:flex lg:flex-col",

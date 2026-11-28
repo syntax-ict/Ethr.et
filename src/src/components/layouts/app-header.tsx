@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import {
   Bell,
   Building2,
-  Check,
   CircleHelp,
   Contrast,
   ChevronDown,
@@ -341,30 +340,32 @@ export function AppHeader() {
               <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">
                 {t("theme.label", "Theme")}
               </DropdownMenuLabel>
-              {THEME_OPTIONS.map((opt) => {
-                const Icon = opt.icon;
-                return (
-                  <DropdownMenuItem
-                    key={opt.value}
-                    onClick={() => setTheme(opt.value)}
-                    className="cursor-pointer gap-2"
-                  >
-                    <Icon className="h-4 w-4 text-muted-foreground" />
-                    <span className="flex-1 text-sm">
-                      {t(
-                        opt.labelKey,
-                        opt.value === "high-contrast"
-                          ? "High Contrast"
-                          : opt.value.charAt(0).toUpperCase() +
-                              opt.value.slice(1),
-                      )}
-                    </span>
-                    {theme === opt.value && (
-                      <Check className="h-3.5 w-3.5 text-primary" />
-                    )}
-                  </DropdownMenuItem>
-                );
-              })}
+              <DropdownMenuRadioGroup
+                value={theme ?? "system"}
+                onValueChange={(value) => setTheme(value)}
+              >
+                {THEME_OPTIONS.map((opt) => {
+                  const Icon = opt.icon;
+                  return (
+                    <DropdownMenuRadioItem
+                      key={opt.value}
+                      value={opt.value}
+                      className="cursor-pointer"
+                    >
+                      <Icon className="h-4 w-4 text-muted-foreground" />
+                      <span className="flex-1 text-sm">
+                        {t(
+                          opt.labelKey,
+                          opt.value === "high-contrast"
+                            ? "High Contrast"
+                            : opt.value.charAt(0).toUpperCase() +
+                                opt.value.slice(1),
+                        )}
+                      </span>
+                    </DropdownMenuRadioItem>
+                  );
+                })}
+              </DropdownMenuRadioGroup>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 className="cursor-pointer gap-2 text-destructive focus:text-destructive"

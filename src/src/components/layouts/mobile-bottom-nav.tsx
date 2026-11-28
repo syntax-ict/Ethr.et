@@ -132,7 +132,7 @@ export function MobileBottomNav() {
               aria-current={isActive ? "page" : undefined}
               aria-label={hasBadge ? `${tab.label} (${badge})` : undefined}
               className={cn(
-                "flex h-16 flex-1 flex-col items-center justify-center gap-1 text-[11px] font-medium focus-visible:outline-none",
+                "flex h-16 flex-1 flex-col items-center justify-center gap-1 text-[11px] font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
                 isActive ? "text-interactive-primary" : "text-muted-foreground",
               )}
             >
@@ -161,17 +161,17 @@ export function MobileBottomNav() {
         <button
           type="button"
           onClick={() => setMoreOpen(true)}
-          className="relative flex h-16 flex-1 flex-col items-center justify-center gap-1 text-[11px] font-medium text-muted-foreground focus-visible:outline-none"
+          className="relative flex h-16 flex-1 flex-col items-center justify-center gap-1 text-[11px] font-medium text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
         >
           <span className="flex h-7 w-14 items-center justify-center rounded-full">
             <Menu className="h-5 w-5" aria-hidden="true" />
           </span>
           {t("nav.more", "More")}
           {showSetupDot && (
-            <span className="absolute right-1/4 top-1.5 flex h-2.5 w-2.5">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand-accent opacity-50" />
-              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-brand-accent" />
-            </span>
+            <span
+              aria-hidden="true"
+              className="absolute right-1/4 top-1.5 h-2.5 w-2.5 rounded-full bg-brand-accent"
+            />
           )}
         </button>
       </nav>

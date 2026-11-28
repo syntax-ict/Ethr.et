@@ -307,4 +307,30 @@ test.describe('Accessibility audit (WCAG 2.1 AA)', () => {
     await page.waitForLoadState('networkidle');
     await assertNoA11yViolations(page);
   });
+
+  // The phone tab bar removed the browser's outline; it must draw its own ring.
+  test.describe('phone tab bar', () => {
+    test.use({ storageState: 'e2e/.auth/employee.json' });
+
+    test('the first tab shows a focus indicator when reached by keyboard', async ({ page }) => {
+      await page.setViewportSize({ width: 375, height: 812 });
+      await page.goto('/dashboard');
+      await page.waitForLoadState('networkidle');
+
+      const firstTab = page.getByRole('navigation', { name: /mobile navigation/i }).getByRole('link').first();
+      await firstTab.focus();
+      await page.keyboard.press('Shift+Tab');
+      await page.keyboard.press('Tab');
+      await expect(firstTab).toBeFocused();
+
+      const indicator = await firstTab.evaluate((el) => {
+        const cs = getComputedStyle(el);
+        return { boxShadow: cs.boxShadow, outlineStyle: cs.outlineStyle };
+      });
+      expect(
+        indicator.boxShadow !== 'none' || indicator.outlineStyle !== 'none',
+        `no focus indicator: ${JSON.stringify(indicator)}`,
+      ).toBe(true);
+    });
+  });
 });
