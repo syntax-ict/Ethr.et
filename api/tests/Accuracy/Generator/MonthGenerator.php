@@ -52,14 +52,14 @@ final class MonthGenerator
     /** @return array<string, mixed> */
     private function build(int $seed): array
     {
-        // The month: October 2025 to December 2026.
-        $first = (new DateTimeImmutable('2025-10-01', new DateTimeZone('UTC')))->modify('+'.$this->int(0, 14).' months');
+        // The month: June 2024 to May 2028, so four year ends are crossed.
+        $first = (new DateTimeImmutable('2024-06-01', new DateTimeZone('UTC')))->modify('+'.$this->int(0, 47).' months');
         $days = (int) $first->format('t');
         $date = fn (int $i): string => $first->modify("+{$i} days")->format('Y-m-d');
         $weekday = fn (int $i): int => (int) $first->modify("+{$i} days")->format('N');
 
         $shiftName = $this->weighted(['S1' => 38, 'S3' => 30, 'S2' => 28, 'none' => 4]);
-        $zone = $this->weighted(['Africa/Addis_Ababa' => 80, 'Asia/Dubai' => 10, 'America/Bogota' => 10]);
+        $zone = $this->weighted(['Africa/Addis_Ababa' => 62, 'Asia/Dubai' => 8, 'America/Bogota' => 8, 'Europe/Berlin' => 22]);
         $shift = $shiftName === 'none' ? null : $this->shifts[$shiftName];
         $night = $shift !== null && $shift['crosses_midnight'];
 
@@ -100,36 +100,50 @@ final class MonthGenerator
             $setup['auto_checkout'] = $autoMinutes;
         }
 
-        // Always one working day on which the organisation records attendance.
-        $peer = 0;
-        for ($i = 0; $i < $days; $i++) {
-            if (in_array($weekday($i), $working, true) && $i !== $holiday) {
-                $peer = $i;
+        // Usually one working day on which the organisation records attendance;
+        // now and then none, so an organisation that records nothing is read.
+        $hasPeer = ! $this->chance(0.2);
+        if ($hasPeer) {
+            $peer = 0;
+            for ($i = 0; $i < $days; $i++) {
+                if (in_array($weekday($i), $working, true) && $i !== $holiday) {
+                    $peer = $i;
 
-                break;
+                    break;
+                }
             }
+            $setup['peer'] = $date($peer);
         }
-        $setup['peer'] = $date($peer);
 
         // Each day's behaviour.
         $events = [];
         $order = 0;
+        $profile = ['behaviours' => [], 'setup' => array_keys($setup), 'shift' => $shiftName, 'zone' => $zone, 'days' => $days];
+        if (! $hasPeer) {
+            $profile['setup'][] = 'no_peer';
+        }
         for ($i = 0; $i < $days; $i++) {
             $employed = ($hire === null || $i >= $hire) && ($termination === null || $i <= $termination);
-            $normal = $employed && in_array($weekday($i), $working, true) && $i !== $holiday
-                && ! ($leave !== null && $i >= $leave[0] && $i <= $leave[1]);
+            $onLeave = $leave !== null && $i >= $leave[0] && $i <= $leave[1];
+            $restDay = ! in_array($weekday($i), $working, true);
+            $isHoliday = $i === $holiday;
+            $normal = $employed && ! $restDay && ! $isHoliday && ! $onLeave;
 
             if (! $employed) {
-                $behaviour = $this->chance(0.03) ? 'on_time' : 'none';
+                $after = $termination !== null && $i > $termination && $i <= $termination + 3;
+                $behaviour = $after && $this->chance(0.4) ? 'after_termination' : ($this->chance(0.03) ? 'before_hire' : 'none');
             } elseif ($normal) {
                 $behaviour = $this->weighted([
-                    'on_time' => 40, 'late' => 14, 'early_leave' => 7, 'late_early' => 4, 'overtime' => 8,
+                    'on_time' => 38, 'late' => 14, 'early_leave' => 7, 'late_early' => 4, 'overtime' => 8,
                     'forgot_out' => 4, 'lunch' => 7, 'second_session' => 3, 'double_tap' => 4,
-                    'auto' => 3, 'manual' => 3, 'absent' => 3,
+                    'auto' => 3, 'manual' => 3, 'manual_near' => 3, 'absent' => 3,
                 ]);
             } else {
-                $behaviour = $this->chance(0.08) ? $this->pick(['on_time', 'overtime']) : 'none';
+                $kind = $isHoliday ? 'holiday' : ($onLeave ? 'leave' : 'rest_day');
+                $works = $this->chance($onLeave ? 0.25 : 0.15);
+                $behaviour = $works ? $kind.'_'.$this->weighted(['late' => 40, 'on_time' => 25, 'overtime' => 20, 'early_leave' => 15]) : 'none';
             }
+            $profile['behaviours'][$behaviour] = ($profile['behaviours'][$behaviour] ?? 0) + 1;
 
             foreach ($this->day($i, $behaviour, $start, $end, $grace, $early, $night) as $punch) {
                 // A manual entry arrives when it is entered: at its out time.
@@ -153,16 +167,24 @@ final class MonthGenerator
             'day' => $first->format('Y-m-d'),
             'setup' => $setup,
             'punches' => $punches,
+            'profile' => $profile,
         ];
         if ($shiftName !== 'none') {
             $case['shift'] = $shiftName;
         }
 
-        // The month is read on the first day of the next one at noon, or, less
-        // often, at its last punch. Automatic check-out runs once, then.
+        // The month is read on the first day of the next one at noon or, with
+        // no automatic check-out and less often, at its last punch. With
+        // automatic check-out the job runs every evening: the shift's end plus
+        // the setting plus a few minutes.
         $readAt = "+{$days} 12:00";
         if ($autoMinutes !== null) {
-            $case['auto_run_at'] = $readAt;
+            $runs = [];
+            for ($i = 0; $i < $days; $i++) {
+                $runs[] = $this->text($i * self::DAY + ($end + $autoMinutes + $this->int(2, 10)) * 60);
+            }
+            $case['auto_runs'] = $runs;
+            $case['now'] = $readAt;
         } elseif ($this->chance(0.7)) {
             $case['now'] = $readAt;
         }
@@ -179,6 +201,18 @@ final class MonthGenerator
             return [];
         }
 
+        // On a day off the same behaviours apply; a late arrival can be very late.
+        $dayOff = false;
+        foreach (['rest_day_', 'holiday_', 'leave_'] as $prefix) {
+            if (str_starts_with($behaviour, $prefix)) {
+                $dayOff = true;
+                $behaviour = substr($behaviour, strlen($prefix));
+            }
+        }
+        if ($behaviour === 'after_termination' || $behaviour === 'before_hire') {
+            $behaviour = 'on_time';
+        }
+
         $method = $this->pick(self::METHODS);
         $m = fn (): string => $this->chance(0.8) ? $method : $this->pick(self::METHODS);
         $at = fn (int $minute): int => $i * self::DAY + $minute * 60 + $this->seconds();
@@ -187,14 +221,19 @@ final class MonthGenerator
 
         $arrive = $this->int($start - 45, $start + $grace);
         $leave = $this->int($end - $early, $end + 25);
-        $lateIn = $start + $grace + $this->int(1, $night ? 150 : 120);
-        $latest = $night ? $end + 180 : 1439;
+        $lateIn = $start + $grace + ($dayOff ? $this->int(15, 330) : $this->int(1, $night ? 150 : 120));
+        // Night overtime may run seven hours past the end, across the six hour close window.
+        $latest = $night ? $end + 420 : 1439;
 
         switch ($behaviour) {
             case 'on_time':
                 return [$in($arrive, $m()), $out(max($leave, $arrive + 30), $m())];
 
             case 'late':
+                if ($dayOff) {
+                    return [$in($lateIn, $m()), $out(min(max($lateIn + $this->int(120, 480), $lateIn + 30), $latest), $m())];
+                }
+
                 return [$in($lateIn, $m()), $out(max($leave, $lateIn + 30), $m())];
 
             case 'early_leave':
@@ -210,6 +249,10 @@ final class MonthGenerator
             case 'overtime':
                 $extra = $this->chance(0.5) ? $this->int(20, 150) : $this->int(20, max(20, $latest - $end));
 
+                if ($dayOff) {
+                    return [$in($arrive, $m()), $out(min(max($end + $extra, $arrive + 30), $latest), $m())];
+                }
+
                 return [$in($arrive, $m()), $out(min($end + $extra, $latest), $m())];
 
             case 'forgot_out':
@@ -217,7 +260,7 @@ final class MonthGenerator
 
             case 'lunch':
                 $gone = $arrive + $this->int(150, 300);
-                $back = $gone + $this->int(20, 90);
+                $back = $gone + $this->int(20, 200);
 
                 return [
                     $in($arrive, $m()), $out($gone, $m()), $in($back, $m()),
@@ -262,6 +305,14 @@ final class MonthGenerator
                     ['type' => 'auto', 'at' => $at($arrive), 'method' => $by],
                     ['type' => 'auto', 'at' => $at(max($leave, $arrive + 30)), 'method' => $by],
                 ];
+
+            case 'manual_near':
+                // A live day, then a manual entry within five minutes of its punches.
+                $live = [$in($arrive, $m()), $out(max($leave, $arrive + 30), $m())];
+                $from = $live[0]['at'] + $this->int(-300, 300);
+                $to = max($live[1]['at'] + $this->int(-300, 300), $from + 600);
+
+                return [...$live, ['type' => 'manual', 'date' => $i, 'in' => $from, 'out' => $to, 'method' => $this->pick(['manual', 'csv'])]];
 
             case 'manual':
                 $from = $start + $this->int(-10, 90);

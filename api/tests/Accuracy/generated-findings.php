@@ -5,14 +5,29 @@ declare(strict_types=1);
 /*
  * Disagreements between the engine and the independent oracle that a person
  * has looked at and recorded, so the generated run stays green while they are
- * triaged. '<seed>/<date>/<field>' => one line. A per-record field carries
- * '#<n>', its record's number on the day (an outcome, its punch's number); a
- * month-level field uses 'month' for the date. A listed one that no longer disagrees fails until it is removed.
- * Entries are added by a person after triage, never by the run.
+ * triaged. Entries are added by a person after triage, never by the run.
+ *
+ * An exact entry: '<seed>/<date>/<field>' => one line. A per-record field
+ * carries '#<n>', its record's number on the day (an outcome, its punch's
+ * number); a month-level field uses 'month' for the date. A listed one that no
+ * longer disagrees fails until it is removed.
+ *
+ * A pattern entry: 'pattern:<name>' => ['finding' => where it is recorded,
+ * 'fields' => field names, 'classes' => the day's expected-day classes,
+ * 'engine_nonzero' => true]. A disagreement whose field and day class are
+ * listed, whose oracle value is 0 and whose engine value is not, is a known
+ * finding: it does not fail the run and the report lists it apart from the
+ * unexplained ones. A pattern that matches nothing in a run of 20 months or
+ * more fails until it is removed.
  */
 
 return [
-    // The engine defect of golden cases GC-REST-001 and GC-REST-002 (BASELINE 25bs):
-    // late and early minutes on a record of a day that is not a working day.
-    '20261160/2026-02-22/late#1' => 'S1 worked on a Sunday, in at 08:45:11: the engine says 15 minutes late on the record; the day has no scheduled hours (AR-MIN-06).',
+    // Late and early minutes on a record of a day with no scheduled hours.
+    // A day of approved leave is not one: AR-ABS-08 leaves its rating undecided.
+    'pattern:day-off-late-early' => [
+        'finding' => 'GC-REST-001, GC-REST-002 (BASELINE 25bs)',
+        'fields' => ['late', 'early', 'late and early on a day off'],
+        'classes' => ['rest_day', 'holiday', 'not_employed'],
+        'engine_nonzero' => true,
+    ],
 ];

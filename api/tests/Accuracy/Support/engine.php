@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\AttendanceSource;
 use App\Enums\AttendanceStatus;
+use App\Enums\EmployeeStatus;
 use App\Enums\LeaveStatus;
 use App\Enums\TimesheetCode;
 use App\Exceptions\AttendanceRefused;
@@ -25,6 +26,7 @@ use App\Services\Attendance\TimesheetLedger;
 use App\Services\CurrentTenant;
 use App\Services\Payroll\StatutoryRules;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Artisan;
 
 /*
  * The engine side of the accuracy suite, shared by every test file that feeds a
@@ -140,6 +142,8 @@ function accuracyFixture(array $case): array
         'badge_number' => '9001',
         'hire_date' => $setup['hire_date'] ?? '2024-01-01',
         'termination_date' => $setup['termination_date'] ?? null,
+        // The engine refuses a punch after the date only for someone who has left.
+        ...(isset($setup['termination_date']) ? ['status' => EmployeeStatus::TERMINATED] : []),
     ]);
     if ($shift !== null) {
         ShiftAssignment::factory()->create([
@@ -187,12 +191,13 @@ function accuracyFixture(array $case): array
 /**
  * Sends one punch and says what came of it: ok, duplicate, or refused:<reason>.
  * With `$delaySeconds` the clock is held that long after the punch's own time,
- * as when a punch reaches the server late; the punch keeps its own time.
+ * as when a punch reaches the server late; the punch keeps its own time. With
+ * `$clock` the clock is held there instead (a punch resent much later).
  *
  * @param  array<string, mixed>  $punch
  * @param  array{tenant: Tenant, employee: Employee, zone: string, day: string}  $ctx
  */
-function accuracyPunch(array $ctx, array $punch, string $key, int $delaySeconds = 0): string
+function accuracyPunch(array $ctx, array $punch, string $key, int $delaySeconds = 0, ?Carbon $clock = null): string
 {
     $zone = $ctx['zone'];
     $day = $ctx['day'];
@@ -204,11 +209,11 @@ function accuracyPunch(array $ctx, array $punch, string $key, int $delaySeconds 
         if (($punch['type'] ?? '') === 'manual') {
             $in = accuracyMoment($day, $zone, $punch['in']);
             $out = isset($punch['out']) ? accuracyMoment($day, $zone, $punch['out']) : null;
-            Carbon::setTestNow(($out ?? $in)->copy());
+            Carbon::setTestNow($clock?->copy() ?? ($out ?? $in)->copy());
             $result = app(EnteredAttendance::class)->enter($employee, $punch['date'] ?? $day, $in, $out, ['reason' => 'accuracy case'], $key, null, $source);
         } else {
             $at = accuracyMoment($day, $zone, $punch['at']);
-            Carbon::setTestNow($at->copy()->addSeconds($delaySeconds));
+            Carbon::setTestNow($clock?->copy() ?? $at->copy()->addSeconds($delaySeconds));
             $type = match ($punch['type']) {
                 'in' => 'check_in',
                 'out' => 'check_out',
@@ -231,10 +236,10 @@ function accuracyPunch(array $ctx, array $punch, string $key, int $delaySeconds 
     return $result->wasDuplicate ? 'duplicate' : 'ok';
 }
 
-/** A moment as the clock on the wall in the case's zone, `H:i:s`; null stays null. */
+/** A moment as the clock on the wall in the case's zone, `Y-m-d H:i:s`; null stays null. */
 function accuracyClock(?Carbon $moment, string $zone): ?string
 {
-    return $moment?->copy()->setTimezone($zone)->format('H:i:s');
+    return $moment?->copy()->setTimezone($zone)->format('Y-m-d H:i:s');
 }
 
 /** A wall-clock reading at the precision the hand value was typed with (`H:i` or `H:i:s`). */
@@ -251,9 +256,10 @@ function accuracyLocal(?string $clock, string $like): ?string
  * Reads the engine back into the shape CaseAdapter::run() answers in, for the
  * given work dates: `outcomes`, `live`, `conflicts`, and per date `live`,
  * `class`, `absent`, `overtime` (buckets of minutes, zeros dropped), `worked_day`
- * (the plain sum of every live record's workedMinutes()) and `records`, one
+ * (the ledger's own worked minutes, which drop overlapping duplicates),
+ * `late_day` and `early_day` (the ledger cell's, zero on a day off) and `records`, one
  * entry per live record by check-in with `status`, `late`, `early`, `worked`,
- * `check_in`, `check_out` (`H:i:s` in the zone), `breaks` and `metadata`. A date
+ * `check_in`, `check_out` (`Y-m-d H:i:s` in the zone), `breaks` and `metadata`. A date
  * with exactly one live record also carries those per-record keys flat, as the
  * oracle does. `code` is the timesheet's short code. `metadata` is the stored
  * array as it is.
@@ -326,7 +332,9 @@ function accuracyEngineAnswer(array $case, array $ctx, array $outcomes, array $d
             'code' => $cell['code']?->short(),
             'absent' => $cell['code'] === TimesheetCode::ABSENT,
             'overtime' => $overtime,
-            'worked_day' => (int) array_sum(array_column($records, 'worked')),
+            'worked_day' => $cell['worked_minutes'],
+            'late_day' => $cell['late_minutes'],
+            'early_day' => $cell['early_minutes'],
             'records' => $records,
         ];
         if (count($records) === 1) {
@@ -415,7 +423,7 @@ function accuracyCompare(array $case, array $ctx, array $outcomes): array
             }
             foreach (['check_in', 'check_out'] as $col) {
                 if (array_key_exists($col, $rw)) {
-                    $seen = accuracyLocal($r[$col], (string) ($rw[$col] ?? '00:00'));
+                    $seen = accuracyLocal($r[$col] === null ? null : substr($r[$col], 11), (string) ($rw[$col] ?? '00:00'));
                     if ($rw[$col] !== $seen) {
                         $say("{$label} {$col}", $rw[$col], $seen);
                     }
@@ -436,4 +444,71 @@ function accuracyCompare(array $case, array $ctx, array $outcomes): array
     }
 
     return $miss;
+}
+
+/**
+ * Sends every punch of a case in arrival order, and runs the automatic
+ * check-out job as the oracle does: `auto_runs` each run after every punch
+ * earlier than it and before every later one (a punch at exactly the run time
+ * goes first), `auto_run_at` one run after all punches. Returns the outcomes
+ * of the first send of each punch.
+ *
+ * Options: `delay` seconds the clock is held after each live punch; `rotate`
+ * every live punch's method to the next live one; `replay` each punch sent a
+ * second time at once with its own key; `replayAtEnd` every punch sent again
+ * with its own key after everything else, the clock at the end of the month.
+ *
+ * @param  array<string, mixed>  $case
+ * @param  array<string, mixed>  $ctx
+ * @param  array{delay?: int, rotate?: bool, replay?: bool, replayAtEnd?: bool}  $options
+ * @return list<string>
+ */
+function accuracySend(array $case, array $ctx, string $prefix, array $options = []): array
+{
+    $rotation = ['web' => 'mobile', 'mobile' => 'kiosk', 'kiosk' => 'qr', 'qr' => 'biometric', 'biometric' => 'web'];
+    $runs = array_map(fn (string $text): Carbon => accuracyMoment($ctx['day'], $ctx['zone'], $text), $case['auto_runs'] ?? []);
+    usort($runs, fn (Carbon $a, Carbon $b): int => $a <=> $b);
+
+    $runJob = function (Carbon $at) use ($ctx): void {
+        Carbon::setTestNow($at->copy());
+        if (Artisan::call('attendance:auto-checkout') !== 0) {
+            throw new RuntimeException('attendance:auto-checkout failed');
+        }
+        // The job works through every organisation and leaves none current.
+        app(CurrentTenant::class)->set($ctx['tenant']);
+    };
+
+    $outcomes = [];
+    $sent = [];
+    foreach ($case['punches'] ?? [] as $i => $punch) {
+        if (($options['rotate'] ?? false) && $punch['type'] !== 'manual') {
+            $punch['method'] = $rotation[$punch['method']];
+        }
+        $arrives = accuracyMoment($ctx['day'], $ctx['zone'], $punch['type'] === 'manual' ? $punch['in'] : $punch['at']);
+        while ($runs !== [] && $runs[0] < $arrives) {
+            $runJob(array_shift($runs));
+        }
+        // A manual entry is entered when it was made; only live punches are late.
+        $delay = $punch['type'] === 'manual' ? 0 : ($options['delay'] ?? 0);
+        $outcomes[] = accuracyPunch($ctx, $punch, "{$prefix}-{$i}", $delay);
+        if ($options['replay'] ?? false) {
+            accuracyPunch($ctx, $punch, "{$prefix}-{$i}", $delay);
+        }
+        $sent[$i] = [$punch, $delay];
+    }
+    foreach ($runs as $at) {
+        $runJob($at);
+    }
+    if (isset($case['setup']['auto_checkout'], $case['auto_run_at'])) {
+        $runJob(accuracyMoment($ctx['day'], $ctx['zone'], $case['auto_run_at']));
+    }
+
+    if ($options['replayAtEnd'] ?? false) {
+        $end = isset($case['now']) ? accuracyMoment($ctx['day'], $ctx['zone'], $case['now']) : Carbon::now();
+        foreach ($sent as $i => [$punch, $delay]) {
+            accuracyPunch($ctx, $punch, "{$prefix}-{$i}", $delay, $end);
+        }
+    }
+
+    return $outcomes;
 }

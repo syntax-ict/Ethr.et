@@ -90,7 +90,9 @@ To replay one month: `ACCURACY_SEED=<its seed> ACCURACY_MONTHS=1 vendor/bin/pest
 
 **The report** is written to `api/storage/framework/testing/accuracy/` (ignored by git): `summary.md` and `summary.json` with, per field, the employee-days compared, agreed and disagreed, the undecided ones by rule, and the agreement rate with a 95% Wilson interval; and one file per disagreeing day, `<seed>-<date>.php`, holding that day's generated case with `expect` set to `'TODO: type by hand'`. To turn a disagreement into a golden case, type the expected values by hand from the register, never from either side's answer. In CI the report is the `attendance-accuracy-report` artifact of the `attendance-accuracy` job.
 
-A disagreement fails the run unless its `seed/date/field` is listed in `api/tests/Accuracy/generated-findings.php`, each listed one tied to a golden case and a finding; a listed one that no longer disagrees fails until it is removed.
+A disagreement fails the run unless it is listed in `api/tests/Accuracy/generated-findings.php`, either exactly (`seed/date/field`) or by a pattern entry (`pattern:<name>`: fields, day classes, oracle 0 and engine not). Every entry is tied to a golden case and a finding, and is added by a person after triage. The report lists pattern matches under "Known findings", with their count and months, apart from unexplained disagreements. A listed entry that no longer matches anything fails until it is removed, so a fixed defect cannot stay listed. Today the one pattern is `day-off-late-early` (GC-REST-001, GC-REST-002).
+
+**Read the figures in this order.** First the months with an unexplained disagreement (the days of one month share a set-up, so they are not independent). Then each field's "informative" column: the comparisons that could have disagreed, without the days where both sides are trivially empty. The full "compared" column is larger and looks better than it is.
 
 ## 3c. Properties
 
@@ -195,13 +197,14 @@ Generated from the case files and the register on 2026-11-28. The State column i
 | AR-MIN-03 | Decided | GC-EARLY-005, GC-LATE4-001, GC-LATE4-002, GC-LATE4-003 | 05 PUNCH-010; 07 LATE-004 | `cases/status.php` |
 | AR-MIN-04 | Decided | GC-AUTO-001, GC-BREAK-001, GC-BREAK-005, GC-CHAN-001, GC-CHAN-002, GC-CHAN-003, GC-NIGHT-001, GC-WORK-001, GC-WORK-002, GC-WORK-004 | 05 PUNCH-011; 05 AUTO-001; 05 SHF-003; 05 CAP-001; 05 CAP-001, MAN-002; 05 CAP-001, AIMP-002 | `cases/day.php`, `cases/night.php`, `cases/status.php` |
 | AR-MIN-05 | Implemented | GC-SHIFT-001, GC-WORK-003 | 05 ATT-009 | `cases/status.php` |
+| AR-MIN-06 | Implemented | GC-REST-001, GC-REST-002 | register only | `cases/overtime.php` |
 | AR-MIN-07 | Decided | GC-STATUS-008 | register only | `cases/status.php` |
 | AR-NIGHT-01 | Decided | GC-CHAN-001, GC-CHAN-002, GC-CHAN-003, GC-NIGHT-001, GC-NIGHT-002, GC-OT-005, GC-OT-013 | 05 SHF-003; 05 SHF-004; 05 CAP-001; 05 CAP-001, MAN-002; 05 CAP-001, AIMP-002 | `cases/night.php`, `cases/overtime.php` |
 | AR-NIGHT-02 | Decided | GC-NIGHT-003, GC-NIGHT-004 | 05 SHF-013 | `cases/night.php` |
 | AR-NIGHT-04 | Decided | GC-CHAN-002, GC-CHAN-003 | 05 CAP-001, MAN-002; 05 CAP-001, AIMP-002 | `cases/night.php` |
 | AR-NIGHT-05 | Undecided | GC-AUTO-004 | register only | `cases/day.php` |
 | AR-OT-01 | Decided | GC-OT-001, GC-OT-002, GC-OT-003, GC-OT-004, GC-OT-005, GC-OT-008, GC-OT-010, GC-OT-011 | 07 PAY-031; 05 PUNCH-012 | `cases/overtime.php` |
-| AR-OT-02 | Decided | GC-OT-006, GC-OT-007, GC-OT-009, GC-OT-014, GC-OT-015 | register only | `cases/overtime.php` |
+| AR-OT-02 | Decided | GC-OT-006, GC-OT-007, GC-OT-009, GC-OT-014, GC-OT-015, GC-REST-001, GC-REST-002 | register only | `cases/overtime.php` |
 | AR-OT-03 | Decided | GC-OT-004, GC-OT-012, GC-OT-013 | register only | `cases/overtime.php` |
 | AR-OT-08 | Decided | GC-SHIFT-001 | 05 ATT-009 | `cases/status.php` |
 | AR-OT-09 | Decided | GC-OT-003 | register only | `cases/overtime.php` |
@@ -215,4 +218,4 @@ Generated from the case files and the register on 2026-11-28. The State column i
 | AR-STATUS-05 | Decided | GC-CHAN-002, GC-CHAN-003, GC-CHAN-004, GC-LATE4-001, GC-LATE4-002, GC-LATE4-003 | 05 CAP-001, MAN-002; 05 CAP-001, AIMP-002; 07 LATE-004; 05 CAP-002 | `cases/night.php`, `cases/status.php` |
 | AR-STATUS-07 | Undecided | GC-STATUS-005 | register only | `cases/status.php` |
 
-Rules with no golden case yet: AR-ABS-06, AR-ABS-07 (undecided), AR-ABS-08 (undecided), AR-AUTO-03, AR-BREAK-04, AR-BREAK-05, AR-CLOCK-03, AR-CLOCK-05, AR-CLOCK-06 (undecided), AR-CLOCK-07 (undecided), AR-DAY-08 (undecided), AR-LATE-01, AR-LATE-02, AR-LATE-03, AR-MIN-06, AR-MIN-08 (undecided), AR-NIGHT-03, AR-OT-04, AR-OT-05, AR-OT-06, AR-OT-07, AR-OT-10 (undecided), AR-OT-13 (undecided), AR-OT-14 (undecided), AR-SHIFT-01, AR-SHIFT-02, AR-SHIFT-03, AR-SHIFT-04, AR-STATUS-02, AR-STATUS-06.
+Rules with no golden case yet: AR-ABS-06, AR-ABS-07 (undecided), AR-ABS-08 (undecided), AR-AUTO-03, AR-BREAK-04, AR-BREAK-05, AR-CLOCK-03, AR-CLOCK-05, AR-CLOCK-06 (undecided), AR-CLOCK-07 (undecided), AR-DAY-08 (undecided), AR-DAY-10, AR-LATE-01, AR-LATE-02, AR-LATE-03, AR-MIN-08 (undecided), AR-NIGHT-03, AR-OT-04, AR-OT-05, AR-OT-06, AR-OT-07, AR-OT-10 (undecided), AR-OT-13 (undecided), AR-OT-14 (undecided), AR-SHIFT-01, AR-SHIFT-02, AR-SHIFT-03, AR-SHIFT-04, AR-STATUS-02, AR-STATUS-06.
