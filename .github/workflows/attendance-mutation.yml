@@ -1,0 +1,114 @@
+# Mutation testing of the attendance engine: do the tests notice a wrong
+# engine? Pest's mutation plugin (pestphp/pest-plugin-mutate) changes one
+# operator or value at a time in the classes named below and runs the tests
+# that cover that line; a mutant no test fails on "survived".
+#
+# Two suites are measured separately, because the question is what each one
+# catches:
+#   default:  the ordinary attendance, payroll and report tests (phpunit.xml);
+#   accuracy: golden cases, the independent oracle, generated months and the
+#             properties (phpunit.accuracy.xml), with fewer generated months
+#             than the gate so each mutant stays affordable.
+#
+# Manual, never on a pull request: a full run is eight jobs of up to a few
+# hours each, so it spends Actions minutes; start it from the Actions tab
+# (Run workflow) when that is worth it. A push to this workflow's own branch
+# mutates only the smallest group (overtime), to prove the workflow runs.
+# Needs a coverage
+# driver, so PCOV, as the backend-coverage job. No score is enforced; the
+# first run's scores are recorded in docs/audit/BASELINE.md, and surviving
+# mutants in arithmetic or comparisons become golden cases.
+#
+# Each job uploads its log; the survivors are listed in it with an id, which
+# replays one mutant locally with --mutate --id=<id> and the same options.
+name: Attendance mutation testing
+
+on:
+  workflow_dispatch:
+  # The first run, from this workflow's own branch, before it is on main.
+  push:
+    branches: [test/attendance-mutation]
+
+concurrency:
+  group: attendance-mutation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  mutate:
+    name: Mutate ${{ matrix.group.name }} (${{ matrix.suite }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [default, accuracy]
+        group:
+          - name: engine
+            classes: App\Services\Attendance\AttendanceEngine
+          - name: shifts
+            classes: App\Services\Attendance\ShiftMatcher,App\Services\Shift\ShiftRotationResolver,App\Models\Shift
+          - name: overtime
+            classes: App\Services\Payroll\OvertimeClassifier,App\Services\Payroll\PeriodOvertime,App\Services\Payroll\OverlappingAttendance,App\Models\AttendanceRecord
+          - name: days
+            classes: App\Services\Attendance\ExpectedDays,App\Services\Attendance\TimesheetLedger
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: ctype, curl, dom, fileinfo, filter, gd, hash, iconv, json, libxml, mbstring, openssl, pcre, pdo, pdo_mysql, pdo_sqlite, session, simplexml, tokenizer
+          coverage: pcov
+          ini-values: memory_limit=-1
+
+      - name: Cache Composer packages
+        uses: actions/cache@v6
+        with:
+          path: ~/.composer/cache
+          key: composer-${{ runner.os }}-${{ hashFiles('api/composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-
+
+      - name: Install PHP dependencies
+        working-directory: api
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Generate an application key
+        working-directory: api
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      - name: Mutate against the default suites
+        if: matrix.suite == 'default' && (github.event_name == 'workflow_dispatch' || matrix.group.name == 'overtime')
+        working-directory: api
+        run: |
+          set -o pipefail
+          php -d memory_limit=-1 vendor/bin/pest \
+            tests/Feature/Attendance tests/Feature/Payroll tests/Unit \
+            tests/Feature/AttendanceEngineTest.php tests/Feature/NightShiftAttendanceTest.php \
+            tests/Feature/AttendanceTenantClockTest.php tests/Feature/AttendanceTenantTimezoneTest.php \
+            tests/Feature/ShiftEngineTest.php tests/Feature/ShiftRotationMatchingTest.php \
+            tests/Feature/PayrollOvertimeTest.php \
+            --mutate --covered-only --parallel --class="${{ matrix.group.classes }}" \
+            2>&1 | tee ../mutation-${{ matrix.group.name }}-${{ matrix.suite }}.log
+
+      - name: Mutate against the accuracy suite
+        if: matrix.suite == 'accuracy' && (github.event_name == 'workflow_dispatch' || matrix.group.name == 'overtime')
+        working-directory: api
+        env:
+          ACCURACY_MONTHS: "12"
+          ACCURACY_PROPERTY_MONTHS: "4"
+        run: |
+          set -o pipefail
+          php -d memory_limit=-1 vendor/bin/pest -c phpunit.accuracy.xml \
+            --mutate --covered-only --parallel --class="${{ matrix.group.classes }}" \
+            2>&1 | tee ../mutation-${{ matrix.group.name }}-${{ matrix.suite }}.log
+
+      - name: Upload the log
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: mutation-${{ matrix.group.name }}-${{ matrix.suite }}
+          path: mutation-${{ matrix.group.name }}-${{ matrix.suite }}.log
+          if-no-files-found: ignore
