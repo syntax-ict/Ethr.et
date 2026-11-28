@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
@@ -137,6 +137,51 @@ describe("<ContractsTab>", () => {
       screen.getByRole("button", { name: /mark expired/i }),
     );
 
-    expect(requestBody).toEqual({ status: "expired" });
+    // Closing a contract is not undone from this screen, so the click only
+    // asks; the request goes out on the confirming button.
+    const dialog = await screen.findByRole("dialog");
+    expect(requestBody).toBeUndefined();
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Mark expired" }),
+    );
+
+    await waitFor(() => expect(requestBody).toEqual({ status: "expired" }));
+  });
+
+  it("asks before ending an active contract early, and sends nothing if declined", async () => {
+    let requestBody: unknown;
+    server.use(
+      http.get(CONTRACTS_URL, () => HttpResponse.json([buildContract()])),
+      http.post(
+        `${CONTRACTS_URL}/01HZCONTRACT000000000001/end`,
+        async ({ request }) => {
+          requestBody = await request.json();
+          return HttpResponse.json(
+            buildContract({ status: "terminated_early" }),
+          );
+        },
+      ),
+    );
+    renderTab();
+    await screen.findByText("Fixed term");
+
+    await userEvent.click(screen.getByRole("button", { name: /end early/i }));
+    let dialog = await screen.findByRole("dialog");
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Cancel" }),
+    );
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(requestBody).toBeUndefined();
+
+    await userEvent.click(screen.getByRole("button", { name: /end early/i }));
+    dialog = await screen.findByRole("dialog");
+    expect(requestBody).toBeUndefined();
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "End early" }),
+    );
+
+    await waitFor(() =>
+      expect(requestBody).toEqual({ status: "terminated_early" }),
+    );
   });
 });

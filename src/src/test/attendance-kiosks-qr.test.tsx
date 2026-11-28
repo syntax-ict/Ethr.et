@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
@@ -92,6 +92,66 @@ describe("<KioskSessionsPage>", () => {
     renderWithQuery(<KioskSessionsPage />);
 
     expect(await screen.findByText("Front Desk")).toBeInTheDocument();
+  });
+
+  it("regenerates a token only after the question is confirmed", async () => {
+    // The terminal running on the old token stops working the moment the new
+    // one exists, so a stray click in the row menu must not do it.
+    let regenerated = 0;
+    server.use(
+      me("hr_admin", ["attendance.manage"]),
+      branches,
+      http.get("*/api/v1/kiosk-sessions", () =>
+        HttpResponse.json(page([kiosk("K1", "Front Desk")])),
+      ),
+      http.post("*/api/v1/kiosk-sessions/K1/regenerate-token", () => {
+        regenerated += 1;
+        return HttpResponse.json({ ...kiosk("K1", "Front Desk"), token: "T" });
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithQuery(<KioskSessionsPage />);
+
+    await screen.findByText("Front Desk");
+    await user.click(screen.getByRole("button", { name: "Kiosk actions" }));
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Regenerate Token" }),
+    );
+    const dialog = await screen.findByRole("dialog");
+    expect(regenerated).toBe(0);
+    await user.click(
+      within(dialog).getByRole("button", { name: "Regenerate token" }),
+    );
+
+    await waitFor(() => expect(regenerated).toBe(1));
+  });
+
+  it("deletes a kiosk only after the question is confirmed", async () => {
+    let deleted = 0;
+    server.use(
+      me("hr_admin", ["attendance.manage"]),
+      branches,
+      http.get("*/api/v1/kiosk-sessions", () =>
+        HttpResponse.json(page([kiosk("K1", "Front Desk")])),
+      ),
+      http.delete("*/api/v1/kiosk-sessions/K1", () => {
+        deleted += 1;
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithQuery(<KioskSessionsPage />);
+
+    await screen.findByText("Front Desk");
+    await user.click(screen.getByRole("button", { name: "Kiosk actions" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Delete" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(deleted).toBe(0);
+    await user.click(
+      within(dialog).getByRole("button", { name: "Delete kiosk" }),
+    );
+
+    await waitFor(() => expect(deleted).toBe(1));
   });
 });
 

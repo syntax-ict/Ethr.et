@@ -32,6 +32,7 @@ import {
   type SmsSlot,
 } from "@/features/admin/sms";
 import { useT } from "@/lib/i18n/useT";
+import { useConfirm } from "@/components/shared/use-confirm";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { PhoneInput } from "@/components/shared/phone-input";
 
@@ -347,6 +348,7 @@ function GatewayCard({
   state: SmsDeliveryState;
 }) {
   const { t } = useT();
+  const { requestConfirm, confirmDialog } = useConfirm();
   const gateway = state[slot];
   const save = useSaveSmsGateway();
   const remove = useRemoveSmsGateway();
@@ -388,6 +390,27 @@ function GatewayCard({
     slot === "primary"
       ? t("admin_sms.primary_title", "Primary gateway: all numbers")
       : t("admin_sms.secondary_title", "Second gateway: routed numbers");
+
+  async function confirmRemove() {
+    if (
+      !(await requestConfirm({
+        title: t("admin_sms.remove_confirm_title", "Remove this gateway?"),
+        description: t(
+          "admin_sms.remove_confirm_description",
+          "The stored credentials are deleted and text messages stop going through it. You would have to enter them again to bring it back.",
+        ),
+        confirmLabel: t("admin_sms.remove_confirm", "Remove gateway"),
+        variant: "destructive",
+      }))
+    )
+      return;
+    remove.mutate(slot, {
+      onSuccess: () => {
+        setForm(seed(null));
+        toast.success(t("admin_sms.removed", "Gateway removed"));
+      },
+    });
+  }
 
   const needsUser = form.auth_type === "fields" || form.auth_type === "basic";
 
@@ -586,14 +609,7 @@ function GatewayCard({
             <Button
               variant="outline"
               disabled={remove.isPending}
-              onClick={() =>
-                remove.mutate(slot, {
-                  onSuccess: () => {
-                    setForm(seed(null));
-                    toast.success(t("admin_sms.removed", "Gateway removed"));
-                  },
-                })
-              }
+              onClick={confirmRemove}
             >
               <Trash2 className="mr-2 h-4 w-4" />
               {t("admin_sms.remove", "Remove")}
@@ -604,6 +620,7 @@ function GatewayCard({
         {gateway && <TestPanel slot={slot} gateway={gateway} />}
         {gateway && <LivePanel gateway={gateway} />}
       </CardContent>
+      {confirmDialog}
     </Card>
   );
 }

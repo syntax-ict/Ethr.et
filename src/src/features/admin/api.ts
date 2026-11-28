@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { components } from "@/api/generated";
 import { apiClient } from "@/api/client";
+import { useCurrentUser } from "@/features/auth/api";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import type { operations } from "@/api/generated";
 import type { PaginatedResponse } from "@/api/types";
@@ -652,10 +653,15 @@ export function useAdminAuditLog(params?: {
   page?: number;
 }) {
   const isSuperAdmin = useIsSuperAdmin();
+  // The platform audit lists people from every organisation, so the API reads
+  // it only for an operator with two-factor on (RequirePlatformMfa, A-Z review
+  // H-11) and answers 403 otherwise. Ask only when it can be answered; the
+  // screens say why it is closed (`admin_console_page.audit_needs_mfa`).
+  const { data: me } = useCurrentUser();
 
   return useQuery<PaginatedResponse<AdminAuditLog>>({
     queryKey: ["admin", "audit", params],
-    enabled: isSuperAdmin,
+    enabled: isSuperAdmin && me?.mfa_enabled === true,
     queryFn: async () => {
       const queryParams: Record<string, unknown> = { per_page: 50 };
       if (params?.action) queryParams["filter[action]"] = params.action;

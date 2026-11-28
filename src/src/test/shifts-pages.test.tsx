@@ -588,6 +588,10 @@ describe("Shift rotations page", () => {
     renderPage(<ShiftRotationsPage />);
 
     await user.click(await screen.findByRole("button", { name: "Delete" }));
+    const dialog = await screen.findByRole("dialog");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Delete rotation" }),
+    );
 
     await waitFor(() =>
       expect(toast.error).toHaveBeenCalledWith(

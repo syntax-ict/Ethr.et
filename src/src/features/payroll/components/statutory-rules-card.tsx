@@ -10,6 +10,7 @@ import { QueryBoundary } from "@/components/patterns/QueryBoundary";
 import { apiErrorMessage } from "@/lib/api/error-message";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useT } from "@/lib/i18n/useT";
+import { useConfirm } from "@/components/shared/use-confirm";
 import {
   type StatutoryRule,
   useResetStatutoryRule,
@@ -195,6 +196,7 @@ function formatValue(value: unknown): string {
  */
 export function StatutoryRulesCard({ onEdit }: { onEdit?: () => void }) {
   const { t } = useT();
+  const { requestConfirm, confirmDialog } = useConfirm();
   const query = useStatutoryRules();
   const reset = useResetStatutoryRule();
   const endOwnRates = useEndOwnRates();
@@ -204,6 +206,73 @@ export function StatutoryRulesCard({ onEdit }: { onEdit?: () => void }) {
   // organisation's settings (`settings.manage`): without it there is nothing
   // to edit there.
   const canChange = canManage && hasPermission("settings.manage");
+
+  async function switchToLawRates() {
+    if (
+      !(await requestConfirm({
+        title: t(
+          "statutory_rules.use_law_confirm_title",
+          "Switch payroll to the law's rates?",
+        ),
+        description: t(
+          "statutory_rules.use_law_confirm_description",
+          "The tax ladder and pension rule your organisation saved stop applying to new payroll runs. Periods already paid keep them. This cannot be undone here.",
+        ),
+        confirmLabel: t("statutory_rules.use_law", "Use the law's rates"),
+        variant: "destructive",
+      }))
+    )
+      return;
+    endOwnRates.mutate(undefined, {
+      onSuccess: () =>
+        toast.success(
+          t(
+            "statutory_rules.own_rates_ended",
+            "Payroll now applies the law's rates",
+          ),
+        ),
+      onError: (err) =>
+        toast.error(
+          apiErrorMessage(
+            err,
+            t(
+              "statutory_rules.own_rates_end_failed",
+              "Could not switch to the law's rates",
+            ),
+          ),
+        ),
+    });
+  }
+
+  async function resetRule(code: string) {
+    if (
+      !(await requestConfirm({
+        title: t(
+          "statutory_rules.reset_confirm_title",
+          "Reset :rule to its default?",
+          { rule: ruleTitle(code, t) },
+        ),
+        description: t(
+          "statutory_rules.reset_confirm_description",
+          "The value your organisation set is dropped and the default applies from the next payroll run. You would have to enter it again to bring it back.",
+        ),
+        confirmLabel: t("statutory_rules.reset", "Reset to default"),
+        variant: "destructive",
+      }))
+    )
+      return;
+    reset.mutate(code, {
+      onSuccess: () =>
+        toast.success(t("statutory_rules.reset_done", "Back to the default")),
+      onError: (err) =>
+        toast.error(
+          apiErrorMessage(
+            err,
+            t("statutory_rules.reset_failed", "Could not reset this rule"),
+          ),
+        ),
+    });
+  }
 
   return (
     <Card>
@@ -248,27 +317,7 @@ export function StatutoryRulesCard({ onEdit }: { onEdit?: () => void }) {
                       size="sm"
                       variant="outline"
                       disabled={endOwnRates.isPending}
-                      onClick={() =>
-                        endOwnRates.mutate(undefined, {
-                          onSuccess: () =>
-                            toast.success(
-                              t(
-                                "statutory_rules.own_rates_ended",
-                                "Payroll now applies the law's rates",
-                              ),
-                            ),
-                          onError: (err) =>
-                            toast.error(
-                              apiErrorMessage(
-                                err,
-                                t(
-                                  "statutory_rules.own_rates_end_failed",
-                                  "Could not switch to the law's rates",
-                                ),
-                              ),
-                            ),
-                        })
-                      }
+                      onClick={switchToLawRates}
                     >
                       {t("statutory_rules.use_law", "Use the law's rates")}
                     </Button>
@@ -298,27 +347,7 @@ export function StatutoryRulesCard({ onEdit }: { onEdit?: () => void }) {
                             reset.isPending && reset.variables === rule.code
                           }
                           onEdit={onEdit}
-                          onReset={() =>
-                            reset.mutate(rule.code, {
-                              onSuccess: () =>
-                                toast.success(
-                                  t(
-                                    "statutory_rules.reset_done",
-                                    "Back to the default",
-                                  ),
-                                ),
-                              onError: (err) =>
-                                toast.error(
-                                  apiErrorMessage(
-                                    err,
-                                    t(
-                                      "statutory_rules.reset_failed",
-                                      "Could not reset this rule",
-                                    ),
-                                  ),
-                                ),
-                            })
-                          }
+                          onReset={() => resetRule(rule.code)}
                         />
                       ))}
                     </ul>
@@ -329,6 +358,7 @@ export function StatutoryRulesCard({ onEdit }: { onEdit?: () => void }) {
           )}
         </QueryBoundary>
       </CardContent>
+      {confirmDialog}
     </Card>
   );
 }

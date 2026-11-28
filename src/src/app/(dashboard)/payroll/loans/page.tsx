@@ -5,6 +5,7 @@ import { Banknote, Plus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { CurrencyInput } from "@/components/shared/currency-input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -34,8 +35,8 @@ export default function LoansPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState({
     employee_public_id: "",
-    amount_cents: "",
-    monthly_deduction_cents: "",
+    amount_cents: 0,
+    monthly_deduction_cents: 0,
     reason: "",
   });
 
@@ -128,9 +129,8 @@ export default function LoansPage() {
                 createLoan.mutate(
                   {
                     employee_public_id: form.employee_public_id,
-                    amount_cents: parseInt(form.amount_cents) * 100,
-                    monthly_deduction_cents:
-                      parseInt(form.monthly_deduction_cents) * 100,
+                    amount_cents: form.amount_cents,
+                    monthly_deduction_cents: form.monthly_deduction_cents,
                     reason: form.reason.trim() || null,
                   },
                   {
@@ -139,8 +139,8 @@ export default function LoansPage() {
                       setDialogOpen(false);
                       setForm({
                         employee_public_id: "",
-                        amount_cents: "",
-                        monthly_deduction_cents: "",
+                        amount_cents: 0,
+                        monthly_deduction_cents: 0,
                         reason: "",
                       });
                     },
@@ -171,29 +171,28 @@ export default function LoansPage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label>{t("payroll_page.loans_page.loan_amount")}</Label>
-                  <Input
-                    type="number"
+                  <Label htmlFor="loan-amount">
+                    {t("payroll_page.loans_page.loan_amount")}
+                  </Label>
+                  <CurrencyInput
+                    id="loan-amount"
                     value={form.amount_cents}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, amount_cents: e.target.value }))
+                    onChange={(cents) =>
+                      setForm((p) => ({ ...p, amount_cents: cents }))
                     }
                     required
                     className="mt-1"
                   />
                 </div>
                 <div>
-                  <Label>
+                  <Label htmlFor="loan-monthly">
                     {t("payroll_page.loans_page.monthly_deduction")}
                   </Label>
-                  <Input
-                    type="number"
+                  <CurrencyInput
+                    id="loan-monthly"
                     value={form.monthly_deduction_cents}
-                    onChange={(e) =>
-                      setForm((p) => ({
-                        ...p,
-                        monthly_deduction_cents: e.target.value,
-                      }))
+                    onChange={(cents) =>
+                      setForm((p) => ({ ...p, monthly_deduction_cents: cents }))
                     }
                     required
                     className="mt-1"
@@ -201,8 +200,11 @@ export default function LoansPage() {
                 </div>
               </div>
               <div>
-                <Label>{t("attendance.corrections.reason")}</Label>
+                <Label htmlFor="loan-reason">
+                  {t("attendance.corrections.reason")}
+                </Label>
                 <Input
+                  id="loan-reason"
                   value={form.reason}
                   onChange={(e) =>
                     setForm((p) => ({ ...p, reason: e.target.value }))
