@@ -476,7 +476,6 @@ function RotationAssignDialog({
   onClose: () => void;
 }) {
   const { t } = useT();
-  const { requestConfirm, confirmDialog } = useConfirm();
   const [type, setType] = useState<"employee" | "department" | "branch">(
     "employee",
   );
