@@ -367,7 +367,7 @@ theirs names the one here that covers it.
 
 **Added 2026-11-20 (#808): undoing what a committed list added.** STG-051 to STG-054 cover the new button "Undo this list's additions", its dialog, the second group "Lists added recently" on the card, and the audit entries. They need the migration that adds `migration_staging_rows.created_employee`, `migration_batches.undone_at` and `undo_totals`; a list committed before it is read the older way (`origin` `derived`), which no case here can reach without an older list, so record that as not run rather than passing it. The case for a list whose people cannot be told apart (the dialog says "The records of this list do not agree on who it added, so nobody is archived." and keeps each person as "Not certain this list added them") needs such a list and is not written. The Amharic and Afaan Oromoo wording has not been read by a native speaker. Use QA Audit and nothing else: an undo archives people, and no screen lists archived employees to bring them back.
 
-## 4a. One employee, however they arrive (#690 to #703)
+## 4c. One employee, however they arrive (#690 to #703)
 
 **Live from `a9443f44be` (v2026.11.12.2).** Since 2026-11-11 every way an employee is made asks first
 whether the person is already here (`App\Services\Identity\EmployeeIntake`), the import screen is the

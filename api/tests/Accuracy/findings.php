@@ -14,7 +14,7 @@ declare(strict_types=1);
  */
 
 return [
-    // Engine defect, triaged 2026-11-28 (BASELINE 25bs). AttendanceEngine::lateMinutes()
+    // Engine defect, triaged 2026-11-28 (BASELINE 25bt). AttendanceEngine::lateMinutes()
     // and earlyMinutes() rate a record against its shift whatever the day, and the
     // status is `late`; AttendanceReconciliation lists it as a late arrival with
     // missedMinutes(), so lateness can be deducted for work on a day off.

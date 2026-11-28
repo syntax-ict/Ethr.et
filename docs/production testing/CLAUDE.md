@@ -76,3 +76,14 @@ that runs, reads or edits these cases. The human version of each rule is in
   brought up to date.
 - When the pack and the product disagree, say which is wrong; do not quietly change the expectation
   to match what production does.
+
+## Running an accuracy session
+
+The full runbook is [15](15-ACCURACY-SESSION.md); the machine part is one script.
+
+1. **Run the script, then read what it wrote.** `./scripts/accuracy-session.sh --list` first, then `./scripts/accuracy-session.sh`. Read `session-sheet.md` and the logs before saying anything about a result. A charter marked `not run` or `not built yet` was not measured: say so.
+2. **Never edit a hand value** to make a case pass, and never change a test, a case or a register inside the session. If the engine disagrees, check the fixture, then record the case in the engine's findings file as typed.
+3. **Record disagreements, do not fix them.** A defect that needs application code goes to its own pull request with a failing test first, not into the session.
+4. **Production is read-only and QA-only.** The `production` charter runs the guarded scripts with a session a person saved; you never sign in, never type a credential, never read `src/e2e-production/.auth/`, and never start MariaDB hidden.
+5. **The session signs scope A only** (calculation accuracy). The report never says ETHR is certified, and an engine with an open legal or accounting ruling is "not certified".
+6. **No interval on a generated run.** Report its cases, seed, disagreements and distribution, and how to reproduce it ([15, section 9](15-ACCURACY-SESSION.md#9-statistics-as-hard-rules)).

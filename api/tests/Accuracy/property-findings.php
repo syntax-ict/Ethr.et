@@ -22,7 +22,7 @@ declare(strict_types=1);
 
 return [
     'pattern:day-off-late-early' => [
-        'finding' => 'GC-REST-001, GC-REST-002 (BASELINE 25bs)',
+        'finding' => 'GC-REST-001, GC-REST-002 (BASELINE 25bt)',
         'properties' => ['p5'],
         'classes' => ['rest_day', 'holiday', 'not_employed'],
     ],

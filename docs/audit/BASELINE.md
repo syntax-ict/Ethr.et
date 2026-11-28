@@ -5646,7 +5646,17 @@ The owner asked for a close look at `/settings/attendance` on production (QA Aud
 
 No migration. Deploy is code only.
 
-### 25bs. Generated months against the oracle, properties of the engine, and late minutes on a day off (2026-11-28)
+### 25bs. Session 0: the first accuracy session and its script (2026-11-28)
+
+**Added** (tests, scripts and documents only; no application code): `scripts/accuracy-session.sh`, which runs the seven machine charters of an accuracy session in order under a deadline each and writes a draft session sheet; `docs/production testing/15-ACCURACY-SESSION.md`, the runbook; the sheet and report templates in file 10 sections 9 and 10; `docs/payroll/PAYROLL-RULES.md` and `docs/LEAVE-RULES.md`, the registers for payroll and leave; and the first report, `docs/audit/ACCURACY-REPORT-2026-11-28.md`. The four scopes of testing (calculation accuracy, functional, security and isolation, operational acceptance) are named, and the session signs the first only.
+
+**Measured** on 2026-11-28 at 16:42 UTC, commit `3db6e406b2`, full script, exit 0, worktree clean. Conformance: attendance `tests/Accuracy` **171 passed, 0 failed, 0 incomplete, 4 skipped** (79 golden cases plus the oracle and independence tests); payroll golden payslips and tax points **30 passed**. The race test (`./scripts/gates.sh concurrency`) **passed**. Robustness and test strength: not built yet. The browser journeys: not run, no local stack. The production charter: not run, no `src/node_modules`. Undecided rules counted in the registers: attendance 11, payroll 12, leave 5.
+
+**Shown to work and to fail safe.** A tester who had not seen the work ran a session from file 15 alone (exit 0) and named nine gaps, all closed. With the database port forced to 1, `races` was recorded `not run: no database server` and the exit was 0. A `sleep 20` under a 2 second bound returned 124. An unknown charter name and an output folder git would show each exit 2. Two independent reviewers worked payslips and leave figures from the registers alone, and their corrections were applied (payroll 16, leave 17). The conformance log holds no colour codes. A bug found on the way: the default origin for the browser journeys printed with a stray backslash, fixed.
+
+**What it does not prove.** Every figure is a count of designed cases; none estimates real-world accuracy, and no interval is computed anywhere. The golden cases and the oracle share one reading of one register, so a misreading they share passes. Payroll has no register-based cases and no oracle, leave and the calendar are not measured, and no real data has been compared with a signed figure. The report lists candidate findings read from code and not run; none is a confirmed defect. Skips never fail the session, so exit 0 means the charters that ran passed, not that all of them ran.
+
+### 25bt. Generated months against the oracle, properties of the engine, and late minutes on a day off (2026-11-28)
 
 **Added** (tests, documents and one advisory CI job; no application code): `api/tests/Accuracy/Generator/MonthGenerator.php`, a seeded generator of one person's month in the golden-case format; `GeneratedMonthsTest.php`, every field of every employee-day through the engine and the independent oracle (§25bq); `PropertiesTest.php`, properties that need no oracle; `Support/engine.php`, the engine-side helpers shared with `GoldenCasesTest`; `generated-findings.php` and `property-findings.php`, with exact and pattern entries; the `attendance-accuracy` job in `gates.yml`, advisory, which uploads the report. Register: AR-DAY-10 (punches after leaving), and AR-DAY-03 now says the answer to a repeat is not stated. Guide sections 3b and 3c.
 

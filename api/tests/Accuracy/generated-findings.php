@@ -25,7 +25,7 @@ return [
     // Late and early minutes on a record of a day with no scheduled hours.
     // A day of approved leave is not one: AR-ABS-08 leaves its rating undecided.
     'pattern:day-off-late-early' => [
-        'finding' => 'GC-REST-001, GC-REST-002 (BASELINE 25bs)',
+        'finding' => 'GC-REST-001, GC-REST-002 (BASELINE 25bt)',
         'fields' => ['late', 'early', 'late and early on a day off'],
         'classes' => ['rest_day', 'holiday', 'not_employed'],
         'engine_nonzero' => true,
