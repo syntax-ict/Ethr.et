@@ -1,5 +1,7 @@
 # Accuracy report, 2026-11-28
 
+Session 1 follows this report: [ACCURACY-REPORT-2026-11-28-session-1.md](ACCURACY-REPORT-2026-11-28-session-1.md). The figures below are session 0's and are unchanged.
+
 Session 0: the baseline session. It was run on the development branch `docs/accuracy-session`, not for a release. The template is [10, section 10](<../production testing/10-TEMPLATES-AND-REFERENCE.md#10-accuracy-report>) and the runbook is [15](<../production testing/15-ACCURACY-SESSION.md>). Every figure below is a count of designed cases or tests. None is an estimate of real-world accuracy, and no confidence interval appears anywhere in this report.
 
 ## Scopes

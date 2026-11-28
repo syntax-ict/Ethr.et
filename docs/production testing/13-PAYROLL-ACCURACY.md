@@ -44,7 +44,7 @@ The three measures are the ones in [12, section 1](12-ATTENDANCE-ACCURACY.md#1-w
 | Generated run | Seeded payslips compared with the oracle | Not built yet |
 | Properties | Order, retry and channel do not change a payslip; the parts add up to the whole | Not built yet |
 | Mutation testing | Whether the tests notice a deliberately wrong engine | Not built yet |
-| Restated figures | The bank file, the payslip PDF and the exports against the engine's figures | Not built yet |
+| Restated figures | The payslip PDF, the bank file and the schedules read back and held against the engine's figures | Built: [14, section 8](14-LEAVE-CALENDAR-AND-RESTATED-FIGURES.md#8-restated-figures). The payslips come from 8 cases of this file. Not built for the exports and the screens |
 | Displayed figures | The numbers on each screen compared with the expected ones | Not built yet |
 | Backtest | A real month replayed and compared with the accountant's signed payslips | Not built yet |
 
@@ -318,7 +318,7 @@ Built from the case files and the register on 2026-11-28, in the register's orde
 | PYR-RST-01 | Decided | GP-CS-005, GP-LOAN-004, GP-RUN-001, GP-RUN-002, GP-SAL-007, GP-SAL-008; on an Undecided rule: GP-RUN-003 | `cases/cs.php`, `cases/loan.php`, `cases/run.php`, `cases/sal.php` |
 | PYR-RST-02 | Decided | GP-CS-005, GP-LOAN-004, GP-RUN-001, GP-RUN-002; on an Undecided rule: GP-RUN-003 | `cases/cs.php`, `cases/loan.php`, `cases/run.php` |
 | PYR-RST-03 | Decided | GP-CS-005, GP-LOAN-004, GP-RUN-001, GP-RUN-002; on an Undecided rule: GP-RUN-003 | `cases/cs.php`, `cases/loan.php`, `cases/run.php` |
-| PYR-RST-04 | Decided | none | exempt in `register-exemptions.php`: a restated figure, not built yet |
+| PYR-RST-04 | Decided | none | cited by `cases/restated.json`, the restated payslip checks of [14, section 8](14-LEAVE-CALENDAR-AND-RESTATED-FIGURES.md#8-restated-figures), not by a golden case |
 | PYR-BANK-01 | Decided | none | exempt in `register-exemptions.php`: a refusal |
 | PYR-BANK-02 | Decided | GP-CS-005, GP-LOAN-004, GP-RUN-001, GP-RUN-002 | `cases/cs.php`, `cases/loan.php`, `cases/run.php` |
 | PYR-BANK-03 | Decided | GP-CS-005, GP-LOAN-004, GP-RUN-001, GP-RUN-002; on an Undecided rule: GP-RUN-003 | `cases/cs.php`, `cases/loan.php`, `cases/run.php` |
@@ -326,7 +326,7 @@ Built from the case files and the register on 2026-11-28, in the register's orde
 | PYR-BANK-05 | Undecided | on an Undecided rule: GP-RUN-003 | `cases/run.php` |
 | PYR-BANK-06 | Undecided | on an Undecided rule: GP-RUN-003 | `cases/run.php` |
 
-Rules with no case, from the table: 28 of 117. Fifteen are Decided rules that are exempt with a reason: refusals (PYR-PER-02, PYR-LEAVE-04, PYR-SICK-04, PYR-CS-02, PYR-RUN-02, PYR-BANK-01), run lifecycle (PYR-RUN-04 to PYR-RUN-06), a stored label (PYR-PER-05), an organisation's own tax ladder (PYR-TAX-05), absences that move no money (PYR-ABS-01), flags (PYR-OT-05), PYR-RUN-01 (checked by the preview check, which is a persistence check) and PYR-RST-04 (a restated figure, not built yet). Twelve are Implemented with no case yet: PYR-PER-04, PYR-PER-06, PYR-SAL-08, PYR-RATE-03, PYR-ALW-06, PYR-TAX-06, PYR-PEN-04, PYR-PEN-06, PYR-PEN-13, PYR-LOAN-06, PYR-RUN-03 and PYR-RUN-07. One is Undecided with no case: PYR-PEN-14.
+Rules with no case, from the table: 28 of 117. Fifteen are Decided rules that are exempt with a reason: refusals (PYR-PER-02, PYR-LEAVE-04, PYR-SICK-04, PYR-CS-02, PYR-RUN-02, PYR-BANK-01), run lifecycle (PYR-RUN-04 to PYR-RUN-06), a stored label (PYR-PER-05), an organisation's own tax ladder (PYR-TAX-05), absences that move no money (PYR-ABS-01), flags (PYR-OT-05), PYR-RUN-01 (checked by the preview check, which is a persistence check) and PYR-RST-04 (a restated figure, now read from the payslip PDF by the restated checks, not by a golden case). Twelve are Implemented with no case yet: PYR-PER-04, PYR-PER-06, PYR-SAL-08, PYR-RATE-03, PYR-ALW-06, PYR-TAX-06, PYR-PEN-04, PYR-PEN-06, PYR-PEN-13, PYR-LOAN-06, PYR-RUN-03 and PYR-RUN-07. One is Undecided with no case: PYR-PEN-14.
 
 ## 12. What the cases do not cover
 
@@ -337,7 +337,8 @@ Rules with no case, from the table: 28 of 117. Fifteen are Decided rules that ar
 - **Rules no case cites** (the list under the table).
 - **What the register itself leaves out** (its "What this register does not cover"): attendance minutes (that is [ATTENDANCE-RULES.md](../ATTENDANCE-RULES.md)); civil servants under the Federal Civil Servants Proclamation 1353/2024 and government salary scales; legal limits on non-taxable allowances; arrears and recoveries for a salary change back-dated into a month already paid; severance and final pay, and any deduction other than loans, cost sharing and lateness; remittance schedule layouts and bank-specific transfer formats; and who may process, approve, void and pay.
 - **The cases that could not be built.** `not-coverable.php` is empty today. A new input the fixture cannot create through public code goes there with its reason.
-- **Robustness and real-world agreement**, as in section 2. No generated run, property, mutation test, displayed-figure check or backtest exists.
+- **The bank file and the schedules as restated outputs** are read back and compared by the restated checks, not by the golden cases, and the bank file of a person deleted after approval (PYR-BANK-04 to PYR-BANK-06) has no asserted outcome while those rules are Undecided. The exports and the screens are not checked.
+- **Robustness and real-world agreement**, as in section 2. No generated payroll run, property, mutation test, displayed-figure check or backtest exists.
 
 ## 13. Companion files
 
