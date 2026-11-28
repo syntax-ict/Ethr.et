@@ -126,7 +126,7 @@ return [
         'expect' => ['A' => [
             'in_run' => 1, 'lateness_step_logged' => 0, 'basic' => 880000, 'gross' => 880000, 'income_tax' => 135000,
             'employee_pension' => 61600, 'loan.L1' => 60000, 'loan.L1.remaining_after' => 240000,
-            'loan.L2' => 10000, 'loan.L2.remaining_after' => 0, 'loans' => 70000, 'other_deductions' => 70000,
+            'loan.L2' => 10000, 'loan.L2.remaining_after' => 0, 'loan.L3' => 0, 'loan.L3.remaining_after' => 50000, 'loan.L4' => 0, 'loan.L4.remaining_after' => 200000, 'loans' => 70000, 'other_deductions' => 70000,
             'total_deductions' => 266600, 'net' => 613400,
         ]],
         'working' => ['A' => [
@@ -140,6 +140,10 @@ return [
             'loan.L1.remaining_after = 300,000 - 60,000 = 240,000 (PYR-LOAN-01)',
             'loan.L2 = min(25,000, 10,000) = 10,000 (PYR-LOAN-01)',
             'loan.L2.remaining_after = 10,000 - 10,000 = 0 (PYR-LOAN-01)',
+            'loan.L3 = completed, not read by the run = 0 (PYR-LOAN-06)',
+            'loan.L3.remaining_after = its remaining 50,000 (PYR-LOAN-06)',
+            'loan.L4 = cancelled, not read by the run = 0 (PYR-LOAN-06)',
+            'loan.L4.remaining_after = its remaining 200,000 (PYR-LOAN-06)',
             'loans = 60,000 + 10,000 = 70,000; L3 completed and L4 cancelled are not active and deduct 0 (PYR-LOAN-01)',
             'other_deductions = 70,000 + 0 = 70,000 (PYR-NET-01)',
             'total_deductions = 135,000 + 61,600 + 70,000 + 0 = 266,600 (PYR-NET-01)',

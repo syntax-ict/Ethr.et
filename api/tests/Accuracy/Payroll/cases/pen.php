@@ -10,17 +10,17 @@ $pStd = fn (int $b): array => [
 ];
 
 $pWk = fn (string $b): array => [
-    'in_run = confirmed, salary '.$b.' > 0 = 1 (PYR-SAL-05, PYR-SAL-07)',
-    'monthly_basic = no history rows, so the salary on the record = '.$b.' (PYR-SAL-01)',
+    'in_run = confirmed, salary ' . $b . ' > 0 = 1 (PYR-SAL-05, PYR-SAL-07)',
+    'monthly_basic = no history rows, so the salary on the record = ' . $b . ' (PYR-SAL-01)',
     'days_in_period = 2026-10-01 to 2026-10-31 inclusive = 31 (PYR-PER-01)',
     'days_employed = hired 2020-01-01, before the period; no termination = 31 (PYR-PRO-01)',
-    'period_basic = full_month, no Pagume day = monthly basic = '.$b.' (PYR-PAG-02)',
-    'prorated_basic = '.$b.' x 31 / 31 = '.$b.' (PYR-PRO-02)',
+    'period_basic = full_month, no Pagume day = monthly basic = ' . $b . ' (PYR-PAG-02)',
+    'prorated_basic = ' . $b . ' x 31 / 31 = ' . $b . ' (PYR-PRO-02)',
     'lateness_step_logged = deductions switched off = 0 (PYR-LATE-01)',
-    'basic = '.$b.', no leave and no lateness (PYR-GROSS-01)',
-    'gross = '.$b.' + 0 + 0 = '.$b.' (PYR-GROSS-01)',
-    'taxable = '.$b.' - 0 = '.$b.' (PYR-GROSS-02)',
-    'pensionable = basic = '.$b.' (PYR-PEN-03, PYR-PEN-15)',
+    'basic = ' . $b . ', no leave and no lateness (PYR-GROSS-01)',
+    'gross = ' . $b . ' + 0 + 0 = ' . $b . ' (PYR-GROSS-01)',
+    'taxable = ' . $b . ' - 0 = ' . $b . ' (PYR-GROSS-02)',
+    'pensionable = basic = ' . $b . ' (PYR-PEN-03, PYR-PEN-15)',
 ];
 
 $oct = ['start' => '2026-10-01', 'end' => '2026-10-31', 'pagume_days' => 0, 'label' => 'October 2026'];
@@ -76,7 +76,7 @@ return [
     ],
     [
         'id' => 'GP-PEN-003',
-        'rule' => ['PYR-PEN-01', 'PYR-PEN-02', 'PYR-PEN-05', 'PYR-TAX-01', 'PYR-TAX-03'],
+        'rule' => ['PYR-PEN-12', 'PYR-PEN-01', 'PYR-PEN-02', 'PYR-PEN-05', 'PYR-TAX-01', 'PYR-TAX-03'],
         'source' => '07 section 1.2',
         'period' => $oct,
         'org' => ['organization_type' => 'defence_police'],
@@ -95,6 +95,7 @@ return [
                 'employer_pension = public_military employer 33%: 1,234,567 x 33 / 100 = 407,407.11, rounded 407,407 (PYR-PEN-02, PYR-PEN-05)',
                 'total_deductions = 235,370 + 86,420 + 0 + 0 = 321,790; the employer share is not taken from the employee (PYR-NET-01, PYR-PEN-12)',
                 'net = 1,234,567 - 321,790 = 912,777 (PYR-NET-01)',
+                'net = pins PYR-PEN-12: the 407,407 employer share is not taken from pay; had it been, net would be 912,777 - 407,407 = 505,370',
             ]),
         ],
     ],

@@ -297,7 +297,7 @@ return [
     // GP-LATE-005: the cost sharing estimate (on basic) takes room from the cap; the cost sharing paid is on gross
     [
         'id' => 'GP-LATE-005',
-        'rule' => ['PYR-LATE-03', 'PYR-LATE-04', 'PYR-LATE-05', 'PYR-CS-01', 'PYR-CS-06', 'PYR-LOAN-01', 'PYR-ALW-03', 'PYR-GROSS-01', 'PYR-NET-01'],
+        'rule' => ['PYR-LATE-03', 'PYR-LATE-04', 'PYR-LATE-05', 'PYR-CS-01', 'PYR-CS-06', 'PYR-CS-04', 'PYR-LOAN-01', 'PYR-ALW-03', 'PYR-GROSS-01', 'PYR-NET-01'],
         'source' => 'register',
         'period' => ['start' => '2026-10-01', 'end' => '2026-10-31', 'pagume_days' => 0, 'label' => 'October 2026'],
         'org' => [
@@ -346,6 +346,7 @@ return [
             'loans = 200,000 (PYR-LOAN-01)',
             'cost_sharing = on gross: intdiv(994,667 x 1,000, 10,000) = 99,466.7 rounded down 99,466; min with outstanding 5,000,000 (PYR-CS-01)',
             'cost_sharing_outstanding_after = 5,000,000 - 99,466 = 4,900,534 (PYR-CS-01)',
+            'cost_sharing_outstanding_after pins PYR-CS-04: loan 200,000 + cost sharing 99,466 = 299,466 passes the ceiling 293,333, yet cost sharing is taken in full (not cut to 93,333)',
             'other_deductions = 200,000 + 99,466 = 299,466 (PYR-NET-01)',
             'total_deductions = 163,667 + 61,227 + 200,000 + 99,466 = 524,360 (PYR-NET-01)',
             'net = 994,667 - 524,360 = 470,307 (PYR-NET-01)',

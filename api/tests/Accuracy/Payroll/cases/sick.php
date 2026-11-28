@@ -89,7 +89,7 @@ return [
     ],
     [
         'id' => 'GP-SICK-003',
-        'rule' => ['PYR-SICK-01', 'PYR-SICK-02', 'PYR-SICK-05', 'PYR-LEAVE-02', 'PYR-RATE-01', 'PYR-PEN-03', 'PYR-TAX-01', 'PYR-PEN-05', 'PYR-NET-01'],
+        'rule' => ['PYR-SICK-01', 'PYR-SICK-02', 'PYR-SICK-03', 'PYR-SICK-05', 'PYR-LEAVE-02', 'PYR-RATE-01', 'PYR-PEN-03', 'PYR-TAX-01', 'PYR-PEN-05', 'PYR-NET-01'],
         'source' => 'register',
         'period' => ['start' => '2026-10-01', 'end' => '2026-10-31', 'pagume_days' => 0, 'label' => 'October 2026'],
         'employees' => [
@@ -113,7 +113,7 @@ return [
                 'monthly_basic = 880,000 (PYR-SAL-01)',
                 'prorated_basic = 880,000 (PYR-PRO-02)',
                 'daily_rate = 880,000 / 22 = 40,000 (PYR-RATE-01)',
-                'unpaid_leave_deduction = 40,000 x 1,000 / 1,000 = 40,000; Art. 85 days are not also unpaid leave (PYR-LEAVE-02, PYR-SICK-03)',
+                'unpaid_leave_deduction = 40,000 x 1,000 / 1,000 = 40,000; the 5 Art. 85 days (3 half, 2 unpaid) are not added to the 1 day of unpaid leave: it stays 1,000 thousandths, not 6,000 (PYR-LEAVE-02, PYR-SICK-03)',
                 'basic_after_unpaid_leave = 880,000 - 40,000 = 840,000 (PYR-LEAVE-02)',
                 'sick_deduction = th = 2 x 1,000 + 3 x 500 = 3,500 (half places 64 to 66 then unpaid places 67 and 68, consecutive in one window, PYR-SICK-05); 40,000 x 3,500 / 1,000 = 140,000; below 840,000 (PYR-SICK-02)',
                 'basic_after_sick_leave = 840,000 - 140,000 = 700,000 (PYR-SICK-02)',
