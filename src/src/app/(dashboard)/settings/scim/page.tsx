@@ -248,6 +248,16 @@ export default function ScimSettingsPage() {
                           ? t("common.copied", "Copied")
                           : t("common.copy", "Copy")}
                       </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setGeneratedToken(null);
+                          generateScimToken.reset();
+                        }}
+                      >
+                        {t("api_keys_page.dismiss", "Dismiss")}
+                      </Button>
                     </div>
                   </div>
                 )}

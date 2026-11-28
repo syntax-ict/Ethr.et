@@ -268,7 +268,10 @@ export default function ApiKeysPage() {
                 <Button
                   size="sm"
                   variant="ghost"
-                  onClick={() => setNewKey(null)}
+                  onClick={() => {
+                    setNewKey(null);
+                    createKey.reset();
+                  }}
                 >
                   {t("api_keys_page.dismiss")}
                 </Button>

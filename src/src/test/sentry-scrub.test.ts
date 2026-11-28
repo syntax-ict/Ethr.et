@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ErrorEvent } from "@sentry/nextjs";
 
-import { scrubEvent } from "@/lib/observability/scrub";
+import { scrubBreadcrumb, scrubEvent } from "@/lib/observability/scrub";
 
 function eventWith(partial: Partial<ErrorEvent>): ErrorEvent {
   return { type: undefined, ...partial } as ErrorEvent;
@@ -83,5 +83,52 @@ describe("scrubEvent", () => {
     const event = eventWith({ extra: { cyclic } });
 
     expect(() => scrubEvent(event)).not.toThrow();
+  });
+});
+
+describe("scrubBreadcrumb", () => {
+  it("strips the query string from fetch and navigation addresses", () => {
+    const fetchCrumb = scrubBreadcrumb({
+      category: "fetch",
+      data: {
+        url: "/api/v1/employees?search=abebe%20bekele&page=2",
+        method: "GET",
+        status_code: 200,
+      },
+    });
+    const navCrumb = scrubBreadcrumb({
+      category: "navigation",
+      data: {
+        from: "/employees?q=abebe",
+        to: "https://acme.ethr.et/directory?q=kebede#top",
+      },
+    });
+
+    expect(fetchCrumb?.data).toEqual({
+      url: "/api/v1/employees",
+      method: "GET",
+      status_code: 200,
+    });
+    expect(navCrumb?.data).toEqual({
+      from: "/employees",
+      to: "https://acme.ethr.et/directory",
+    });
+  });
+
+  it("leaves a breadcrumb with no data, or no address, as it was", () => {
+    expect(scrubBreadcrumb({ message: "clicked" })).toEqual({
+      message: "clicked",
+    });
+    expect(
+      scrubBreadcrumb({ category: "ui.click", data: { target: "button" } }),
+    ).toEqual({ category: "ui.click", data: { target: "button" } });
+  });
+
+  it("does not change the breadcrumb it was given", () => {
+    const original = { data: { url: "/a?q=1" } };
+
+    scrubBreadcrumb(original);
+
+    expect(original.data.url).toBe("/a?q=1");
   });
 });

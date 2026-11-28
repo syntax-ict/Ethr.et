@@ -2,9 +2,12 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { isAxiosError } from "axios";
 import { useCurrentUser } from "@/features/auth/api";
-import { clearOfflineIdentity } from "@/features/auth/offline-identity";
+import { readOfflineIdentity } from "@/features/auth/offline-identity";
+import { clearSessionData } from "@/lib/session-cleanup";
+import { clearOfflineOnSignOut } from "@/lib/offline-signout";
 import { useT } from "@/lib/i18n/useT";
 import { AppLoadingScreen } from "./app-loading-screen";
 
@@ -25,17 +28,31 @@ function isSignedOut(error: unknown): boolean {
  */
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { t } = useT();
   const { data: user, isLoading, error } = useCurrentUser();
   const signedOut = isSignedOut(error);
 
   useEffect(() => {
     if (isLoading) return;
-    if (signedOut) clearOfflineIdentity();
+    if (signedOut) {
+      // The axios 401 path usually got here first, but a 419 that fails twice
+      // does not reach it. Who is leaving is read before the identity goes;
+      // punches still waiting are kept (clearOfflineOnSignOut).
+      let departing: string | null = null;
+      try {
+        departing = readOfflineIdentity()?.user?.employee_public_id ?? null;
+      } catch {
+        // Signing out goes ahead regardless.
+      }
+      void clearSessionData(queryClient).then(() =>
+        clearOfflineOnSignOut(departing),
+      );
+    }
     if (signedOut || !user) {
       router.replace("/login");
     }
-  }, [isLoading, signedOut, user, router]);
+  }, [isLoading, signedOut, user, router, queryClient]);
 
   if (isLoading) {
     return <AppLoadingScreen label={t("common.loading", "Loading...")} />;

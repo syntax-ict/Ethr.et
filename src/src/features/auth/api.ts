@@ -3,13 +3,9 @@ import axios from "axios";
 import { apiClient } from "@/api/client";
 import type { components, operations } from "@/api/generated";
 import type { User } from "@/api/types";
-import { clearApiCache } from "@/lib/api-cache";
+import { clearSessionData } from "@/lib/session-cleanup";
 import { clearOfflineOnSignOut } from "@/lib/offline-signout";
-import {
-  clearOfflineIdentity,
-  readOfflineIdentity,
-  saveOfflineIdentity,
-} from "./offline-identity";
+import { readOfflineIdentity, saveOfflineIdentity } from "./offline-identity";
 
 export interface MeResponse {
   user: User;
@@ -200,6 +196,8 @@ export function useStartMfaSetup() {
   return useMutation({
     mutationFn: async (): Promise<MfaSetup> =>
       (await apiClient.post("/auth/mfa/setup")).data,
+    // The secret is the second factor: not kept once nothing watches it.
+    gcTime: 0,
   });
 }
 
@@ -210,6 +208,8 @@ export function useEnableMfa() {
   return useMutation({
     mutationFn: async (payload: EnableMfaPayload) =>
       (await apiClient.post("/auth/mfa/enable", payload)).data,
+    // Its variables carry the setup secret.
+    gcTime: 0,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
     },
@@ -306,10 +306,8 @@ export function useLogout() {
       } catch {
         // Never let this stand between a person and signing out.
       }
-      queryClient.clear();
-      clearOfflineIdentity();
+      await clearSessionData(queryClient);
       await clearOfflineOnSignOut(departing);
-      await clearApiCache();
       window.location.href = "/login";
     },
   });

@@ -3,10 +3,12 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Loader2, ShieldCheck } from "lucide-react";
 import { apiClient } from "@/api/client";
 import { Button } from "@/components/ui/button";
 import { useT } from "@/lib/i18n/useT";
+import { clearSessionData } from "@/lib/session-cleanup";
 import { useHydrated } from "@/lib/hooks/useHydrated";
 import { safeInternalPath } from "@/lib/utils/safe-path";
 
@@ -33,6 +35,7 @@ const KNOWN_ERRORS = [
  */
 export function SsoReturn() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { t } = useT();
   // The URL decides most outcomes, so they are derived during render once
   // hydrated (the static export has no query string to read on the server).
@@ -53,27 +56,32 @@ export function SsoReturn() {
 
     const params = new URLSearchParams(window.location.search);
     const org = (params.get("org") ?? "").trim().toLowerCase();
-    localStorage.setItem("tenant", org);
 
-    if (params.get("mfa") === "1") {
-      sessionStorage.setItem("mfa_pending", "true");
-      router.replace("/login/mfa");
-      return;
-    }
+    // A new session starts here, so what the last one left on this device goes
+    // first, then the organisation is stored (the cleanup leaves it be).
+    void clearSessionData(queryClient).then(() => {
+      localStorage.setItem("tenant", org);
 
-    // Confirm the session belongs to that organisation before going on. A
-    // link that names another one is refused by the API (the signed-in user
-    // is not its member), and must not leave this browser sending it.
-    apiClient
-      .get("/auth/me")
-      .then(() =>
-        router.replace(safeInternalPath(params.get("next"), "/dashboard")),
-      )
-      .catch(() => {
-        localStorage.removeItem("tenant");
-        setSessionRefused(true);
-      });
-  }, [hydrated, urlError, router]);
+      if (params.get("mfa") === "1") {
+        sessionStorage.setItem("mfa_pending", "true");
+        router.replace("/login/mfa");
+        return;
+      }
+
+      // Confirm the session belongs to that organisation before going on. A
+      // link that names another one is refused by the API (the signed-in user
+      // is not its member), and must not leave this browser sending it.
+      apiClient
+        .get("/auth/me")
+        .then(() =>
+          router.replace(safeInternalPath(params.get("next"), "/dashboard")),
+        )
+        .catch(() => {
+          localStorage.removeItem("tenant");
+          setSessionRefused(true);
+        });
+    });
+  }, [hydrated, urlError, router, queryClient]);
 
   if (error === null) {
     return (

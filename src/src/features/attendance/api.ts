@@ -138,11 +138,13 @@ const keys = {
 function useAttendanceMutation<TVars, TData>(
   mutationFn: (vars: TVars) => Promise<TData>,
   invalidate: readonly (readonly string[])[] = [keys.all],
+  options?: { gcTime?: number },
 ) {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn,
+    gcTime: options?.gcTime,
     onSuccess: () => {
       for (const queryKey of invalidate) {
         queryClient.invalidateQueries({ queryKey });
@@ -698,6 +700,8 @@ export function useRegisterKiosk() {
     async (payload: RegisterKioskPayload): Promise<KioskSession> =>
       (await apiClient.post("/kiosk-sessions", payload)).data,
     [keys.kiosks],
+    // The answer carries the session token: not kept after the page lets go.
+    { gcTime: 0 },
   );
 }
 
@@ -719,6 +723,7 @@ export function useRegenerateKioskToken() {
       (await apiClient.post(`/kiosk-sessions/${publicId}/regenerate-token`))
         .data,
     [keys.kiosks],
+    { gcTime: 0 },
   );
 }
 

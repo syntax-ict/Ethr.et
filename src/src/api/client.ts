@@ -1,11 +1,8 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from "axios";
 
-import {
-  clearOfflineIdentity,
-  readOfflineIdentity,
-} from "@/features/auth/offline-identity";
+import { readOfflineIdentity } from "@/features/auth/offline-identity";
 import { clearOfflineOnSignOut } from "@/lib/offline-signout";
-import { clearApiCache } from "@/lib/api-cache";
+import { clearSessionData } from "@/lib/session-cleanup";
 import { hostContext } from "@/lib/auth/host-context";
 import { getLocale } from "@/lib/i18n/translations";
 import { recordFailedRequest } from "@/lib/support/recent-failures";
@@ -346,9 +343,8 @@ apiClient.interceptors.response.use(
         } catch {
           // Signing out goes ahead regardless.
         }
-        clearOfflineIdentity();
+        await clearSessionData();
         await clearOfflineOnSignOut(departing);
-        await clearApiCache();
         window.location.href = "/login";
       }
     }

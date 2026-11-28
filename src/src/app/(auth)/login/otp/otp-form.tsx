@@ -20,6 +20,7 @@ import {
   verifyOtp,
 } from "@/features/auth/sign-in";
 import { useT } from "@/lib/i18n/useT";
+import { clearSessionData } from "@/lib/session-cleanup";
 import { useHydrated } from "@/lib/hooks/useHydrated";
 import { useAuthHostContext } from "@/lib/auth/use-auth-host-context";
 import { TenantHostIndicator } from "@/components/shared/tenant-host-indicator";
@@ -180,6 +181,10 @@ export function OtpForm() {
     try {
       const data = await verifyOtp({ ...addressPayload(), code });
 
+      // A new session starts here: what the last one left on this device goes
+      // (stored API answers are keyed by address, not by organisation).
+      await clearSessionData(queryClient);
+
       if (data.mfa_required) {
         sessionStorage.setItem("mfa_pending", "true");
         router.push("/login/mfa");
@@ -193,8 +198,8 @@ export function OtpForm() {
       // to /dashboard with `router.push` would then hand the next person whatever
       // the previous one had cached, including across tenants.
       //
-      // Authenticating starts a new session, so it starts a new cache.
-      queryClient.clear();
+      // Authenticating starts a new session, so it starts a new cache
+      // (cleared above).
       router.push("/dashboard");
     } catch (err: unknown) {
       const axiosError = err as { response?: { data?: { detail?: string } } };

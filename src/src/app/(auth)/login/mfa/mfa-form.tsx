@@ -10,6 +10,7 @@ import { OtpCodeInput } from "@/components/shared/otp-code-input";
 import { verifyMfa } from "@/features/auth/sign-in";
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n/useT";
+import { clearSessionData } from "@/lib/session-cleanup";
 import { useHydrated } from "@/lib/hooks/useHydrated";
 
 const CODE_LENGTH = 6;
@@ -57,6 +58,7 @@ export function MfaForm() {
       await verifyMfa({ code, trust_device: trustDevice });
 
       sessionStorage.removeItem("mfa_pending");
+      await clearSessionData(queryClient);
       toast.success(t("auth.mfa_authenticated", "Authenticated"));
       // One QueryClient serves the whole app (`app/providers.tsx` creates it in
       // `useState` and never replaces it), and reaching this form does not
@@ -65,8 +67,8 @@ export function MfaForm() {
       // to /dashboard with `router.push` would then hand the next person whatever
       // the previous one had cached, including across tenants.
       //
-      // Authenticating starts a new session, so it starts a new cache.
-      queryClient.clear();
+      // Authenticating starts a new session, so it starts a new cache
+      // (cleared above, with the stored API answers and the last session's keys).
       router.push("/dashboard");
     } catch (err: unknown) {
       const axiosError = err as { response?: { data?: { detail?: string } } };

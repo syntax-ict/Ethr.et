@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { server } from "./msw/server";
 import { registerLocale } from "@/lib/i18n/translations";
@@ -17,6 +18,14 @@ import { ImpersonationBanner } from "@/components/shared/impersonation-banner";
  * an attacker or a stale tab could have got wrong.
  */
 const originalLocation = window.location;
+
+function renderBanner(queryClient = new QueryClient()) {
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <ImpersonationBanner />
+    </QueryClientProvider>,
+  );
+}
 
 beforeEach(() => {
   localStorage.clear();
@@ -61,7 +70,7 @@ afterEach(() => {
 
 describe("<ImpersonationBanner>", () => {
   it("stays out of the way when nobody is impersonating", () => {
-    const { container } = render(<ImpersonationBanner />);
+    const { container } = renderBanner();
 
     expect(container).toBeEmptyDOMElement();
   });
@@ -74,7 +83,7 @@ describe("<ImpersonationBanner>", () => {
     localStorage.setItem("locale", "am");
     localStorage.setItem("impersonating", "true");
 
-    render(<ImpersonationBanner />);
+    renderBanner();
 
     expect(
       screen.getByText(amTranslations["impersonation.banner"]),
@@ -93,7 +102,7 @@ describe("<ImpersonationBanner>", () => {
       ),
     );
 
-    render(<ImpersonationBanner />);
+    renderBanner();
     fireEvent.click(
       screen.getByRole("button", { name: /Exit Impersonation/i }),
     );
@@ -119,7 +128,7 @@ describe("<ImpersonationBanner>", () => {
       ),
     );
 
-    render(<ImpersonationBanner />);
+    renderBanner();
     fireEvent.click(
       screen.getByRole("button", { name: /Exit Impersonation/i }),
     );
@@ -147,7 +156,7 @@ describe("<ImpersonationBanner>", () => {
       ),
     );
 
-    render(<ImpersonationBanner />);
+    renderBanner();
     fireEvent.click(
       screen.getByRole("button", { name: /Exit Impersonation/i }),
     );
@@ -172,7 +181,7 @@ describe("<ImpersonationBanner>", () => {
       ),
     );
 
-    render(<ImpersonationBanner />);
+    renderBanner();
     fireEvent.click(
       screen.getByRole("button", { name: /Exit Impersonation/i }),
     );
@@ -197,7 +206,7 @@ describe("<ImpersonationBanner>", () => {
       ),
     );
 
-    render(<ImpersonationBanner />);
+    renderBanner();
     fireEvent.click(
       screen.getByRole("button", { name: /Exit Impersonation/i }),
     );
@@ -207,5 +216,35 @@ describe("<ImpersonationBanner>", () => {
     // The flag is cleared even on failure: a banner that cannot be dismissed on
     // a session that cannot be exited leaves the admin stuck.
     expect(localStorage.getItem("impersonating")).toBeNull();
+  });
+
+  it("clears what the operator read, but still puts the admin's own tenant back", async () => {
+    // The cleanup removes `original_tenant` itself, so the order is the thing
+    // under test: read it, clean up, then write `tenant`.
+    localStorage.setItem("impersonating", "true");
+    localStorage.setItem("original_tenant", "platform-org");
+    localStorage.setItem("tenant", "customer-org");
+    localStorage.setItem("ethr.search.recent.U1", '[{"title":"Abebe"}]');
+    const queryClient = new QueryClient();
+    queryClient.setQueryData(["employees"], { data: [{ name: "Abebe" }] });
+
+    server.use(
+      http.post("*/auth/impersonation/exit", () =>
+        HttpResponse.json({ session_restored: true }),
+      ),
+    );
+
+    renderBanner(queryClient);
+    fireEvent.click(
+      screen.getByRole("button", { name: /Exit Impersonation/i }),
+    );
+
+    await waitFor(() => expect(window.location.href).toBe("/admin"));
+
+    expect(localStorage.getItem("tenant")).toBe("platform-org");
+    expect(localStorage.getItem("original_tenant")).toBeNull();
+    expect(localStorage.getItem("impersonating")).toBeNull();
+    expect(localStorage.getItem("ethr.search.recent.U1")).toBeNull();
+    expect(queryClient.getQueryData(["employees"])).toBeUndefined();
   });
 });

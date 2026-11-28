@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -8,6 +9,7 @@ import {
   isNavigableUrl,
 } from "@/features/admin/api";
 import { useT } from "@/lib/i18n/useT";
+import { clearSessionData } from "@/lib/session-cleanup";
 
 function readImpersonating(): boolean {
   if (typeof window === "undefined") return false;
@@ -20,6 +22,7 @@ function readImpersonating(): boolean {
 
 export function ImpersonationBanner() {
   const { t } = useT();
+  const queryClient = useQueryClient();
   const [isImpersonating] = useState(readImpersonating);
 
   async function exitImpersonation() {
@@ -49,11 +52,16 @@ export function ImpersonationBanner() {
     // Prefer the server's answer over what this browser stashed on the way in.
     const originalTenant =
       restoredTenant ?? localStorage.getItem("original_tenant");
+
+    // The operator was reading another organisation's data: what this browser
+    // kept of it goes (stored answers, recent searches, the two flags). Cleared
+    // after `originalTenant` is read above and before `tenant` is written
+    // below, because the cleanup removes `original_tenant` and leaves
+    // `tenant` alone.
+    await clearSessionData(queryClient);
     if (originalTenant) {
       localStorage.setItem("tenant", originalTenant);
     }
-    localStorage.removeItem("original_tenant");
-    localStorage.removeItem("impersonating");
 
     window.location.href = returnUrl ?? (restored ? "/admin" : "/login");
   }

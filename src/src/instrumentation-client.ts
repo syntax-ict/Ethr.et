@@ -1,6 +1,6 @@
 import * as Sentry from "@sentry/nextjs";
 
-import { scrubEvent } from "@/lib/observability/scrub";
+import { scrubBreadcrumb, scrubEvent } from "@/lib/observability/scrub";
 
 /**
  * Browser error reporting.
@@ -37,6 +37,7 @@ if (dsn) {
     replaysOnErrorSampleRate: 0,
     sendDefaultPii: false,
     beforeSend: scrubEvent,
+    beforeBreadcrumb: scrubBreadcrumb,
   });
 }
 
