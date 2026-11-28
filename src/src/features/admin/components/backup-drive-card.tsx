@@ -462,7 +462,14 @@ export function BackupDriveCard({ state }: { state: BackupDriveState }) {
                 >
                   <Copy className="h-4 w-4" aria-hidden="true" />
                 </Button>
-                <Button size="sm" variant="ghost" onClick={() => setKey(null)}>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setKey(null);
+                    reveal.reset();
+                  }}
+                >
                   {t("admin_backups.key_hide", "Hide")}
                 </Button>
               </div>

@@ -176,6 +176,9 @@ export function useRevealBackupKey() {
   return useMutation({
     mutationFn: async () =>
       (await apiClient.post<{ key: string }>("/admin/backups/key")).data.key,
+    // The key is a secret: not kept in the mutation cache once nothing watches
+    // it, and `reset()` drops it as soon as the page hides it.
+    gcTime: 0,
     onSuccess: () => void qc.invalidateQueries({ queryKey: KEY }),
   });
 }
@@ -248,6 +251,7 @@ export function useRevealBackupDriveKey() {
   return useMutation({
     mutationFn: async () =>
       (await apiClient.post<{ key: string }>(`${DRIVE}/key`)).data.key,
+    gcTime: 0,
     onSuccess: () => void qc.invalidateQueries({ queryKey: KEY }),
   });
 }

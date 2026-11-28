@@ -62,6 +62,36 @@ describe("<ScimSettingsPage>", () => {
     await waitFor(() => expect(sent).toEqual({ name: "Okta SCIM" }));
   });
 
+  it("removes the token from the page when it is dismissed", async () => {
+    server.use(
+      me(["settings.manage"]),
+      http.post("*/api/v1/settings/scim-token", () =>
+        HttpResponse.json(
+          {
+            token: "scimplaintokenvalue",
+            prefix: "scimplai",
+            expires_at: "2027-10-01T06:00:00+00:00",
+            message: "Store this token securely.",
+          },
+          { status: 201 },
+        ),
+      ),
+    );
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.type(
+      await screen.findByRole("textbox", { name: "Token name" }),
+      "Okta SCIM",
+    );
+    await user.click(screen.getByRole("button", { name: /Generate/ }));
+    expect(await screen.findByText("scimplaintokenvalue")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Dismiss" }));
+
+    expect(screen.queryByText("scimplaintokenvalue")).not.toBeInTheDocument();
+  });
+
   it("admits a custom role holding settings.manage", async () => {
     server.use(me(["settings.manage"], "employee"));
     renderPage();

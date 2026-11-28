@@ -269,7 +269,10 @@ export default function WebhooksPage() {
                 <Button
                   size="sm"
                   variant="ghost"
-                  onClick={() => setNewSecret(null)}
+                  onClick={() => {
+                    setNewSecret(null);
+                    createWebhook.reset();
+                  }}
                 >
                   {t("api_keys_page.dismiss")}
                 </Button>

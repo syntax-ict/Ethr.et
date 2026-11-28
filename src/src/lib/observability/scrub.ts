@@ -1,4 +1,9 @@
-import type { ErrorEvent, EventHint } from "@sentry/nextjs";
+import type {
+  Breadcrumb,
+  BreadcrumbHint,
+  ErrorEvent,
+  EventHint,
+} from "@sentry/nextjs";
 
 /**
  * Strips credentials and encrypted-at-rest fields out of an event before it leaves
@@ -92,4 +97,36 @@ export function scrubEvent(
   }
 
   return event;
+}
+
+/** The breadcrumb data fields that hold an address. */
+const URL_FIELDS = ["url", "to", "from"] as const;
+
+/** An address without its query string and fragment: `?q=` and `?search=` carry names. */
+function stripQuery(value: string): string {
+  const end = value.search(/[?#]/);
+
+  return end === -1 ? value : value.slice(0, end);
+}
+
+/**
+ * Navigation and fetch breadcrumbs name the address they went to, and the lists
+ * keep their search text in it (`?q=`, `?search=`), so a name typed into a
+ * search box would travel to Sentry with the next error. Only the address is
+ * kept.
+ */
+export function scrubBreadcrumb(
+  breadcrumb: Breadcrumb,
+  _hint?: BreadcrumbHint,
+): Breadcrumb | null {
+  const data = breadcrumb.data;
+  if (!data) return breadcrumb;
+
+  const cleaned: Record<string, unknown> = { ...data };
+  for (const field of URL_FIELDS) {
+    const value = cleaned[field];
+    if (typeof value === "string") cleaned[field] = stripQuery(value);
+  }
+
+  return { ...breadcrumb, data: cleaned };
 }

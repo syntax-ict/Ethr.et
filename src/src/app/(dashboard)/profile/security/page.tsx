@@ -163,6 +163,19 @@ export default function SecurityPage() {
   const disableMfa = useDisableMfa();
   const changePassword = useChangePassword();
 
+  /**
+   * Every way the setup dialog closes ends here, not only success: the secret
+   * is the second factor, and it must not stay in state or in the mutation
+   * results (the enable call carries it too) after the person has left.
+   */
+  function closeSetup() {
+    setSetupOpen(false);
+    setSetupData(null);
+    setCode("");
+    startSetup.reset();
+    enableMfa.reset();
+  }
+
   function beginSetup() {
     startSetup.mutate(undefined, {
       onSuccess: (data) => {
@@ -187,9 +200,7 @@ export default function SecurityPage() {
       {
         onSuccess: () => {
           toast.success(t("security_page.mfa_enabled"));
-          setSetupOpen(false);
-          setSetupData(null);
-          setCode("");
+          closeSetup();
         },
         onError: (err) =>
           toast.error(apiErrorMessage(err, t("security_page.invalid_code"))),
@@ -387,7 +398,13 @@ export default function SecurityPage() {
           that an MFA-less account never sees. */}
       {user?.mfa_enabled && <TrustedDevicesCard />}
 
-      <Dialog open={setupOpen} onOpenChange={setSetupOpen}>
+      <Dialog
+        open={setupOpen}
+        onOpenChange={(open) => {
+          if (open) setSetupOpen(true);
+          else closeSetup();
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{t("security_page.setup_mfa_title")}</DialogTitle>
@@ -439,11 +456,7 @@ export default function SecurityPage() {
               </div>
 
               <DialogFooter>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setSetupOpen(false)}
-                >
+                <Button type="button" variant="outline" onClick={closeSetup}>
                   {t("common.cancel")}
                 </Button>
                 <Button

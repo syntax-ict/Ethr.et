@@ -233,11 +233,13 @@ export function useDeviceEvents(
 function useDeviceMutation<TVars, TData>(
   mutationFn: (vars: TVars) => Promise<TData>,
   alsoInvalidate: readonly (readonly string[])[] = [],
+  options?: { gcTime?: number },
 ) {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn,
+    gcTime: options?.gcTime,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: keys.all });
       for (const queryKey of alsoInvalidate) {
@@ -351,6 +353,9 @@ export function useRegenerateDeviceToken() {
           reason: vars.reason,
         })
       ).data,
+    [],
+    // The answer carries the new webhook token: not kept after the page lets go.
+    { gcTime: 0 },
   );
 }
 

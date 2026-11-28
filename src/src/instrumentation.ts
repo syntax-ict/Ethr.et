@@ -1,6 +1,6 @@
 import * as Sentry from "@sentry/nextjs";
 
-import { scrubEvent } from "@/lib/observability/scrub";
+import { scrubBreadcrumb, scrubEvent } from "@/lib/observability/scrub";
 
 /**
  * Server and edge runtime error reporting.
@@ -27,6 +27,7 @@ export function register() {
       // ETHR handles payroll and national IDs — PII is opted into, never default.
       sendDefaultPii: false,
       beforeSend: scrubEvent,
+      beforeBreadcrumb: scrubBreadcrumb,
     });
   }
 }
