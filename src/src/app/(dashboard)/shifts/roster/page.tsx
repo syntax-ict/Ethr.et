@@ -243,8 +243,11 @@ export default function RosterPage() {
         )}
         {shifts.length === 0 && defaultShift && (
           <div
+            // A default shift is drawn with a dashed edge, not faded. The fade
+            // (`opacity-40`) measured 2.02:1 for its text; a dashed border
+            // says "not assigned" and keeps the designed contrast.
             className={cn(
-              "rounded px-1.5 py-0.5 text-xs opacity-40 border",
+              "rounded px-1.5 py-0.5 text-xs border border-dashed",
               shiftColour(defaultShift.name),
             )}
           >
@@ -442,18 +445,16 @@ export default function RosterPage() {
                     {shifts.length === 0 && defaultShift && (
                       <div
                         className={cn(
-                          "rounded p-2 text-xs border opacity-40",
+                          "rounded p-2 text-xs border border-dashed",
                           shiftColour(defaultShift.name),
                         )}
                       >
                         <p className="font-semibold">{defaultShift.name}</p>
-                        <p className="opacity-80">
+                        <p>
                           {formatTimeOfDay(defaultShift.start_time)}–
                           {formatTimeOfDay(defaultShift.end_time)}
                         </p>
-                        <p className="opacity-60">
-                          {t("shift_roster_page.default_lc")}
-                        </p>
+                        <p>{t("shift_roster_page.default_lc")}</p>
                       </div>
                     )}
                     {shifts.length === 0 && !defaultShift && (
