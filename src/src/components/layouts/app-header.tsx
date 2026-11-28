@@ -137,13 +137,18 @@ export function AppHeader() {
           language cannot push the icons over the search; the title column
           gives way first. Below lg it stays a row: logo, then the icons.
           The search is a button that opens the palette, so its width is the
-          cheapest thing here: it reaches 28rem only from 88rem of window, and
-          below that it gives its width to the page title (16rem at 76rem and
-          narrower). A grid sizes the search to its maximum before the title
-          gets anything, so with a fixed 28rem the title was cut at every width
-          from 1024px to about 1300px: "M." for the Afaan Oromoo "Meeshaalee"
-          at 1280px, and no title at all at 1024px in any language. */}
-      <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center border-b border-border bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(16rem,clamp(16rem,calc(100vw_-_60rem),28rem))_minmax(max-content,1fr)] lg:gap-4 lg:px-6 xl:gap-6">
+          cheapest thing here and it gives it to the page title as the window
+          narrows. A grid sizes the search to its maximum before the title gets
+          anything, so with a fixed 28rem the title was cut at every width from
+          1024px to about 1300px: "M." for the Afaan Oromoo "Meeshaalee" at
+          1280px, and no title at all at 1024px in any language.
+          Two rules, because the actions column jumps at xl, where the name
+          and the role beside the avatar come back: from xl the search is 16rem
+          to 28rem (full from 88rem of window); from lg to xl it is 12rem to
+          20rem, which is what it measures at xl, so it does not jump there,
+          and the account button shows the avatar alone, since a name is the
+          one thing in the bar with no fixed width. */}
+      <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center border-b border-border bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(12rem,clamp(12rem,calc(100vw_-_52rem),20rem))_minmax(max-content,1fr)] lg:gap-4 lg:px-6 xl:grid-cols-[minmax(0,1fr)_minmax(16rem,clamp(16rem,calc(100vw_-_60rem),28rem))_minmax(max-content,1fr)] xl:gap-6">
         {/* Left: mobile logo / Desktop breadcrumbs. The hamburger that lived
             here was the second of two controls opening the same navigation —
             the bottom bar's More is the documented, thumb-reachable one, and
@@ -245,7 +250,9 @@ export function AppHeader() {
                   className="h-7 w-7"
                   fallbackClassName="bg-primary-soft text-xs font-semibold text-primary-on-soft"
                 />
-                <span className="hidden min-w-0 flex-col items-start text-left leading-tight sm:flex">
+                {/* Hidden from lg to xl, where the search and the page title
+                    share the bar: the menu this opens carries the name. */}
+                <span className="hidden min-w-0 flex-col items-start text-left leading-tight sm:flex lg:hidden xl:flex">
                   <span className="max-w-[9rem] truncate text-sm font-medium">
                     {displayName}
                   </span>
