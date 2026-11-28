@@ -397,7 +397,8 @@ Standard CRUD tables with tenant_id, employee_id FK. See full column details in 
 | name, name_am | VARCHAR(100) | |
 | start_time, end_time | TIME | |
 | break_minutes | INT DEFAULT 60 | |
-| grace_period_minutes | INT DEFAULT 15 | |
+| grace_minutes | SMALLINT UNSIGNED DEFAULT 15 | Minutes after the start before a check-in is late. *(Corrected 2026-11-28: this row said `grace_period_minutes`, which is the retired column on `attendance_settings`.)* |
+| early_departure_minutes | SMALLINT UNSIGNED DEFAULT 15 | Minutes before the end that a check-out may come without counting as an early leave |
 | crosses_midnight | BOOLEAN | Derived on save: `end_time <= start_time` |
 | is_active | BOOLEAN DEFAULT TRUE | **Factories must set TRUE** |
 | is_default | BOOLEAN DEFAULT FALSE | Exactly one active default per tenant (enforced by `ShiftController`) |
@@ -451,8 +452,8 @@ push service reports the endpoint gone.
 | date | DATE | |
 | check_in, check_out | TIMESTAMP NULL | UTC |
 | worked_minutes, overtime_minutes | INT UNSIGNED | |
-| status | ENUM(present, late, early_departure, absent, half_day, holiday, leave, pending) | |
-| source | ENUM(biometric, mobile, qr, kiosk, web, manual, csv, api, offline) | |
+| status | pending, present, late, absent, early_leave, on_leave, holiday, voided | The values of `App\Enums\AttendanceStatus`. *(Corrected 2026-11-28: this listed `early_departure`, `half_day` and `leave`, which the enum does not have, and left out `voided`. The column type was not re-read.)* |
+| source | biometric, mobile, web, manual, csv, kiosk, qr, offline_mobile | The values of `App\Enums\AttendanceSource`. *(Corrected 2026-11-28: this listed `api` and `offline`.)* |
 | confidence_score | TINYINT 0-100 | |
 | shift_id, device_id | BIGINT NULL FK | |
 | gps_latitude, gps_longitude | DECIMAL(10,7) NULL | |

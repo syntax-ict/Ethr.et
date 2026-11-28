@@ -5573,3 +5573,14 @@ Section 25bk wrote every date and time in a report workbook as text: the ISO `Y-
 - **Not changed.** The CSV, the JSON preview, the PDFs and the timesheet workbook (it has no date cells) produce what they did. No migration, no contract change.
 - **Tests.** `tests/Feature/Reports/ReportExcelTest.php`: the hire date is serial 46353 with `yyyy-mm-dd`; a date-looking employee code stays text; the date column has a declared width; an Ethiopian reader gets both columns; an empty date is an empty cell and an unreadable one stays text; check-in and check-out are date-times 08:15 and 17:30 with the CSV unchanged; the timesheet workbook declares no date format.
 - **Not verified.** The workbook was not opened in Excel or LibreOffice on this machine; its XML (serial numbers, number formats, `<cols>`) was read back from the zip.
+
+### 25bn. The Attendance rules settings page: reviewed 2026-11-28, plan written, nothing built
+
+The owner asked for a close look at `/settings/attendance` on production (QA Audit), then for a plan. The review and the plan are one document: [`ATTENDANCE-SETTINGS-REVIEW-2026-11-28.md`](ATTENDANCE-SETTINGS-REVIEW-2026-11-28.md).
+
+- **Read at** `origin/main` `2e001351bc`. The live page was read in Chrome, signed in, with nothing saved; one GET of the settings was sent from the page.
+- **Found.** Twelve findings. The three S2: the audit entry of a save holds every field as sent and no earlier value (`AttendanceSettingController.php:61`); the page sends its whole form, so a stale tab reverts a colleague's change or, for HR after a payroll field moved, is refused 403; approving a missed-punch claim enters the engine as a `manual` punch, which the engine refuses while Manual entry is off (`CorrectionDecisionService.php:214`, `AttendanceEngine.php:199`).
+- **Read, not run.** The third is from the code alone. No test was written or run for any finding; the plan's PR 3 starts with the test.
+- **Not a finding.** `attendance_settings.grace_period_minutes` has no reader and no writer on purpose (`DATABASE.md`); the first report of this review called it an oversight and was wrong.
+- **Documents corrected in the same change.** The admin guide said a branch could choose its own methods on the screen (the API accepts that, the dialog does not offer it) and its setup status table lacked three checks; `DATABASE.md` named a `shifts.grace_period_minutes` column that is `grace_minutes`, and listed attendance statuses and sources the enums do not have.
+- **Not verified.** Saving, the phone layout, Amharic and Afaan Oromoo, and the audit log screen.

@@ -107,7 +107,10 @@ what still needs you, most serious first, each with a link to fix it:
 | Kiosk PIN required while employees have none | Warning |
 | Field staff with no work site | Warning |
 | Holidays missing for this year or next | Warning |
+| Presence checks on for people they cannot reach | Warning |
 | Working week differs from the default schedule | Information |
+| A terminal that sends to ETHR and has not been heard from yet | Information |
+| Kiosk check-in on, a PIN required, and no kiosk registered | Information |
 
 ### Shift Setup
 
@@ -139,9 +142,13 @@ Settings → Attendance Rules → enable/disable sources per your organization:
 | Kiosk | Reception desks |
 | Web | Office workers |
 | Manual | Manual correction by HR |
+| Spreadsheet import | Bringing in punches from a file |
 
 A method you turn off disappears from the employee's menu and is refused by
-the server.
+the server. The switch acts as soon as you save, and the page does not ask
+first. With **Biometric device** off, punches your terminals send are not
+lost: they are held under **Punches that need attention** on the device's
+page, where **Send selected again** records them once the method is back on.
 
 ### Locations: branches, work sites and the map
 
@@ -174,12 +181,19 @@ On the employee's profile, **Attendance mode** is one of:
 
 ### Branch rules
 
-Settings → Attendance Rules → **Branch rules** lets one branch differ from the
-organisation: which methods are on, location required, selfie required, kiosk
-PIN, the GPS accuracy limit, automatic check-out, arrival check-in and the
-review threshold. A branch shows how many rules it changes; everything else is
-inherited. Photo retention, the confidence threshold and overtime rules stay
-organisation-wide, because they are legal and payroll matters.
+Settings → Attendance Rules → **Rules by branch** lets one branch differ from
+the organisation: location required, selfie required, kiosk PIN, the GPS
+accuracy limit, automatic check-out, arrival check-in, the review threshold,
+the registered phone rule and presence checks. A branch shows how many rules
+it changes; everything else is inherited. Photo retention, the confidence
+threshold and overtime rules stay organisation-wide, because they are legal
+and payroll matters.
+
+The screen does not yet offer a branch its own choice of methods, its own
+wait before automatic check-out or its own office networks. The server accepts
+all three (`PUT /attendance/settings/branches/{branch}`), and the screen is
+planned to follow: see
+[`audit/ATTENDANCE-SETTINGS-REVIEW-2026-11-28.md`](audit/ATTENDANCE-SETTINGS-REVIEW-2026-11-28.md).
 
 The order is always organisation, then branch, then the employee's mode.
 

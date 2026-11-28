@@ -112,6 +112,13 @@ organisation-wide. `PUT /employees/{id}/attendance-mode` takes `office`, `field`
 Settings → Attendance; "Where they punch" on the employee's Attendance tab. For this section move EMP2
 to B2, and back afterwards.
 
+**The dialog offers fewer rules than the API accepts** (read 2026-11-28 at `2e001351bc`,
+`src/src/features/attendance/components/branch-rules-card.tsx`): it has no control for a branch's
+enabled methods, its automatic check-out minutes or its office networks. Those three can be set
+through the API only, so a case that sets one of them is an API step, not a screen step. The screen is
+planned to follow (`docs/audit/ATTENDANCE-SETTINGS-REVIEW-2026-11-28.md`, PR 4); cases for it come
+with that pull request.
+
 | ID | P | Mode | Scenario | Steps | Expected |
 |---|---|---|---|---|---|
 | BRR-001 | P2 | R | List | HR: Settings → Attendance → Rules by branch; `GET /attendance/settings/branches` | Every active branch: "Same as organisation" or ":count changed"; a branch with no coordinates shows "Not on the map". The API returns `organisation`, `overridable`, and per branch `overrides` (null = inherited) and `effective` |
