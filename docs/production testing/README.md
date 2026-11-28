@@ -44,6 +44,20 @@ defect against one or the other and say which.** Do not silently adjust the expe
 | 10 | [10-TEMPLATES-AND-REFERENCE.md](10-TEMPLATES-AND-REFERENCE.md) | Everyone | Defect report template, execution log, release smoke checklist, known issues to verify, glossary |
 | 11 | [11-CLAUDE-CODE-AND-PLAYWRIGHT.md](11-CLAUDE-CODE-AND-PLAYWRIGHT.md) | Test engineer, anyone running Claude Code | Which cases a machine may run and in which browser, saving sessions without handing over a password, the scripted smoke checks (`npm run test:e2e:production`), Claude Code with the guarded Playwright browser, Claude Code with Chrome and why it is the weaker channel, and turning a run into execution-log rows |
 | 12 | [12-ATTENDANCE-ACCURACY.md](12-ATTENDANCE-ACCURACY.md) | Test engineer, owner | How attendance accuracy is measured (conformance, robustness, real-world agreement), which layers exist today, how to run `./scripts/gates.sh accuracy`, how to read a failing case, how to add a golden case, and the table from rule id to case |
+| 15 | [15-ACCURACY-SESSION.md](15-ACCURACY-SESSION.md) | Test engineer, owner | The runbook for a one-day accuracy session: the four scopes of testing, the engines and their status, the seven charters, `./scripts/accuracy-session.sh`, triage rules, the report and its proposed exit criteria. Files 13 and 14 are planned (payroll accuracy; leave, calendar and restated figures) and do not exist yet |
+
+## Scope of this pack
+
+The pack is mostly scope B, application functional testing. Testing ETHR answers four different questions, and each has its own evidence and its own place for the verdict:
+
+| Scope | Covers | Evidence | Verdict recorded in |
+|---|---|---|---|
+| A. Calculation accuracy | Attendance, payroll, leave, calendar, restated figures | The accuracy session ([15](15-ACCURACY-SESSION.md#2-the-four-scopes)) | `docs/audit/ACCURACY-REPORT-<date>.md` |
+| B. Application functional testing | Every screen and flow | Files 03 to 08, the execution log in 10, `docs/audit/QA-PRODUCTION-*-log.md` | The latest QA production log |
+| C. Security and tenant isolation | Access, isolation, rate limits, dependencies | File 09, `CrossTenantRouteSweepTest`, `TenantScopeBypassInventoryTest`, `./scripts/gates.sh security`, [SECURITY.md](../../SECURITY.md) | The latest security review in `docs/audit/` |
+| D. Real-world operational acceptance | People and hardware in use | UAT sign-off ([02, section 9](02-UAT-GUIDE.md#9-sign-off)), a backtest on signed figures, an on-site soak | The UAT sign-off sheet |
+
+A pass in one scope says nothing about the others. The accuracy session signs scope A only.
 
 ## How a test case is written
 
