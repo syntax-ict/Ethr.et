@@ -16,7 +16,11 @@
 // Also v5, from 2026-11-21, with no version change (that would empty the offline
 // shell on every phone): /_next/static copies are stamped, and the ones no
 // stored page names and nobody has used for 30 days are pruned (pruneStatic).
-const CACHE_VERSION = 'ethr-v5';
+// v6 (2026-11-28): files and searches are no longer stored (see NEVER_CACHED_API
+// and neverCached below), and this removes the copies v5 already kept: the
+// organisation's data export, the employee and accounting exports, attendance
+// photos, documents, letters, receipts, identities and every search.
+const CACHE_VERSION = 'ethr-v6';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const API_CACHE = `${CACHE_VERSION}-api`;
 
@@ -34,8 +38,36 @@ const SHELL_STAMP = '/__ethr-shell-cached-at';
 // bank accounts, contracts and reports. A copy outlives a session that ends
 // while the device is offline, and none of it is needed to punch in. Your own
 // payslips stay (OFFLINE_PAY_API), since /payroll/payslips is an offline page.
-const NEVER_CACHED_API = ['/api/v1/admin/', '/api/v1/auth/', '/api/v1/payroll/', '/api/v1/reports/'];
-const NEVER_CACHED_API_PARTS = ['/bank-details', '/contracts'];
+// Files and people-finding joined them on 2026-11-28: a download is somebody's
+// document, selfie or the whole organisation's data, and a search is keyed by
+// the text typed, so it names a person. None is needed to punch in or to read
+// your own day offline. The employee list and detail without a search, today's
+// attendance, leave and the profile stay stored; they back the offline pages.
+const NEVER_CACHED_API = [
+  '/api/v1/admin/',
+  '/api/v1/auth/',
+  '/api/v1/payroll/',
+  '/api/v1/reports/',
+  '/api/v1/settings/data-export',
+  '/api/v1/employees/export',
+  '/api/v1/employees/possible-duplicates',
+  '/api/v1/accounting/export/',
+  '/api/v1/attendance/photos/',
+  '/api/v1/profile/documents',
+  '/api/v1/profile/letters/',
+  '/api/v1/search',
+];
+const NEVER_CACHED_API_PARTS = [
+  '/bank-details',
+  '/contracts',
+  '/documents',
+  '/identities',
+  '/files/',
+  '/receipt',
+];
+// A request that carries one of these with a value is a search, whichever
+// address it goes to.
+const NEVER_CACHED_QUERY_KEYS = ['search', 'q'];
 const OFFLINE_PAY_API = ['/api/v1/payroll/payslips/my'];
 
 // How long a stored API answer may be shown offline. The worker cannot tell
@@ -57,11 +89,13 @@ const ASSET_MAX_IDLE_MS = 30 * 24 * 60 * 60 * 1000;
 const ASSET_TOUCH_MS = 24 * 60 * 60 * 1000;
 const STATIC_ASSET_PATTERN = /\/_next\/static\/[^"'\s\\)]+/g;
 
-function neverCached(pathname) {
+function neverCached(url) {
+  const pathname = url.pathname;
   if (OFFLINE_PAY_API.some(path => pathname === path)) return false;
 
   return NEVER_CACHED_API.some(prefix => pathname.startsWith(prefix))
-    || (pathname.startsWith('/api/') && NEVER_CACHED_API_PARTS.some(part => pathname.includes(part)));
+    || (pathname.startsWith('/api/') && NEVER_CACHED_API_PARTS.some(part => pathname.includes(part)))
+    || (pathname.startsWith('/api/') && NEVER_CACHED_QUERY_KEYS.some(key => url.searchParams.get(key)));
 }
 
 // Shell assets to precache — these make the app load offline. /dashboard is
@@ -115,7 +149,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  if (neverCached(url.pathname)) return;
+  if (neverCached(url)) return;
 
   // API calls: network-first, fall back to cached response
   if (url.pathname.startsWith('/api/')) {

@@ -97,7 +97,7 @@ describe("service worker API caching", () => {
     });
 
     expect((await answered)?.status).toBe(401);
-    expect(deleted).toEqual(["ethr-v5-api"]);
+    expect(deleted).toEqual(["ethr-v6-api"]);
   });
 
   describe("offline answers expire after a week", () => {
@@ -193,18 +193,62 @@ describe("service worker API caching", () => {
     });
   });
 
+  it("never stores files: exports, photos, documents, letters, receipts", () => {
+    expect(intercepts("/api/v1/settings/data-export/1/download")).toBe(false);
+    expect(intercepts("/api/v1/settings/data-export")).toBe(false);
+    expect(intercepts("/api/v1/employees/export")).toBe(false);
+    expect(intercepts("/api/v1/employees/export?search=abebe")).toBe(false);
+    expect(intercepts("/api/v1/accounting/export/RUN1")).toBe(false);
+    expect(intercepts("/api/v1/attendance/photos/42/in")).toBe(false);
+    expect(intercepts("/api/v1/employees/abc/documents")).toBe(false);
+    expect(intercepts("/api/v1/employees/documents/expiring")).toBe(false);
+    expect(intercepts("/api/v1/profile/documents")).toBe(false);
+    expect(intercepts("/api/v1/profile/documents/doc1")).toBe(false);
+    expect(intercepts("/api/v1/profile/letters/let1/pdf")).toBe(false);
+    expect(
+      intercepts("/api/v1/announcements/ann1/files/01HZZZZZZZZZZZZZZZZZZZZZZZ"),
+    ).toBe(false);
+    expect(intercepts("/api/v1/billing/invoices/inv1/receipt")).toBe(false);
+  });
+
+  it("never stores who somebody is: identities and possible duplicates", () => {
+    expect(intercepts("/api/v1/employees/abc/identities")).toBe(false);
+    expect(intercepts("/api/v1/employees/possible-duplicates")).toBe(false);
+  });
+
+  it("never stores a search, by address or by query string", () => {
+    expect(intercepts("/api/v1/search?q=abebe")).toBe(false);
+    expect(intercepts("/api/v1/search")).toBe(false);
+    expect(intercepts("/api/v1/employees?search=abebe")).toBe(false);
+    expect(intercepts("/api/v1/employees?page=2&search=abebe")).toBe(false);
+    expect(intercepts("/api/v1/leave/requests?q=abebe")).toBe(false);
+    expect(intercepts("/api/v1/departments?search=ops")).toBe(false);
+  });
+
+  it("still keeps what backs the offline pages", () => {
+    expect(intercepts("/api/v1/employees")).toBe(true);
+    expect(intercepts("/api/v1/employees?page=2&per_page=25")).toBe(true);
+    expect(intercepts("/api/v1/employees?search=")).toBe(true);
+    expect(intercepts("/api/v1/employees/abc")).toBe(true);
+    expect(intercepts("/api/v1/attendance/today")).toBe(true);
+    expect(intercepts("/api/v1/attendance/records?date=2026-11-28")).toBe(true);
+    expect(intercepts("/api/v1/leave/balances")).toBe(true);
+    expect(intercepts("/api/v1/profile")).toBe(true);
+    expect(intercepts("/api/v1/payroll/payslips/my")).toBe(true);
+  });
+
   it("still keeps ordinary API responses for offline use", () => {
     expect(intercepts("/api/v1/employees")).toBe(true);
     expect(intercepts("/api/v1/attendance/today")).toBe(true);
   });
 
-  it("names its caches v5, so activation deletes the v1 to v4 copies already stored", () => {
-    // v5 (2026-10-31): pay data copies stored by v4 must go.
+  it("names its caches v6, so activation deletes the v1 to v5 copies already stored", () => {
+    // v6 (2026-11-28): files and searches stored by v5 must go.
     const source = readFileSync(
       resolve(__dirname, "../../public/sw.js"),
       "utf8",
     );
-    expect(source).toContain("const CACHE_VERSION = 'ethr-v5';");
+    expect(source).toContain("const CACHE_VERSION = 'ethr-v6';");
   });
 });
 
