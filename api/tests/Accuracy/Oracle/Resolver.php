@@ -136,6 +136,13 @@ final class Resolver
                 return null;
             }
 
+            if ($r['method'] === $method && abs($ts - $r['in']) < 60) {
+                // AR-DAY-03: a repeat adds no record and no time; what the person is told is not stated.
+                $this->hit($wd, 'AR-DAY-03');
+
+                return null;
+            }
+
             $this->hit($wd, 'AR-DAY-02');
 
             return 'duplicate';

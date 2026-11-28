@@ -127,6 +127,16 @@ function oracleReadingsDataset(): array
             // 24 hours later: no reading closes the day
             'control' => ['shift' => null, 'punches' => [oracleReadingsIn('19:00'), ['type' => 'auto', 'at' => '+1 19:30', 'method' => 'kiosk']]],
         ],
+        'AR-STATUS-07 late minutes of a check-in at 08:45:11' => [
+            'case' => ['shift' => 'S1', 'punches' => [oracleReadingsIn('08:45:11'), oracleReadingsOut('17:34')]],
+            'path' => ['days', $d, 'late'], 'rule' => 'AR-STATUS-07', 'baseline' => 15,
+            'control' => ['shift' => 'S1', 'punches' => [oracleReadingsIn('08:46:00'), oracleReadingsOut('17:34')]],
+        ],
+        'AR-CLOCK-06 early minutes of a check-out at 17:14:30' => [
+            'case' => ['shift' => 'S1', 'punches' => [oracleReadingsIn('08:30'), oracleReadingsOut('17:14:30')]],
+            'path' => ['days', $d, 'early'], 'rule' => 'AR-CLOCK-06', 'baseline' => 15,
+            'control' => ['shift' => 'S1', 'punches' => [oracleReadingsIn('08:30'), oracleReadingsOut('17:14:00')]],
+        ],
     ];
 
     return array_map(static fn (array $row): array => ['row' => $row], $rows);
@@ -143,3 +153,40 @@ it('blanks a field on the boundary and answers it one step away', function (arra
     $control = oracleReadingsField(CaseAdapter::run($row['control'], $shifts), $row['path']);
     expect($control)->not->toBeInstanceOf(Undecided::class);
 })->with(oracleReadingsDataset());
+
+/**
+ * What the person is told for a repeat (same method, under a minute) or a
+ * merged second check-in is not stated (AR-DAY-03): no opinion, while the
+ * record is still answered.
+ *
+ * @return array<string, array{row: array<string, mixed>}>
+ */
+function oracleReadingsOutcomeDataset(): array
+{
+    $rows = [
+        'AR-DAY-03 same method, 30 seconds apart' => [
+            'case' => ['shift' => 'S1', 'punches' => [oracleReadingsIn('08:25:00'), oracleReadingsIn('08:25:30')]],
+            'control' => ['shift' => 'S1', 'punches' => [oracleReadingsIn('08:25:00'), oracleReadingsIn('08:26:01')]],
+        ],
+        'AR-DAY-03 other method, 3 minutes apart' => [
+            'case' => ['shift' => 'S1', 'punches' => [oracleReadingsIn('08:25', 'mobile'), oracleReadingsIn('08:28', 'kiosk')]],
+            'control' => ['shift' => 'S1', 'punches' => [oracleReadingsIn('08:25', 'mobile'), oracleReadingsIn('08:31', 'kiosk')]],
+        ],
+    ];
+
+    return array_map(static fn (array $row): array => ['row' => $row], $rows);
+}
+
+it('gives no opinion on what a repeat is answered with, and still answers the record', function (array $row): void {
+    $shifts = oracleReadingsShifts();
+
+    $answer = CaseAdapter::run($row['case'], $shifts);
+    expect($answer['outcomes'][0])->toBe('ok');
+    expect($answer['outcomes'][1])->toBeNull();
+    expect($answer['live'])->toBe(1);
+    expect($answer['days']['2026-10-13']['check_in'])->toBe('08:25:00');
+
+    // one second past the window, "already checked in" is stated (AR-DAY-02)
+    $control = CaseAdapter::run($row['control'], $shifts);
+    expect($control['outcomes'][1])->toBe('duplicate');
+})->with(oracleReadingsOutcomeDataset());

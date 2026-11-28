@@ -347,6 +347,56 @@ jobs:
           DB_PASSWORD: ethr
         run: ./scripts/gates.sh concurrency
 
+  attendance-accuracy:
+    name: Attendance accuracy (golden cases, oracle, generated months)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # The attendance engine against hand-typed golden cases and against an
+    # independent oracle written from docs/ATTENDANCE-RULES.md, over seeded
+    # generated months, plus properties that need no oracle
+    # (docs/production testing/12-ATTENDANCE-ACCURACY.md). SQLite and the
+    # array cache, as the backend job; the seed is fixed, so a red run
+    # replays locally with the ACCURACY_SEED it prints. Advisory: not a
+    # required check. The report is uploaded whatever the result.
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: ctype, curl, dom, fileinfo, filter, gd, hash, iconv, json, libxml, mbstring, openssl, pcre, pdo, pdo_sqlite, session, simplexml, tokenizer
+          coverage: none
+          ini-values: memory_limit=-1
+
+      - name: Cache Composer packages
+        uses: actions/cache@v6
+        with:
+          path: ~/.composer/cache
+          key: composer-${{ runner.os }}-${{ hashFiles('api/composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-
+
+      - name: Install PHP dependencies
+        working-directory: api
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Generate an application key
+        working-directory: api
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      - name: Run the accuracy suite
+        run: ./scripts/gates.sh accuracy
+
+      - name: Upload the accuracy report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: attendance-accuracy-report
+          path: api/storage/framework/testing/accuracy/
+          if-no-files-found: ignore
+
   frontend:
     name: Frontend (i18n, Prettier, ESLint, tsc, Vitest)
     runs-on: ubuntu-latest
