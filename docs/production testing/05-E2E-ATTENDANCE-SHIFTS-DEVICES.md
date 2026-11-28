@@ -51,7 +51,7 @@ rejecting a flag voids the record only for a flag about a punch, and its flag ta
 presence flag, `presence_pattern`, and the words `kiosk_wrong_person` now has. Rejecting a
 `buddy_pattern` or `grace_edge` item no longer voids a day (PRS-007).
 
-**Ground rules of the attendance engine** (what "correct" means in this document):
+**Ground rules of the attendance engine** (what "correct" means in this document). Each rule has an id in the register, [ATTENDANCE-RULES.md](../ATTENDANCE-RULES.md), and the accuracy tests cite those ids ([12](12-ATTENDANCE-ACCURACY.md)):
 
 - Times are stored in UTC and rated in the organisation's time zone, `Africa/Addis_Ababa` (UTC+3, no
   daylight saving) by default. **A punch at 09:00 EAT is 06:00 UTC.** A status calculated on the UTC

@@ -11,6 +11,8 @@
 > Per the project rule, the source of truth is the code — verify against it, not
 > against this file.
 >
+> **Overtime multipliers in this file (1.25 / 1.5 / 2.0 / 2.5) are the first specification and are wrong.** The statutory minimums are normal 1.5, night 1.75, rest day 2.0, holiday 2.5 and holiday night 2.5: rule [AR-OT-04](../ATTENDANCE-RULES.md).
+>
 > This header previously cited `ETHR_AUDIT.md` and `ETHR_AUDIT_2026-08-14.md`.
 > Neither is in the tree and, as far as git history shows, neither ever was; the
 > roadmap link was also written as a sibling path and resolved nowhere from this

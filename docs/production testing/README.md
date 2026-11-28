@@ -43,6 +43,7 @@ defect against one or the other and say which.** Do not silently adjust the expe
 | 9 | [09-NON-FUNCTIONAL.md](09-NON-FUNCTIONAL.md) | Test engineer | Security, tenant isolation, rate limits, performance, accessibility, Amharic and the Ethiopian calendar, responsive, PWA and offline, browsers |
 | 10 | [10-TEMPLATES-AND-REFERENCE.md](10-TEMPLATES-AND-REFERENCE.md) | Everyone | Defect report template, execution log, release smoke checklist, known issues to verify, glossary |
 | 11 | [11-CLAUDE-CODE-AND-PLAYWRIGHT.md](11-CLAUDE-CODE-AND-PLAYWRIGHT.md) | Test engineer, anyone running Claude Code | Which cases a machine may run and in which browser, saving sessions without handing over a password, the scripted smoke checks (`npm run test:e2e:production`), Claude Code with the guarded Playwright browser, Claude Code with Chrome and why it is the weaker channel, and turning a run into execution-log rows |
+| 12 | [12-ATTENDANCE-ACCURACY.md](12-ATTENDANCE-ACCURACY.md) | Test engineer, owner | How attendance accuracy is measured (conformance, robustness, real-world agreement), which layers exist today, how to run `./scripts/gates.sh accuracy`, how to read a failing case, how to add a golden case, and the table from rule id to case |
 
 ## How a test case is written
 
