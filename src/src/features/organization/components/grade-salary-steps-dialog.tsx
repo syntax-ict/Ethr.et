@@ -21,6 +21,7 @@ import { FormErrorSummary } from "@/components/patterns/FormErrorSummary";
 import { useZodForm } from "@/lib/forms/use-zod-form";
 import { rules, fieldMessage } from "@/lib/forms/rules";
 import { useT } from "@/lib/i18n/useT";
+import { useConfirm } from "@/components/shared/use-confirm";
 import {
   useGradeSalarySteps,
   useCreateGradeSalaryStep,
@@ -50,6 +51,7 @@ export function GradeSalaryStepsDialog({
   onOpenChange: (v: boolean) => void;
 }) {
   const { t } = useT();
+  const { requestConfirm, confirmDialog } = useConfirm();
   const query = useGradeSalarySteps(grade.public_id, open);
   const createStep = useCreateGradeSalaryStep(grade.public_id);
   const updateStep = useUpdateGradeSalaryStep(grade.public_id);
@@ -122,7 +124,23 @@ export function GradeSalaryStepsDialog({
     reset();
   }
 
-  function handleDelete(s: GradeSalaryStep) {
+  async function handleDelete(s: GradeSalaryStep) {
+    if (
+      !(await requestConfirm({
+        title: t(
+          "org.grade.step.delete_confirm_title",
+          "Delete salary step :step?",
+          { step: String(s.step) },
+        ),
+        description: t(
+          "org.grade.step.delete_confirm_description",
+          "The step is removed from this grade's salary scale. This cannot be undone.",
+        ),
+        confirmLabel: t("org.grade.step.delete_confirm", "Delete step"),
+        variant: "destructive",
+      }))
+    )
+      return;
     deleteStep.mutate(s.public_id, {
       onSuccess: () => toast.success(t("org.deleted", "Deleted")),
       onError: (err) =>
@@ -262,6 +280,7 @@ export function GradeSalaryStepsDialog({
             {t("common.close", "Close")}
           </Button>
         </DialogFooter>
+        {confirmDialog}
       </DialogContent>
     </Dialog>
   );

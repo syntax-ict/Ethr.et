@@ -27,6 +27,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { toast } from "sonner";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
+import { useConfirm } from "@/components/shared/use-confirm";
 import {
   useDashboardDigests,
   useScheduleDashboardDigest,
@@ -53,6 +54,7 @@ export function DashboardDigestDialog({
   branchPublicId?: string;
 }) {
   const { t } = useT();
+  const { requestConfirm, confirmDialog } = useConfirm();
   const { formatDateTime } = useDateFormatters();
   const { data, isLoading, isError, refetch } = useDashboardDigests();
   const schedule = useScheduleDashboardDigest();
@@ -98,7 +100,20 @@ export function DashboardDigestDialog({
     );
   }
 
-  function handleDelete(publicId: string) {
+  async function handleDelete(publicId: string) {
+    if (
+      !(await requestConfirm({
+        title: t("digest_dialog.cancel_confirm_title", "Cancel this digest?"),
+        description: t(
+          "digest_dialog.cancel_confirm_description",
+          "The email digest stops being sent to its recipients. This cannot be undone; set it up again to resume.",
+        ),
+        confirmLabel: t("digest_dialog.cancel_confirm", "Cancel digest"),
+        cancelLabel: t("digest_dialog.keep", "Keep digest"),
+        variant: "destructive",
+      }))
+    )
+      return;
     deleteDigest.mutate(publicId, {
       onSuccess: () =>
         toast.success(t("digest_dialog.cancelled", "Digest cancelled")),
@@ -268,6 +283,7 @@ export function DashboardDigestDialog({
             {t("common.close", "Close")}
           </Button>
         </DialogFooter>
+        {confirmDialog}
       </DialogContent>
     </Dialog>
   );
