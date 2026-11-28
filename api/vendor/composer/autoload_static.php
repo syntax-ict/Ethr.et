@@ -1949,6 +1949,7 @@ class ComposerStaticInit4084be8d735b2ecc40754476bcec958c
         'App\\Support\\Locales' => __DIR__ . '/../..' . '/app/Support/Locales.php',
         'App\\Support\\MailBrand' => __DIR__ . '/../..' . '/app/Support/MailBrand.php',
         'App\\Support\\Mail\\CriticalMail' => __DIR__ . '/../..' . '/app/Support/Mail/CriticalMail.php',
+        'App\\Support\\Mail\\FreshTextMarkdown' => __DIR__ . '/../..' . '/app/Support/Mail/FreshTextMarkdown.php',
         'App\\Support\\Mail\\MailBudget' => __DIR__ . '/../..' . '/app/Support/Mail/MailBudget.php',
         'App\\Support\\Mail\\MailHealth' => __DIR__ . '/../..' . '/app/Support/Mail/MailHealth.php',
         'App\\Support\\Mail\\ResilientSmtpTransport' => __DIR__ . '/../..' . '/app/Support/Mail/ResilientSmtpTransport.php',

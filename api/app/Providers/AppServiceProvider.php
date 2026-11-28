@@ -74,6 +74,7 @@ use App\Services\Payroll\AttendanceReconciliation;
 use App\Services\Sms\ConfiguredSmsSender;
 use App\Services\Sso\SamlProvider;
 use App\Services\Sso\SsoProviderInterface;
+use App\Support\Mail\FreshTextMarkdown;
 use App\Support\Mail\SmtpTransportWithCaFile;
 use App\Support\MailBrand;
 use App\Support\Scramble\DescribeApiDocument;
@@ -86,6 +87,7 @@ use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Mail\Markdown;
 use Illuminate\Notifications\Events\NotificationSending;
 use Illuminate\Notifications\Events\NotificationSent;
 use Illuminate\Queue\Events\JobFailed;
@@ -117,6 +119,12 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(SmsSender::class, fn ($app) => $app->make(ConfiguredSmsSender::class));
 
         $this->app->scoped(MailBrand::class);
+
+        $this->app->extend(Markdown::class, fn (Markdown $markdown, $app) => new FreshTextMarkdown($app->make('view'), [
+            'theme' => config('mail.markdown.theme', 'default'),
+            'paths' => config('mail.markdown.paths', []),
+            'extensions' => config('mail.markdown.extensions', []),
+        ]));
     }
 
     public function boot(): void

@@ -1287,6 +1287,7 @@ return array(
     'App\\Support\\Locales' => $baseDir . '/app/Support/Locales.php',
     'App\\Support\\MailBrand' => $baseDir . '/app/Support/MailBrand.php',
     'App\\Support\\Mail\\CriticalMail' => $baseDir . '/app/Support/Mail/CriticalMail.php',
+    'App\\Support\\Mail\\FreshTextMarkdown' => $baseDir . '/app/Support/Mail/FreshTextMarkdown.php',
     'App\\Support\\Mail\\MailBudget' => $baseDir . '/app/Support/Mail/MailBudget.php',
     'App\\Support\\Mail\\MailHealth' => $baseDir . '/app/Support/Mail/MailHealth.php',
     'App\\Support\\Mail\\ResilientSmtpTransport' => $baseDir . '/app/Support/Mail/ResilientSmtpTransport.php',
