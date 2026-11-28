@@ -31,6 +31,8 @@ import { buildEnrolmentList, XLSX_MIME } from "../xlsx-grid";
  * punches a terminal held for numbers this list has just given a holder. That
  * is a click, never automatic: it gives each number to that person for good,
  * and it runs as many requests as the punches need, one badge after another.
+ * A badge the server holds back for its warnings is left for the Devices page,
+ * where they can be read, and the others go on.
  */
 export function MigrationTerminals({ batchId }: { batchId: string }) {
   const { t } = useT();
@@ -375,6 +377,21 @@ export function MigrationTerminals({ batchId }: { batchId: string }) {
                     )}
               </>
             )}
+          </p>
+        )}
+        {bringIn.state.needsCheck > 0 && (
+          <p className="text-sm text-foreground" role="status">
+            {bringIn.state.needsCheck === 1
+              ? t(
+                  "migration_terminals.held_check_one",
+                  "1 badge was left for a check. Its warnings must be read on the Devices page before it is assigned.",
+                )
+              : t(
+                  "migration_terminals.held_check",
+                  ":count badges were left for a check. Their warnings must be read on the Devices page before they are assigned.",
+                  { count: bringIn.state.needsCheck },
+                )}{" "}
+            {devicesLink}
           </p>
         )}
         {heldMore > 0 && (

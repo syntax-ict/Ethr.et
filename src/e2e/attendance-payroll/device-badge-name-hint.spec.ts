@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { addisDate, as, employeeId, heldPunchTimes, hikvisionPunch, live, minutesAgo, recordsOf, unmatchedBadges } from "./support";
+import { addisDate, as, confirmAssign, employeeId, heldPunchTimes, hikvisionPunch, live, minutesAgo, recordsOf, unmatchedBadges } from "./support";
 
 /**
  * A terminal that names the person behind a number nobody has.
@@ -62,6 +62,7 @@ test("a held badge shows the terminal's name and who it could be, and records no
     expect(live(await recordsOf(page, hirut, ...range))).toHaveLength(0);
 
     await row.getByRole("button", { name: "Assign", exact: true }).click();
+    await confirmAssign(page);
 
     const deadline = Date.now() + 60_000;
     let rows = live(await recordsOf(page, hirut, ...range));
