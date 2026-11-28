@@ -254,13 +254,14 @@ return [
     ]),
 
     $c('GL-REQ-020', ['LVR-DAYS-10', 'LVR-DAYS-09'], 'register', [
-        'the 1 January 2027 01:30 run creates 2028\'s rows, Labour Day on 1 May among them',
-        'filed after it, the same Mon 2028-05-01 to Fri 2028-05-05 charges 5 - 1 = 4',
+        "first typed as 4 from the register's example, which named one holiday; the register was corrected to name both",
+        "LVR-DAYS-10 (b): the 1 January 2027 01:30 run creates 2028's rows: Labour Day on Mon 1 May and Patriots Day on Fri 5 May",
+        'filed after it, the same Mon 2028-05-01 to Fri 2028-05-05 charges 5 - 2 = 3',
     ], [$bal(160, 0, 0, 0, 2028)], [
         ['do' => 'roll_forward', 'at' => '2027-01-01 01:30'],
         ['at' => '2027-01-02 09:00', ...$fileReq('R1', '2028-05-01', '2028-05-05')],
     ], [
-        'after' => [null, ['refused' => false, 'requests' => ['R1' => ['days' => 4]], 'balance' => [2028 => ['pending_tenths' => 40]]]],
+        'after' => [null, ['refused' => false, 'requests' => ['R1' => ['days' => 3]], 'balance' => [2028 => ['pending_tenths' => 30]]]],
     ]),
 
     $c('GL-REQ-021', ['LVR-DAYS-10', 'LVR-DAYS-06'], 'register', [
