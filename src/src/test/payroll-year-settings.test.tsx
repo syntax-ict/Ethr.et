@@ -146,6 +146,17 @@ describe("working week", () => {
     expect(saved[0]).toEqual({ working_days: [1, 2, 3, 4, 5, 6] });
   });
 
+  it("names each day by the text it shows (WCAG 2.5.3)", async () => {
+    serve(["settings.manage"]);
+    renderWith(<WorkingWeekCard />);
+
+    // The three-letter form used to show "Mon" over an aria-label of "Monday",
+    // which axe reports as label-content-name-mismatch.
+    const sunday = await screen.findByRole("button", { name: "Sunday" });
+    expect(sunday).toHaveTextContent("Sunday");
+    expect(sunday).not.toHaveAttribute("aria-label");
+  });
+
   it("is read-only without settings.manage", async () => {
     serve(["leave.manageTypes"]);
     renderWith(<WorkingWeekCard />);
