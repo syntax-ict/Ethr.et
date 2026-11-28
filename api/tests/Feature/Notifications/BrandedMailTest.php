@@ -16,6 +16,7 @@ use App\Support\MailBrand;
 use Illuminate\Mail\Markdown;
 use Illuminate\Notifications\AnonymousNotifiable;
 use Illuminate\Notifications\Events\NotificationSending;
+use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 // Communication upgrade PR 5. Every email says which organisation it is from:
@@ -253,3 +254,61 @@ it('runs BrandMail ahead of every other listener on the sending event', function
     $first = new ReflectionFunction($listeners->first());
     expect($first->getStaticVariables()['listener'] ?? null)->toBe(BrandMail::class);
 });
+
+// House style: no exclamation mark, no em dash, no emoji, and the fixed words of
+// the notification template follow the recipient's language, not Laravel's English.
+
+function houseStyleMailIn(string $locale, bool $error = false): string
+{
+    $previous = app()->getLocale();
+    app()->setLocale($locale);
+
+    try {
+        $mail = (new MailMessage)->subject('Test')->line('A line.')->action('Open it', 'https://example.test/x');
+
+        return (string) ($error ? $mail->error() : $mail)->render();
+    } finally {
+        app()->setLocale($previous);
+    }
+}
+
+it('greets with "Hello," and never "Hello!" when a notification sets no greeting', function () {
+    $html = houseStyleMailIn('en');
+
+    expect($html)->toContain('Hello,')
+        ->toContain('Regards,')
+        ->not->toContain('Hello!')
+        ->not->toContain('Whoops')
+        ->not->toContain('having trouble clicking');
+});
+
+it('greets and signs off in the recipient\'s language', function (string $locale, string $greeting, string $regards) {
+    $html = houseStyleMailIn($locale);
+
+    expect($html)->toContain($greeting)
+        ->toContain($regards)
+        ->not->toContain('Hello')
+        ->not->toContain('Regards,');
+})->with([
+    'Amharic' => ['am', 'ሰላም፣', 'ከሰላምታ ጋር፣'],
+    'Afaan Oromoo' => ['om', 'Akkam,', 'Kabaja wajjin,'],
+]);
+
+it('uses the plain error greeting, not Whoops, on an error-level mail', function () {
+    $html = houseStyleMailIn('en', error: true);
+
+    expect($html)->toContain(__('mail.greeting_error', [], 'en'))
+        ->not->toContain('Whoops');
+});
+
+it('keeps every fixed mail string free of exclamation marks, em dashes and the stock English', function (string $locale) {
+    foreach (['greeting', 'greeting_error', 'regards', 'subcopy'] as $key) {
+        $text = __('mail.'.$key, ['actionText' => 'Open'], $locale);
+
+        expect($text)->not->toBe('mail.'.$key)
+            ->not->toContain('!')
+            ->not->toContain('—')
+            ->not->toContain('Whoops')
+            ->not->toContain('having trouble clicking');
+    }
+})->with(['en', 'am', 'om']);
