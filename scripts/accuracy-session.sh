@@ -117,6 +117,11 @@ declare -A ENGINE_COUNTS=()
 ROBUST_LINES=""
 CONF_NOTE=""
 TALLY_LINES=""
+FINDINGS_LINES=""
+ROB_ROWS=""
+CONF_RAN=0
+CONF_TRUSTED=0
+declare -A CONF_ROWS=()
 
 # ── Arguments ────────────────────────────────────────────────────────────────
 
@@ -430,7 +435,7 @@ write_sheet() {
         printf 'The PHP rows come from one Pest run, split by test file from its JUnit file and checked against Pest'"'"'s own "Tests:" line. Incomplete means a recorded finding. A skip is counted under its reason: the rule is undecided, the case waits for a signed expected value, or another reason.\n\n'
         printf '| Engine | Source | Passed | Failed | Incomplete | Skipped: rule undecided | Skipped: waiting for a signature | Skipped: other |\n|---|---|---|---|---|---|---|---|\n'
         local e
-        for e in attendance payroll leave calendar calendar_ts guards; do
+        for e in attendance payroll leave calendar calendar_ts restated generated properties guards; do
             printf '%s\n' "${ENGINE_COUNTS[$e]:-| $e | not run | | | | | | |}"
         done
         printf '\n%s\n\n' "${CONF_NOTE:-Check: the conformance charter did not run.}"
@@ -443,12 +448,25 @@ write_sheet() {
             printf 'none printed\n\n'
         fi
 
+        printf '## Robustness runs\n\n'
+        printf 'The test files the robustness and races charters covered, with their own counts. The generated run and the properties are counted once, in the conformance run, and shown here from it.\n\n'
+        printf '| Test files | Counts from | Passed | Failed | Incomplete | Skipped |\n|---|---|---|---|---|---|\n'
+        if [[ -n "$ROB_ROWS" ]]; then printf '%s\n\n' "$ROB_ROWS"; else printf '| none run | | | | | |\n\n'; fi
+
         printf '## Robustness output\n\n'
-        printf 'Lines copied unchanged from the test output: seed, number of cases, disagreements, input distribution. No interval or percentage is computed.\n\n'
+        printf 'Lines copied unchanged from the test output: the property lines with their seed, and the parts of the generated run'"'"'s reports that give its seed, months, disagreements, known findings and input distribution. No interval or percentage is computed or copied.\n\n'
         if [[ -n "$ROBUST_LINES" ]]; then
             printf '```text\n%s\n```\n\n' "$ROBUST_LINES"
         else
             printf 'None: no test that prints those lines ran.\n\n'
+        fi
+
+        printf '## Recorded findings\n\n'
+        printf 'An incomplete test is a recorded finding: the test states a defect or a disagreement and says so in its message. Each is listed with the first line of that message. Findings of the generated run are in the Robustness output above.\n\n'
+        if [[ -n "$FINDINGS_LINES" ]]; then
+            printf '%s\n\n' "$FINDINGS_LINES"
+        else
+            printf 'none recorded\n\n'
         fi
 
         printf '## Triage\n\n'
@@ -535,6 +553,53 @@ charter_preflight() {
     printf '  preflight: passed\n'
 }
 
+# ── Helpers for the robustness and findings sections ─────────────────────────
+
+# collect_incomplete <log> <label>: every incomplete test in a Pest log run with
+# --display-incomplete, as its name and the first line of its message.
+collect_incomplete() {
+    local out
+    out="$(strip_ansi <"$1" | awk -v label="$2" '
+        /^[[:space:]]+INCOMPLETE[[:space:]]+/ { h=$0; sub(/^[[:space:]]+INCOMPLETE[[:space:]]+/, "", h); sub(/[[:space:]]+$/, "", h); want=1; next }
+        want && NF { m=$0; sub(/^[[:space:]]+/, "", m); if (length(m) > 400) m=substr(m, 1, 400) "..."; print "- " label ": " h ": " m; want=0 }
+    ')"
+    [[ -n "$out" ]] && FINDINGS_LINES="${FINDINGS_LINES:+$FINDINGS_LINES$'\n'}$out"
+    return 0
+}
+
+# add_rob_row <files> <where the counts come from> <passed> <failed> <incomplete> <skipped>
+add_rob_row() {
+    ROB_ROWS="${ROB_ROWS:+$ROB_ROWS$'\n'}| $1 | $2 | $3 | $4 | $5 | $6 |"
+}
+
+# append_robust_lines <text>: lines copied unchanged into Robustness output.
+append_robust_lines() {
+    [[ -n "$1" ]] && ROBUST_LINES="${ROBUST_LINES:+$ROBUST_LINES$'\n'}$1"
+    return 0
+}
+
+# add_seed_lines <log>: the lines the property tests print for the purpose.
+add_seed_lines() {
+    append_robust_lines "$(strip_ansi <"$1" | grep -E '^(LEAVE PROPERTY .*seed=[0-9]+|ACCURACY_SEED=[0-9]+)' | sort -u)"
+}
+
+# add_report_lines <marker>: the two reports the generated run and the properties
+# write (api/storage/framework/testing/accuracy), only when written after the
+# marker, and only the parts that carry no interval: the seed and counts, the
+# known findings, what was generated. Any line that mentions an interval is dropped.
+add_report_lines() {
+    local dir="$API_DIR/storage/framework/testing/accuracy" txt=""
+    if [[ -f "$dir/summary.md" && "$dir/summary.md" -nt "$1" ]]; then
+        txt="$(awk '/^Base seed /{print; next} /^## Known findings/{p=1} /^## What was generated/{p=1} p{print} /^Disagreements:/{p=0}' "$dir/summary.md" | grep -vi 'wilson')"
+        append_robust_lines "--- summary.md (generated months) ---"$'\n'"$txt"
+    fi
+    if [[ -f "$dir/properties.md" && "$dir/properties.md" -nt "$1" ]]; then
+        txt="$(grep -vi 'wilson' "$dir/properties.md")"
+        append_robust_lines "--- properties.md ---"$'\n'"$txt"
+    fi
+    return 0
+}
+
 engine_row() { # <key> <label> <source> <passed> <failed> <incomplete> <skipped undecided> <skipped signature> <skipped other>
     ENGINE_COUNTS[$1]="| $2 | $3 | $4 | $5 | $6 | $7 | $8 | $9 |"
 }
@@ -585,7 +650,10 @@ $engine = function (string $file): string {
     if (str_contains($file, 'Accuracy/Payroll/')) { return 'payroll'; }
     if (str_contains($file, 'Accuracy/Leave/')) { return 'leave'; }
     if (str_contains($file, 'Accuracy/Calendar/')) { return 'calendar'; }
+    if (str_contains($file, 'Accuracy/Restated/')) { return 'restated'; }
     $base = basename($file);
+    if ($base === 'GeneratedMonthsTest.php') { return 'generated'; }
+    if ($base === 'PropertiesTest.php') { return 'properties'; }
     if ($base === 'OracleIndependenceTest.php' || $base === 'RegisterConsistencyTest.php') { return 'guards'; }
     return 'attendance';
 };
@@ -630,6 +698,9 @@ charter_conformance() {
     split_php="$OUT_DIR/.conformance-split.php"
     part="$OUT_DIR/.conformance-part.txt"
     : >"$part"
+    local marker="$OUT_DIR/.conformance-marker"
+    : >"$marker"
+    CONF_RAN=1
 
     # One run of the whole PHP suite. It is the command accuracy_gate in
     # gates.sh runs (php -d memory_limit=-1 vendor/bin/pest -c
@@ -644,8 +715,12 @@ charter_conformance() {
     pestline="$line"
     part_result $rc "pest -c phpunit.accuracy.xml" 900
 
-    # Leave's properties print seed, cases and disagreements. Copied unchanged.
-    ROBUST_LINES="$(strip_ansi <"$part" | grep -E 'seed=[0-9]+' | head -n 60)"
+    # The property tests print their seed, cases and disagreements. Copied
+    # unchanged, with the parts of the generated run's reports that carry no interval.
+    add_seed_lines "$part"
+    add_report_lines "$marker"
+    collect_incomplete "$part" "tests/Accuracy"
+    rm -f "$marker"
     # Lines such as PAYROLL TALLY: what a test could not compare or withheld. Copied unchanged.
     TALLY_LINES="$(strip_ansi <"$part" | grep -E '^[[:space:]]*[A-Z]+ TALLY:' | sed 's/^[[:space:]]*//')"
 
@@ -673,13 +748,18 @@ charter_conformance() {
     fi
     rm -f "$part" "$split_php"
 
-    local keys=(attendance payroll leave calendar guards)
-    declare -A LABEL=([attendance]="attendance" [payroll]="payroll" [leave]="leave" [calendar]="calendar (PHP)" [guards]="shared guards")
+    local keys=(attendance payroll leave calendar restated generated properties guards)
+    CONF_TRUSTED=$trusted
+    for k in "${!R[@]}"; do CONF_ROWS[$k]="${R[$k]}"; done
+    declare -A LABEL=([attendance]="attendance" [payroll]="payroll" [leave]="leave" [calendar]="calendar (PHP)" [restated]="restated figures" [generated]="generated months against the oracle (robustness evidence)" [properties]="properties over generated months (robustness evidence)" [guards]="shared guards")
     declare -A SRC=(
         [attendance]="GoldenCasesTest, OracleCasesTest, OracleReadingsTest"
         [payroll]="tests/Accuracy/Payroll"
         [leave]="tests/Accuracy/Leave"
         [calendar]="tests/Accuracy/Calendar"
+        [restated]="tests/Accuracy/Restated"
+        [generated]="GeneratedMonthsTest"
+        [properties]="PropertiesTest"
         [guards]="OracleIndependenceTest (with the IntegerOnlyScan self-tests), RegisterConsistencyTest"
     )
     local ekey
@@ -697,6 +777,8 @@ charter_conformance() {
             case "$k" in
                 leave) engine_text leave "$label" "not measured, no cases built yet" ;;
                 calendar) engine_text calendar "$label" "not measured, no cross-check built yet" ;;
+                restated) engine_text restated "$label" "not measured, no tests built yet" ;;
+                generated|properties) engine_text "$k" "$label" "not built yet" ;;
                 guards) engine_text guards "$label" "none found" ;;
                 payroll) : ;;
                 *) engine_text "$k" "$label" "not run: the PHP run wrote no result" ;;
@@ -763,115 +845,186 @@ charter_conformance() {
 }
 
 charter_robustness() {
-    local start=$SECONDS part rc skip="" paths p
+    local start=$SECONDS part rc line p f i s k marker
     begin_charter robustness 3
     part_reset
-    local state; state="$(charter_state robustness)"
-    [[ "$state" == *";"* ]] && skip="${state#*; }"
+    marker="$OUT_DIR/.robustness-marker"
+    : >"$marker"
+    ROB_ROWS=""
 
-    paths="$(generated_paths)"
-    if [[ -n "$paths" ]]; then
-        printf '\n--- generated run and properties ---\n' >>"$CUR_LOG"
-        part="$(mktemp)"
-        # shellcheck disable=SC2086
-        (cd "$API_DIR" && run_bounded 1500 "$part" php -d memory_limit=-1 vendor/bin/pest -c phpunit.accuracy.xml $(printf '%s ' $paths))
-        rc=$?
-        cat "$part" >>"$CUR_LOG"
-        # Verbatim: whatever the test prints about seed, cases, disagreements and
-        # the input distribution. Nothing is computed from it here.
-        ROBUST_LINES="$(printf '%s
-%s' "$ROBUST_LINES" "$(strip_ansi <"$part" | grep -iE 'seed|cases|disagree|distribution' | head -n 60)" | sed '/^$/d')"
-        rm -f "$part"
-        part_result $rc "generated run and properties" 1500
+    local gen_file="tests/Accuracy/GeneratedMonthsTest.php" prop_file="tests/Accuracy/PropertiesTest.php"
+    if [[ $CONF_RAN -eq 1 && $CONF_TRUSTED -eq 1 && ( -n "${CONF_ROWS[generated]:-}" || -n "${CONF_ROWS[properties]:-}" ) ]]; then
+        # Already run, once, inside the conformance run: read from its JUnit split.
+        printf '\nThe generated run and the properties ran inside the conformance run (see 02-conformance.log); their counts are taken from its JUnit file.\n' >>"$CUR_LOG"
+        for k in generated properties; do
+            [[ -n "${CONF_ROWS[$k]:-}" ]] || continue
+            IFS='|' read -r p f i u g o _ <<<"${CONF_ROWS[$k]}"
+            PARTS_RAN=$((PARTS_RAN + 1))
+            if [[ "$f" -gt 0 ]]; then
+                PARTS_FAILED=$((PARTS_FAILED + 1))
+                PARTS_FAIL_WHY="${PARTS_FAIL_WHY:+$PARTS_FAIL_WHY; }$k: $f failed (in the conformance run)"
+            fi
+            add_rob_row "$([[ $k == generated ]] && echo "$gen_file" || echo "$prop_file")" "the conformance run" "$p" "$f" "$i" "$((u + g + o))"
+        done
+    else
+        local files=()
+        [[ -f "$API_DIR/$gen_file" ]] && files+=("$gen_file")
+        [[ -f "$API_DIR/$prop_file" ]] && files+=("$prop_file")
+        if [[ ${#files[@]} -gt 0 ]]; then
+            printf '\n--- generated run and properties ---\n' >>"$CUR_LOG"
+            part="$OUT_DIR/.robustness-part.txt"
+            : >"$part"
+            (cd "$API_DIR" && run_bounded 1500 "$part" php -d memory_limit=-1 vendor/bin/pest -c phpunit.accuracy.xml \
+                --display-skipped --display-incomplete "${files[@]}")
+            rc=$?
+            cat "$part" >>"$CUR_LOG"
+            line="$(last_tests_line "$part")"
+            collect_incomplete "$part" "generated run and properties"
+            add_seed_lines "$part"
+            add_report_lines "$marker"
+            rm -f "$part"
+            part_result $rc "generated run and properties" 1500
+            add_rob_row "${files[*]}" "its own run" "$(count_in_line passed "$line")" "$(count_in_line failed "$line")" "$(count_in_line incomplete "$line")" "$(count_in_line skipped "$line")"
+        fi
     fi
 
     if [[ -d "$API_DIR/tests/Feature/Idempotency" ]]; then
         printf '\n--- api/tests/Feature/Idempotency ---\n' >>"$CUR_LOG"
-        part="$(mktemp)"
-        (cd "$API_DIR" && run_bounded 900 "$part" php -d memory_limit=-1 vendor/bin/pest tests/Feature/Idempotency)
+        part="$OUT_DIR/.robustness-part.txt"
+        : >"$part"
+        (cd "$API_DIR" && run_bounded 900 "$part" php -d memory_limit=-1 vendor/bin/pest \
+            --display-skipped --display-incomplete tests/Feature/Idempotency)
         rc=$?
         cat "$part" >>"$CUR_LOG"
+        line="$(last_tests_line "$part")"
+        collect_incomplete "$part" "tests/Feature/Idempotency"
         rm -f "$part"
         part_result $rc "idempotency tests" 900
+        add_rob_row "tests/Feature/Idempotency (the $(find "$API_DIR/tests/Feature/Idempotency" -name '*Test.php' | wc -l | tr -d '[:space:]') test files)" "its own run" \
+            "$(count_in_line passed "$line")" "$(count_in_line failed "$line")" "$(count_in_line incomplete "$line")" "$(count_in_line skipped "$line")"
     fi
+    rm -f "$marker"
 
-    finish_charter robustness "$start" "$skip"
+    finish_charter robustness "$start" ""
 }
 
 charter_races() {
-    local start=$SECONDS
+    local start=$SECONDS part rc line
     begin_charter races 4
     part_reset
-    run_bounded 1200 "$CUR_LOG" bash "$REPO_ROOT/scripts/gates.sh" concurrency
-    part_result $? "gates.sh concurrency" 1200
+    # The command concurrency_gate in gates.sh runs (php -d memory_limit=-1
+    # vendor/bin/pest -c phpunit.concurrency.xml, from api/) plus two flags that
+    # only add output, so that an incomplete test shows its message. The server
+    # check is the preflight probe; the scratch database name is the test's own.
+    part="$OUT_DIR/.races-part.txt"
+    : >"$part"
+    (cd "$API_DIR" && run_bounded 1200 "$part" php -d memory_limit=-1 vendor/bin/pest -c phpunit.concurrency.xml \
+        --display-skipped --display-incomplete)
+    rc=$?
+    cat "$part" >>"$CUR_LOG"
+    line="$(last_tests_line "$part")"
+    collect_incomplete "$part" "tests/Concurrency"
+    rm -f "$part"
+    part_result $rc "pest -c phpunit.concurrency.xml" 1200
+    add_rob_row "tests/Concurrency (races)" "its own run" \
+        "$(count_in_line passed "$line")" "$(count_in_line failed "$line")" "$(count_in_line incomplete "$line")" "$(count_in_line skipped "$line")"
     finish_charter races "$start" ""
 }
 
 charter_strength() {
-    local start=$SECONDS wf wfname ids id job sha created found=0 localsha
+    local start=$SECONDS wf wfname ids id job sha created localsha errf err
     begin_charter strength 5
     part_reset
     wf="$(mutation_workflow)"; wfname="$(basename "$wf")"
     printf 'workflow file: %s\n' "$wfname" >>"$CUR_LOG"
-    ids="$(cd "$REPO_ROOT" && "$TIMEOUT_CMD" -k 5 60 gh run list --workflow "$wfname" --limit 10 --json databaseId --jq '.[].databaseId' 2>>"$CUR_LOG")"
+    CH_DUR[strength]="0:00"
+    errf="$OUT_DIR/.strength-err.txt"
+    ids="$(cd "$REPO_ROOT" && "$TIMEOUT_CMD" -k 5 60 gh run list --workflow "$wfname" --limit 10 --json databaseId --jq '.[].databaseId' 2>"$errf")"
     local rc=$?
+    err="$(cat "$errf" 2>/dev/null)"
+    rm -f "$errf"
+    [[ -n "$err" ]] && printf '%s\n' "$err" >>"$CUR_LOG"
     if [[ $rc -ne 0 ]]; then
-        part_result $rc "gh run list" 60
-        finish_charter strength "$start" ""
+        # A charter that cannot reach what it reads is not run. It never fails.
+        if printf '%s' "$err" | grep -qiE 'HTTP 404|could not find any workflows|Not Found'; then
+            CH_STATUS[strength]="not run: workflow not on GitHub"
+            CH_NOTE[strength]="$wfname exists in this checkout but GitHub has no workflow of that name yet (it is not merged to the default branch)"
+        else
+            CH_STATUS[strength]="not run: GitHub not reachable"
+            CH_NOTE[strength]="gh could not read the run list (exit $rc); see 05-strength.log"
+        fi
+        CH_DUR[strength]="$(fmt_dur $((SECONDS - start)))"
         return
     fi
     if [[ -z "$ids" ]]; then
-        printf 'No run of %s exists yet.\n' "$wfname" >>"$CUR_LOG"
+        printf 'The workflow exists on GitHub and has never run.\n' >>"$CUR_LOG"
         CH_DUR[strength]="$(fmt_dur $((SECONDS - start)))"
-        CH_STATUS[strength]="not run: no run of accuracy-mutation yet"
+        CH_STATUS[strength]="not measured: never run"
         CH_NOTE[strength]="the job is manual; nothing here starts it"
         return
     fi
     localsha="$(git -C "$REPO_ROOT" rev-parse HEAD 2>/dev/null)"
     for id in $ids; do
+        # The job's displayed name ("Accuracy mutation (PCOV)"), not its key.
         job="$("$TIMEOUT_CMD" -k 5 60 gh run view "$id" --json jobs \
-            --jq '[.jobs[] | select(.name | test("accuracy-mutation")) | .conclusion] | first // ""' 2>>"$CUR_LOG")"
+            --jq '[.jobs[] | select(.name | test("[Aa]ccuracy.mutation")) | .conclusion] | first // ""' 2>>"$CUR_LOG")"
         printf 'run %s: job conclusion "%s"\n' "$id" "$job" >>"$CUR_LOG"
-        # A run that skipped the manual job says nothing about test strength.
         if [[ -n "$job" && "$job" != "skipped" ]]; then
-            found=1
             sha="$("$TIMEOUT_CMD" -k 5 60 gh run view "$id" --json headSha --jq '.headSha' 2>>"$CUR_LOG")"
             created="$("$TIMEOUT_CMD" -k 5 60 gh run view "$id" --json createdAt --jq '.createdAt' 2>>"$CUR_LOG")"
-            part_reset
-            PARTS_RAN=1
-            if [[ "$job" == "success" ]]; then
-                :
-            else
-                PARTS_FAILED=1; PARTS_FAIL_WHY="latest accuracy-mutation run $id concluded $job"
-            fi
-            local note="run $id, $created, commit ${sha:0:10}"
+            local note="run $id, $created, commit ${sha:0:10}, conclusion $job"
             [[ "$sha" != "$localsha" ]] && note="$note, not this checkout's commit"
-            finish_charter strength "$start" "$note"
+            CH_DUR[strength]="$(fmt_dur $((SECONDS - start)))"
+            CH_NOTE[strength]="$note; the score is on the run's summary page, not in the conclusion"
+            case "$job" in
+                success) CH_STATUS[strength]="passed" ;;
+                failure) CH_STATUS[strength]="failed: the latest accuracy-mutation run $id concluded failure" ;;
+                *) CH_STATUS[strength]="not measured: the latest run concluded $job" ;;
+            esac
             return
         fi
     done
     CH_DUR[strength]="$(fmt_dur $((SECONDS - start)))"
-    CH_STATUS[strength]="not run: no completed run of accuracy-mutation in the last 10 runs"
+    CH_STATUS[strength]="not measured: no completed run of accuracy-mutation in the last 10 runs"
 }
 
 charter_restated() {
-    local start=$SECONDS part rc skip="" state
+    local start=$SECONDS part rc skip="" state line p f i s
     begin_charter restated 6
     part_reset
     state="$(charter_state restated)"
     [[ "$state" == *";"* ]] && skip="${state#*; }"
 
     if accuracy_has_dir Restated; then
-        printf '\n--- restated-figures tests ---\n' >>"$CUR_LOG"
-        part="$(mktemp)"
-        (cd "$API_DIR" && run_bounded 900 "$part" php -d memory_limit=-1 vendor/bin/pest -c phpunit.accuracy.xml tests/Accuracy/Restated)
-        rc=$?
-        cat "$part" >>"$CUR_LOG"; rm -f "$part"
-        part_result $rc "restated-figures tests" 900
+        if [[ $CONF_RAN -eq 1 && $CONF_TRUSTED -eq 1 && -n "${CONF_ROWS[restated]:-}" ]]; then
+            # Run once, inside the conformance run. Not run a second time.
+            IFS='|' read -r p f i s _ _ _ <<<"${CONF_ROWS[restated]}"
+            printf '\nThe restated-figures tests ran inside the conformance run (see 02-conformance.log): passed %s, failed %s, incomplete %s.\n' "$p" "$f" "$i" >>"$CUR_LOG"
+            PARTS_RAN=$((PARTS_RAN + 1))
+            if [[ "$f" -gt 0 ]]; then
+                PARTS_FAILED=$((PARTS_FAILED + 1))
+                PARTS_FAIL_WHY="${PARTS_FAIL_WHY:+$PARTS_FAIL_WHY; }restated-figures tests: $f failed (in the conformance run)"
+            fi
+            skip="${skip:+$skip; }restated-figures tests: counted from the conformance run"
+        else
+            printf '\n--- restated-figures tests ---\n' >>"$CUR_LOG"
+            part="$OUT_DIR/.restated-part.txt"
+            : >"$part"
+            (cd "$API_DIR" && run_bounded 900 "$part" php -d memory_limit=-1 vendor/bin/pest -c phpunit.accuracy.xml \
+                --display-skipped --display-incomplete tests/Accuracy/Restated)
+            rc=$?
+            cat "$part" >>"$CUR_LOG"
+            line="$(last_tests_line "$part")"
+            collect_incomplete "$part" "tests/Accuracy/Restated"
+            rm -f "$part"
+            part_result $rc "restated-figures tests" 900
+            skip="${skip:+$skip; }restated-figures tests: ${line:-no summary line}"
+        fi
     fi
     if [[ $E2E_UP -eq 1 ]]; then
         printf '\n--- gates.sh e2e-attendance (seeds the local database; the payroll journey needs queue:work) ---\n' >>"$CUR_LOG"
-        part="$(mktemp)"
+        part="$OUT_DIR/.restated-part.txt"
+        : >"$part"
         run_bounded 1800 "$part" bash "$REPO_ROOT/scripts/gates.sh" e2e-attendance
         rc=$?
         cat "$part" >>"$CUR_LOG"; rm -f "$part"

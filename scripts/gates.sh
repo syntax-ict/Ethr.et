@@ -13,6 +13,7 @@
 #   ./scripts/gates.sh mysql       the backend suite against MariaDB, not SQLite
 #   ./scripts/gates.sh concurrency punches racing from separate processes, on MariaDB
 #   ./scripts/gates.sh accuracy    hand-typed golden cases for attendance, payroll, leave and the calendar, no server needed
+#   ./scripts/gates.sh mutation    mutation testing of the calculation core against the accuracy suite (needs PCOV or Xdebug; slow)
 #   ./scripts/gates.sh lighthouse  Lighthouse CI over the public pages
 #   ./scripts/gates.sh e2e         Playwright over a running stack (desktop Chromium)
 #   ./scripts/gates.sh e2e-attendance  the attendance-to-payslip journeys, same stack
@@ -442,6 +443,101 @@ accuracy_gate() {
     )
 }
 
+# Mutation testing of the calculation core (pestphp/pest-plugin-mutate 3.0.5): the
+# plugin makes the engine deliberately wrong, one change at a time (a `<=` becomes
+# `<`, a `+` becomes `-`), and reruns the accuracy suite. A mutant the suite does not
+# fail on "survived": it is a missing golden case, not a flaky run. Opt-in and never
+# part of `all`: it needs a coverage driver, it is slow, and it has no pass mark.
+#
+# Classes come from the list below, passed as `--class` (comma separated, matched
+# against each file's `namespace` and `class` text, so a name is also a prefix:
+# `App\Models\Shift` would match a `ShiftFoo` in the same namespace). Tests come
+# from phpunit.accuracy.xml only: the plugin reruns whatever the configuration
+# collects, and adding the Unit tests would mean a second configuration whose
+# `<source>` and database setup then have to be kept in step. `--path=app` and
+# `--coverage-filter=app` are given because that configuration declares no
+# `<source>`, and the plugin takes both the files to mutate and the coverage
+# whitelist from it.
+#
+# MUTATION_CLASSES overrides the list (one class is the way to try it quickly),
+# MUTATION_PARALLEL=1 adds `--parallel`, MUTATION_MIN adds `--min`. Output goes to
+# api/storage/logs/mutation.log as well as the terminal; the score and the
+# surviving ("untested") mutants are re-printed at the end.
+MUTATION_CLASS_LIST=(
+    # Attendance
+    'App\Services\Attendance\AttendanceEngine'        # worked time, lateness, absence per day
+    'App\Services\Attendance\ShiftMatcher'            # which shift a punch belongs to
+    'App\Services\Attendance\ExpectedDays'            # days a person is expected to work
+    'App\Services\Attendance\TimesheetLedger'         # the one ledger payroll reads
+    'App\Services\Payroll\OverlappingAttendance'      # overlapping records counted once
+    'App\Services\Shift\ShiftRotationResolver'        # rotating shift per date
+    'App\Models\AttendanceRecord'                      # stored day figures and their accessors
+    'App\Models\Shift'                                 # shift arithmetic (night spans, breaks)
+    'App\Support\AttendanceRules'                      # grace, thresholds, rule constants
+    'App\Services\Payroll\OvertimeClassifier'         # which hours are overtime, at which rate class
+    'App\Services\Payroll\PeriodOvertime'             # overtime summed over a pay period
+    # Payroll
+    'App\Services\Payroll\PayrollEngine'              # gross to net
+    'App\Services\Payroll\TaxCalculator'              # income tax brackets
+    'App\Services\Payroll\PensionCalculator'          # employee and employer pension
+    'App\Services\Payroll\OvertimeCalculator'         # overtime pay
+    'App\Services\Payroll\CostSharingService'         # cost sharing deductions
+    'App\Services\Payroll\AllowanceService'           # taxable and exempt allowances
+    'App\Support\Cents'                                # integer money arithmetic and rounding
+    # Leave
+    'App\Services\Leave\LeaveBalanceService'          # accrual and balance
+    'App\Services\Leave\LeaveDayCalculator'           # days a leave request consumes
+    'App\Services\Leave\SickLeaveTiers'               # sick leave pay tiers
+    'App\Services\Leave\LeaveYear'                    # leave year boundaries
+    # Calendar
+    'App\Services\Calendar\EthiopianCalendar'         # Gregorian and Ethiopian conversion
+)
+
+mutation_gate() {
+    if ! have_php; then
+        no_php_msg
+        return 1
+    fi
+
+    if ! php -r 'exit(extension_loaded("pcov") || extension_loaded("xdebug") ? 0 : 1);'; then
+        printf '[31mNo coverage driver loaded: install PCOV or Xdebug, mutation testing needs one.[0m
+'
+        return 1
+    fi
+
+    local classes
+    if [[ -n "${MUTATION_CLASSES:-}" ]]; then
+        classes="$MUTATION_CLASSES"
+    else
+        classes="$(IFS=,; printf '%s' "${MUTATION_CLASS_LIST[*]}")"
+    fi
+
+    local args=(--mutate --path=app --coverage-filter=app "--class=$classes")
+    [[ "${MUTATION_PARALLEL:-}" == "1" ]] && args+=(--parallel)
+    [[ -n "${MUTATION_MIN:-}" ]] && args+=("--min=$MUTATION_MIN")
+
+    (
+        cd "$API_DIR" || return 1
+        mkdir -p storage/logs
+        local log="storage/logs/mutation.log" rc
+        php -d memory_limit=-1 vendor/bin/pest -c phpunit.accuracy.xml "${args[@]}" 2>&1 | tee "$log"
+        rc=${PIPESTATUS[0]}
+
+        local plain pat='^[[:space:]]*(Mutations:|Score:|Duration:)'
+        plain="$(sed 's/\x1b\[[0-9;]*m//g' "$log")"
+        printf '\n--- mutation result ---\n'
+        printf '%s\n' "$plain" | grep -E "$pat" || printf 'No score line found, read the log above.\n'
+        if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
+            {
+                printf '### Accuracy mutation\n\n```\n'
+                printf '%s\n' "$plain" | grep -E "$pat" || printf 'No score line found.\n'
+                printf '```\n'
+            } >> "$GITHUB_STEP_SUMMARY"
+        fi
+        return "$rc"
+    )
+}
+
 lighthouse_gate() {
     (
         cd "$WEB_DIR" || return 1
@@ -582,6 +678,11 @@ fi
 # unchanged. Needs no server.
 if [[ "$SCOPE" == "accuracy" ]]; then
     run_gate "Pest (accuracy: attendance, payroll, leave, calendar)" accuracy_gate
+fi
+
+# Opt-in, slow, needs PCOV or Xdebug; started by hand (CI: mutation.yml).
+if [[ "$SCOPE" == "mutation" ]]; then
+    run_gate "Pest (mutation: calculation core)" mutation_gate
 fi
 
 # Opt-in, never part of `all` — see the comment above composer_audit_gate.

@@ -1,6 +1,6 @@
 # 14. Leave, calendar and restated figures
 
-**At a glance.** This file holds the accuracy checks that sit beside the attendance ones in [12-ATTENDANCE-ACCURACY.md](12-ATTENDANCE-ACCURACY.md). Today it describes one thing that has been built and run: the Ethiopian calendar cross-check, in which the PHP class, the TypeScript module and a third implementation that counts days one at a time are compared against one shared table of month starts for every day from 1900 to 2100. It also records the register consistency test, which checks that every rule id cited by a case exists and that every Decided rule has a case or a stated reason for having none. It also describes the leave cases (section 7). The restated-figures section is empty on purpose.
+**At a glance.** This file holds the accuracy checks that sit beside the attendance ones in [12-ATTENDANCE-ACCURACY.md](12-ATTENDANCE-ACCURACY.md). Today it describes one thing that has been built and run: the Ethiopian calendar cross-check, in which the PHP class, the TypeScript module and a third implementation that counts days one at a time are compared against one shared table of month starts for every day from 1900 to 2100. It also records the register consistency test, which checks that every rule id cited by a case exists and that every Decided rule has a case or a stated reason for having none. It also describes the leave cases (section 7). It also describes the restated-figures checks (section 8), which read the payslip PDF, the bank file, the schedules, and the timesheet grid, workbook and PDF and hold each against the engine.
 
 ## 1. Layers and status
 
@@ -12,7 +12,7 @@
 | Clock check | All 1,440 minutes of a day through the Ethiopian clock and back | Built: section 3 |
 | Register consistency | Rule ids cited by cases exist; Decided rules are covered or exempted with a reason | Built: section 4 |
 | Leave cases | Hand-typed leave figures, run through the leave engine, and five seeded properties | Built: section 7 |
-| Restated figures | Figures restated from the registers | Not written yet: section 8 |
+| Restated figures | What each output prints, read back and held against the engine's own figure | Built: section 8 |
 
 No percentage exists for any of these. The calendar check compares complete ranges, not a sample.
 
@@ -190,4 +190,68 @@ The same run passed the 9 PHP calendar tests and the 14 TypeScript calendar and 
 
 ## 8. Restated figures
 
-Not written yet.
+An engine works a figure out once and many outputs restate it: the payslip, the bank file, the register, the journal, the two schedules, the timesheet grid, its workbook and its PDF. "One number everywhere" means each output shows exactly what the engine worked out. These checks read what each output actually contains and compare it with the engine's own figure. They never recompute a figure. The code is in `api/tests/Accuracy/Restated/` and runs with the rest of the accuracy suite.
+
+### What is built and run
+
+| Check | Rule | What it reads | What it compares it with |
+|---|---|---|---|
+| Payslip against the entry (`PayslipRestatedTest`) | PYR-RST-04 | The payslip PDF that `PayslipPdfService` renders, for every entry of 8 payroll cases | The stored entry, and the figures the engine logged for overtime and for basic after unpaid leave, sick leave and lateness |
+| Timesheet outputs against the ledger (`TimesheetRestatedTest`) | none in the registers | The grid `TimesheetReport::grid()` returns, the workbook `TimesheetXlsx` writes and the PDF `TimesheetPdf` renders, for one small organisation and a fortnight | `TimesheetLedger::build()` over the same people and days |
+| Bank file detail (`BankAndSchedulesRestatedTest`) | PYR-BANK-02, PYR-BANK-03 | The bank CSV of an approved run, and the run page's bank file row by row | The register's rows, the stored entries and the stored bank details |
+| Schedules against the entries (same file) | PYR-RST-03 | Each schedule's rows, and each schedule's CSV down to its totals line | The stored entries |
+
+The payslip cases are payroll accuracy cases, built by `PayrollFixture` and run by `PayrollEngine`, chosen to cover each situation the rule names: overtime of all five kinds (GP-OT-001), unpaid leave with taxable and non-taxable allowances (GP-NET-001), sick leave with unpaid leave (GP-SICK-003), unpaid leave, lateness and a loan (GP-LATE-007), lateness, a loan and cost sharing (GP-LATE-009), pension-exempt people (GP-PEN-004), an approved run with a loan and cost sharing (GP-RUN-002), and two allowances with a person whose basic is zero (GP-ALW-001). They are listed with the rules they cite in `api/tests/Accuracy/Payroll/cases/restated.json` (ids `GR-PAYSLIP-001` to `GR-PAYSLIP-008`, `GR-BANK-001`, `GR-SCHEDULE-001`). That file is JSON so that `RegisterConsistencyTest` sees the rules the checks cite, while the payroll case loader, which reads only `cases/*.php`, does not take them for golden cases. Citing PYR-RST-04 there is what removed its entry from `register-exemptions.php`.
+
+### How each output was read
+
+- **A PDF** is read the way `DocumentPdfsTest` reads one: every Flate stream is inflated with `gzuncompress`. DomPDF writes each line of text as a `BT x y Td ... [(text)] TJ ET` instruction with the letters in UTF-16, so the text and its position on the page are taken from that. Runs on the same line are joined, a money amount is read as text (`8,800.00 ETB` is 880000, never a float), and a row is its label and its amount. No package and no external program is used. The words the page prints were compared, not the data handed to the template.
+- **The workbook** is read the way `ReportExcelTest` reads one: `ZipArchive` and `SimpleXML` over `xl/workbook.xml` and each worksheet. A figure is found under its column heading.
+- **A CSV** is read as the text a bank or an agency would receive. The bank file's amount is spelt with a decimal point and is turned into cents by its digits.
+- **The grid** is the array `TimesheetReport::grid()` returns, which is what the screen shows.
+
+### How hours are compared
+
+The timesheet outputs print hours as minutes divided by 60, rounded to one decimal place, with a trailing `.0` dropped (`7`, not `7.0`). A ledger figure in minutes is put through that format and then compared as text. Days and minutes are whole numbers and are compared as they are. A footer is compared as the ledger's minutes of everyone added first and the same format applied once. Overtime is compared under each rate column, with the ledger's overtime types that share a rate added together (holiday and holiday at night share 2.5).
+
+### Figures compared in the last run
+
+| Output | What was held against the engine | Figures compared |
+|---|---|---|
+| Payslip PDF | 13 payslips in 8 cases: basic, whether an overtime line is printed and its amount, each allowance by name and amount, gross, income tax, employee pension, each deduction line, net, employer pension, and the printed lines added up to the printed gross and net | 183 |
+| Timesheet grid | 3 people over 14 days: the code, worked, scheduled, late and early minutes and overtime of every day, then every summary column per person and in total | 495 |
+| Timesheet workbook | Both sheets: the code of every day and the check mark, then every summary column per person and in total | 117 |
+| Timesheet PDF | The same as the workbook, read from the printed page | 117 |
+| Bank file | Every row's amount, name, bank and account, the row order against the register and the entries, the same file on a second run, and the run page's rows against the CSV | 77 |
+| Schedules | Income tax and pension: each row, the CSV rows, the CSV totals line, who is on the pension schedule, and the employer share | 42 |
+
+The Restated folder ran as 10 passed and 3 incomplete (38 assertions). `RegisterConsistencyTest` and `PayrollCaseFormatTest` ran together as 17 passed. `--list-tests` lists 694 tests for the accuracy suite.
+
+### A difference found
+
+The three incomplete tests are one recorded finding, `GR-TIMESHEET-001`, listed in `api/tests/Accuracy/Restated/findings.php` for the grid, the workbook and the PDF. **The total of the worked hours is 0.1 hour more than the ledger gives.** The ledger holds 9050 worked minutes for the three people, which is 150.8 hours at one decimal. The footer of the grid, the Grand total row of the workbook's Summary sheet and the Grand total line of the PDF's summary table all show 150.9. That is the three rows (34.5, 84.2 and 32.2) each rounded to one decimal and then added. Every other column of the fortnight agrees with the ledger, in the rows and in the footers. Nothing was adjusted to make it pass. Whether a footer should add the printed rows or the minutes is a decision for the owner. A listed finding must name the field of every difference the check finds, so it cannot hide a second one, and it fails once the output agrees.
+
+### Already covered, so not repeated
+
+The payroll cases already state and compare `bank.rows` and `bank.total` (the CSV and the run page), `schedule.income_tax_total`, `schedule.pension_rows` and `schedule.pension_employee_total`, and the register totals and journal lines (`PayrollFields.php`). The restated checks do not compare those again.
+
+### What is not covered
+
+- **Screens.** Nothing here opens the application in a browser. The grid is read as the array the endpoint returns, not as drawn.
+- **The deleted-employee bank case.** PYR-BANK-04 to 06 are Undecided. No check asserts an outcome for a person deleted after approval, and the case used deletes nobody.
+- **Payable days and the two overtime limit columns** of the timesheet (unapproved overtime hours, days over the overtime limit). The ledger does not hold them; they come from payroll's limit functions, so there is nothing to hold them against. They are read in position and not compared.
+- **Department subtotals** on the workbook and the PDF.
+- **The statutory schedules as PDF.** Their rows and totals were read from `build()` and from the CSV, not from the printed PDF. The register and the journal were not read from any file here.
+- **Languages other than English, and the Ethiopian calendar,** on the timesheet and the payslip. Every output was read in English with the Gregorian calendar.
+- **A PDF of more than one page of rows.** One payslip is one page, and the timesheet read here lists three people.
+- **The payslip's header and footer lines:** department, position, TIN, bank and account masks, pay date and the date generated.
+
+### Run it
+
+```bash
+cd api
+php -d memory_limit=-1 vendor/bin/pest -c phpunit.accuracy.xml tests/Accuracy/Restated
+php -d memory_limit=-1 vendor/bin/pest -c phpunit.accuracy.xml tests/Accuracy/RegisterConsistencyTest.php
+```
+
+It needs no database server. To show that a check can fail, one comparison in each of the payslip and timesheet checks was made to expect a value one unit off. The failure named the output, the person and the field (for example `GP-OT-001 O1 payslip, gross: the entry has 950001 but the page shows 950000`, and `grid, Abebe Kebede present_days: the ledger gives 6 and the output shows 5`), and the change was then put back.

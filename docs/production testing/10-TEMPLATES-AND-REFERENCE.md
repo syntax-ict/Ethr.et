@@ -318,7 +318,7 @@ The sheet `./scripts/accuracy-session.sh` writes as `session-sheet.md` next to i
 | robustness | not built yet | - | - | the leave properties ran inside conformance, see Robustness output; the generated runs and idempotency tests are not built yet |
 | races | not run: no database server | - | - | |
 | strength | not built yet | - | - | |
-| restated | not run: local stack not running; restated-figures tests not built yet | - | - | |
+| restated | not run: local stack not running | - | - | |
 | production | not run: no saved session | - | - | |
 
 ## Conformance by engine
@@ -332,6 +332,9 @@ The PHP rows come from one Pest run, split by test file from its JUnit file and 
 | leave | tests/Accuracy/Leave | | | | | | |
 | calendar (PHP) | tests/Accuracy/Calendar | | | | | | |
 | calendar and clock (TypeScript) | ethiopian-calendar-table.test.ts, ethiopian-clock-roundtrip.test.ts | | | | | | |
+| restated figures | tests/Accuracy/Restated | | | | | | |
+| generated months against the oracle (robustness evidence) | GeneratedMonthsTest | | | | | | |
+| properties over generated months (robustness evidence) | PropertiesTest | | | | | | |
 | shared guards | OracleIndependenceTest (with the IntegerOnlyScan self-tests), RegisterConsistencyTest | | | | | | |
 
 Check: the per-engine PHP rows add up to Pest's own totals (passed N, failed N, incomplete N, skipped N).
@@ -346,15 +349,40 @@ PAYROLL TALLY: <n> stated fields not comparable against the engine (<field> x<n>
 
 (or, when no such line was printed: "none printed")
 
+## Robustness runs
+
+The test files the robustness and races charters covered, with their own counts. The generated run and the properties are counted once, in the conformance run, and shown here from it.
+
+| Test files | Counts from | Passed | Failed | Incomplete | Skipped |
+|---|---|---|---|---|---|
+| tests/Accuracy/GeneratedMonthsTest.php | the conformance run | | | | |
+| tests/Accuracy/PropertiesTest.php | the conformance run | | | | |
+| tests/Feature/Idempotency (the test files) | its own run | | | | |
+| tests/Concurrency (races) | its own run | | | | |
+
 ## Robustness output
 
-Lines copied unchanged from the test output: seed, number of cases, disagreements, input distribution. No interval or percentage is computed.
+Lines copied unchanged from the test output: the property lines with their seed, and the parts of the generated run's reports that give its seed, months, disagreements, known findings and input distribution. No interval or percentage is computed or copied.
 
 ```text
 LEAVE PROPERTY <name>: seed=<n> cases=<n> disagreements=<n>
+ACCURACY_SEED=<n> ACCURACY_MONTHS=<n> (month i uses seed base + i)
+ACCURACY_SEED=<n> ACCURACY_PROPERTY_MONTHS=<n>
+--- summary.md (generated months) ---
+<seed and counts, known findings, what was generated>
+--- properties.md ---
+<properties, months run, known findings>
 ```
 
 (or, when no test that prints those lines ran: "None: no test that prints those lines ran.")
+
+## Recorded findings
+
+An incomplete test is a recorded finding: the test states a defect or a disagreement and says so in its message. Each is listed with the first line of that message. Findings of the generated run are in the Robustness output above.
+
+- <label>: <test class and name>: <first line of its message>
+
+(or "none recorded")
 
 ## Triage
 

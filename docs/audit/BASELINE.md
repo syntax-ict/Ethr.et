@@ -5711,3 +5711,20 @@ No migration. Deploy is code only.
 - **A coverage gap**, found by `RegisterConsistencyTest` and since closed: five Decided payroll rules had neither a case nor an exemption.
 
 **What it does not prove.** Of the 89 rules the payroll cases cite, 40 are Decided, 37 Implemented and 12 Undecided. An Implemented row was written from the code, so agreement on it shows consistency with the code, never that the code is right: a behaviour wrong in law that was copied into the register passes the hand value, the oracle and the engine. No payslip signed by the accountant, and no real leave balance, has been compared. The cases and the register share one reading. 27 leave cases wait for a signature, so leave is not signed off. Calendar anchors: 28, 4 independent of the project, none before 1930. Robustness, mutation testing, restated figures and displayed figures are not built.
+
+### 25bw. Idempotency, races and restated figures, and the second accuracy session (2026-11-28)
+
+**Added** (tests, one manual CI job and documents; no application code): `api/tests/Feature/Idempotency/` (five test files and `findings.php`, IDEM-01 to IDEM-09); `api/tests/Concurrency/IdempotencyRaceTest.php`; `api/tests/Accuracy/Restated/`, which reads the payslip PDF, the timesheet grid, workbook and PDF, the bank file and the schedules and holds each against the engine, with `findings.php`; `.github/workflows/mutation.yml` and `./scripts/gates.sh mutation`, a manual job that has never run end to end. They join the generated attendance months and properties (#951) and the attendance fix (#952, §25bu). The report is [ACCURACY-REPORT-2026-11-28-session-1.md](ACCURACY-REPORT-2026-11-28-session-1.md).
+
+**Measured.** Session sheet of 2026-11-28 20:41 UTC, commit `195bb49708`, worktree clean, exit 0. Pest totals over the PHP suite: 751 passed, 3 incomplete, 38 skipped. Generated attendance months: seed 20261128, 70 months, 2131 employee-days, 3450 punches, 0 disagreements. Idempotency folder 25 passed; race tests 8 passed, 2 incomplete. Restated figures 10 passed, 3 incomplete. Strength was not run (the workflow is not on GitHub), nor the browser journeys (no stack), nor production (no saved session).
+
+**Two engine defects, found by the race tests and not fixed here.**
+- **IDEM-01.** Two `ProcessPayrollJob` handles on one run of 40 employees wrote 80 entries and a gross of 64000000 cents where one set is 32000000. No unique index on run and employee stops the second row.
+- **IDEM-02.** Two accrual runs over 30 balances left `entitled_days` at 1254 where one run credits 660, 27 balances over-credited. The same race recorded 1100 and 20 in an earlier run, and 1232 and 26 in a commit message: the count changes because a race does not land the same way twice.
+Whether either can happen in production is not established. A fix task is proposed for each.
+
+**One finding in three outputs.** The timesheet grand total of worked hours reads 150.9 on the grid, the workbook and the PDF where the ledger's 9050 minutes are 150.8 hours: the footer adds the rows after rounding each to one decimal. Every other column agrees. The owner decides which total is right. Seven further gaps (IDEM-03 to IDEM-09) are clients misled or repeated notices, not wrong figures.
+
+**Shown to fail.** The commit message of `0cc6eb54cf` records that the race tests for two payroll approvals, two leave decisions and identical leave requests each go red with their lock removed. Nothing else is claimed.
+
+**What it does not prove.** Every figure is a count of designed cases or generated inputs, with no interval. The generated run is attendance only and agrees with a second reading of one register. The punch race calls the engine directly, not through HTTP. Mutation testing, a generated payroll run, displayed-figure journeys and any comparison with signed figures do not exist, so real-world agreement is not measured for any engine.
