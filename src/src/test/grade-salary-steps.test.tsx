@@ -70,6 +70,28 @@ describe("<GradeSalaryStepsDialog>", () => {
     expect(screen.getByText("10,000.00 ETB")).toBeInTheDocument();
   });
 
+  it("deletes a step only after the question is confirmed", async () => {
+    let deleted = 0;
+    server.use(
+      http.get(STEPS_URL, () => HttpResponse.json([buildStep()])),
+      http.delete(`${STEPS_URL}/01HZSTEP00000000000000001`, () => {
+        deleted += 1;
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    renderDialog();
+    await screen.findByText("10,000.00 ETB");
+
+    await userEvent.click(screen.getByRole("button", { name: "Delete" }));
+    const confirm = (await screen.findAllByRole("dialog")).at(-1)!;
+    expect(deleted).toBe(0);
+    await userEvent.click(
+      within(confirm).getByRole("button", { name: "Delete step" }),
+    );
+
+    await waitFor(() => expect(deleted).toBe(1));
+  });
+
   it("adds a step with the typed step number and salary", async () => {
     let requestBody: unknown;
     server.use(

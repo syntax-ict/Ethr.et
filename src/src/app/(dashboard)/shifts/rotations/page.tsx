@@ -31,6 +31,7 @@ import { RoleGate } from "@/components/shared/role-gate";
 import { SimpleTable, TableRowActions } from "@/components/shared/simple-table";
 import { QueryBoundary } from "@/components/patterns";
 import { useT } from "@/lib/i18n/useT";
+import { useConfirm } from "@/components/shared/use-confirm";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useAssignableEmployees, useShifts } from "@/features/shifts/api";
@@ -75,6 +76,7 @@ const EMPTY_FORM: RotationForm = {
 
 export default function ShiftRotationsPage() {
   const { t } = useT();
+  const { requestConfirm, confirmDialog } = useConfirm();
   const { hasPermission } = usePermissions();
   // ShiftRotationPolicy::delete checks `shift.delete`, a tenant-admin grant;
   // HR admins reach this page but cannot delete, so they are not offered it.
@@ -171,7 +173,23 @@ export default function ShiftRotationsPage() {
     else create.mutate(payload, callbacks);
   }
 
-  function remove(rotation: ShiftRotation) {
+  async function remove(rotation: ShiftRotation) {
+    if (
+      !(await requestConfirm({
+        title: t(
+          "rotations_page.delete_confirm_title",
+          "Delete the rotation :name?",
+          { name: rotation.name },
+        ),
+        description: t(
+          "rotations_page.delete_confirm_description",
+          "The rotation is removed from the list. This cannot be undone.",
+        ),
+        confirmLabel: t("rotations_page.delete_confirm", "Delete rotation"),
+        variant: "destructive",
+      }))
+    )
+      return;
     destroy.mutate(rotation.public_id, {
       onSuccess: () =>
         toast.success(t("rotations_page.deleted", "Rotation deleted")),
@@ -445,6 +463,7 @@ export default function ShiftRotationsPage() {
         rotation={assigning}
         onClose={() => setAssigning(null)}
       />
+      {confirmDialog}
     </RoleGate>
   );
 }

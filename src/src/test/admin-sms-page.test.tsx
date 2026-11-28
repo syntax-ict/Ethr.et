@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
@@ -179,6 +179,28 @@ describe("SMS delivery page", () => {
     expect(
       await screen.findByText(/configured in the server's \.env file/i),
     ).toBeInTheDocument();
+  });
+
+  it("removes a gateway, and its stored credentials, only after the question is confirmed", async () => {
+    let removed = 0;
+    server.use(
+      http.get("*/api/v1/admin/sms", () => HttpResponse.json(state())),
+      http.delete("*/api/v1/admin/sms/gateways/primary", () => {
+        removed += 1;
+        return HttpResponse.json(state({ primary: null }));
+      }),
+    );
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(await screen.findByRole("button", { name: "Remove" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(removed).toBe(0);
+    await user.click(
+      within(dialog).getByRole("button", { name: "Remove gateway" }),
+    );
+
+    await waitFor(() => expect(removed).toBe(1));
   });
 
   it("shows the second gateway only when a route is chosen", async () => {

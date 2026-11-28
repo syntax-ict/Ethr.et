@@ -15,6 +15,7 @@ import {
 } from "@/features/auth/sessions-api";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
+import { useConfirm } from "@/components/shared/use-confirm";
 import { toast } from "sonner";
 import { apiErrorMessage } from "@/lib/api/error-message";
 
@@ -45,6 +46,7 @@ function formatWhen(
  */
 export function ActiveSessionsCard() {
   const { t } = useT();
+  const { requestConfirm, confirmDialog } = useConfirm();
   const { formatDateTime } = useDateFormatters();
   const { data, isLoading, isError, refetch } = useSessions();
   const revoke = useRevokeSession();
@@ -53,7 +55,60 @@ export function ActiveSessionsCard() {
   const sessions = data?.data ?? [];
   const others = sessions.filter((s) => !s.is_current).length;
 
-  function handleRevoke(id: number) {
+  async function handleRevokeAll() {
+    if (
+      !(await requestConfirm({
+        title: t(
+          "security_page.sign_out_others_confirm_title",
+          "Sign out all other sessions?",
+        ),
+        description: t(
+          "security_page.sign_out_others_confirm_description",
+          "Every other browser and device signed in to your account is signed out and has to sign in again. This session stays signed in.",
+        ),
+        confirmLabel: t(
+          "security_page.sign_out_others_confirm",
+          "Sign out other sessions",
+        ),
+        variant: "destructive",
+      }))
+    )
+      return;
+    revokeAll.mutate(undefined, {
+      onSuccess: (r) =>
+        toast.success(
+          t("security_page.sessions_revoked", "Other sessions signed out.") +
+            ` (${r.revoked})`,
+        ),
+      onError: (err) =>
+        toast.error(
+          apiErrorMessage(
+            err,
+            t(
+              "security_page.session_revoke_failed",
+              "Could not sign those sessions out.",
+            ),
+          ),
+        ),
+    });
+  }
+
+  async function handleRevoke(id: number) {
+    if (
+      !(await requestConfirm({
+        title: t(
+          "security_page.revoke_confirm_title",
+          "Sign this session out?",
+        ),
+        description: t(
+          "security_page.revoke_confirm_description",
+          "The browser or device using it is signed out and has to sign in again.",
+        ),
+        confirmLabel: t("security_page.revoke_confirm", "Sign out session"),
+        variant: "destructive",
+      }))
+    )
+      return;
     revoke.mutate(id, {
       onSuccess: () =>
         toast.success(
@@ -82,27 +137,7 @@ export function ActiveSessionsCard() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() =>
-              revokeAll.mutate(undefined, {
-                onSuccess: (r) =>
-                  toast.success(
-                    t(
-                      "security_page.sessions_revoked",
-                      "Other sessions signed out.",
-                    ) + ` (${r.revoked})`,
-                  ),
-                onError: (err) =>
-                  toast.error(
-                    apiErrorMessage(
-                      err,
-                      t(
-                        "security_page.session_revoke_failed",
-                        "Could not sign those sessions out.",
-                      ),
-                    ),
-                  ),
-              })
-            }
+            onClick={handleRevokeAll}
             disabled={revokeAll.isPending}
           >
             {revokeAll.isPending ? (
@@ -193,6 +228,7 @@ export function ActiveSessionsCard() {
           ))
         )}
       </CardContent>
+      {confirmDialog}
     </Card>
   );
 }
@@ -200,9 +236,47 @@ export function ActiveSessionsCard() {
 /** Browsers that skip this user's MFA prompt. */
 export function TrustedDevicesCard() {
   const { t } = useT();
+  const { requestConfirm, confirmDialog } = useConfirm();
   const { formatDateTime } = useDateFormatters();
   const { data, isLoading, isError, refetch } = useTrustedDevices();
   const revoke = useRevokeTrustedDevice();
+
+  async function handleRemove(id: number) {
+    if (
+      !(await requestConfirm({
+        title: t(
+          "security_page.device_remove_confirm_title",
+          "Remove this trusted device?",
+        ),
+        description: t(
+          "security_page.device_remove_confirm_description",
+          "A verification code will be asked for again the next time it signs in to your account.",
+        ),
+        confirmLabel: t("security_page.device_remove_confirm", "Remove device"),
+        variant: "destructive",
+      }))
+    )
+      return;
+    revoke.mutate(id, {
+      onSuccess: () =>
+        toast.success(
+          t(
+            "security_page.device_removed",
+            "Device removed. MFA will be required on it again.",
+          ),
+        ),
+      onError: (err) =>
+        toast.error(
+          apiErrorMessage(
+            err,
+            t(
+              "security_page.device_remove_failed",
+              "Could not remove that device.",
+            ),
+          ),
+        ),
+    });
+  }
 
   const devices = data?.data ?? [];
 
@@ -257,27 +331,7 @@ export function TrustedDevicesCard() {
                 variant="outline"
                 size="sm"
                 className="text-destructive hover:bg-destructive/10"
-                onClick={() =>
-                  revoke.mutate(device.id, {
-                    onSuccess: () =>
-                      toast.success(
-                        t(
-                          "security_page.device_removed",
-                          "Device removed. MFA will be required on it again.",
-                        ),
-                      ),
-                    onError: (err) =>
-                      toast.error(
-                        apiErrorMessage(
-                          err,
-                          t(
-                            "security_page.device_remove_failed",
-                            "Could not remove that device.",
-                          ),
-                        ),
-                      ),
-                  })
-                }
+                onClick={() => handleRemove(device.id)}
                 disabled={revoke.isPending}
               >
                 <Trash2 className="mr-1 h-3 w-3" />
@@ -287,6 +341,7 @@ export function TrustedDevicesCard() {
           ))
         )}
       </CardContent>
+      {confirmDialog}
     </Card>
   );
 }
