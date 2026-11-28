@@ -88,6 +88,7 @@
   "admin_console_page.marketing": "የግብይት ድረ ገጽ",
   "admin_console_page.mfa_required_body": "ይህ መለያ በመድረኩ ላይ ያለውን እያንዳንዱን ድርጅት ማግኘት ይችላል። ባለ ሁለት ደረጃ ማረጋገጫ እስኪነቃ ድረስ ኮንሶሉን ማየት ይችላሉ፤ ለውጥ ግን ማድረግ አይችሉም።",
   "admin_console_page.mfa_required_title": "ባለ ሁለት ደረጃ ማረጋገጫ ያስፈልጋል",
+  "admin_console_page.audit_needs_mfa": "የመድረኩ እንቅስቃሴ የሁሉንም ድርጅቶች ሰዎች ስለሚዘረዝር ለማንበብ ባለ ሁለት ደረጃ ማረጋገጫ ያስፈልጋል።",
   "admin_console_page.monthly_revenue_trend": "ወርሃዊ የገቢ አዝማሚያ",
   "admin_console_page.mrr": "ወርሃዊ ተደጋጋሚ ገቢ",
   "admin_console_page.no_recent_activity": "ምንም የቅርብ ጊዜ እንቅስቃሴ የለም",
