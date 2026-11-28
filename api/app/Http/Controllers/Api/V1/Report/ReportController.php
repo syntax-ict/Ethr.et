@@ -206,7 +206,7 @@ class ReportController extends Controller
     /** @param array<string, mixed> $result */
     private function exportXlsx(array $result, string $filename, ReaderDates $reader, ?string $note): Response
     {
-        $rows = $this->engine->presentable($result['data'], $reader, spreadsheet: true, numeric: true);
+        $rows = $this->engine->presentable($result['data'], $reader, spreadsheet: true, numeric: true, realDates: true);
         $sheet = Xlsx::table((string) __('report.sources.'.$result['source'], [], $reader->locale), $rows, $note);
 
         return response(Xlsx::render([$sheet]), 200, [
