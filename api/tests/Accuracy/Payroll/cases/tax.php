@@ -15,26 +15,26 @@ $tEx = fn (int $tax, int $ep, int $er, int $td, int $net): array => [
 ];
 
 $tWk = fn (string $b, string $d): array => [
-    'in_run = confirmed, salary '.$b.' > 0 = 1 (PYR-SAL-05, PYR-SAL-07)',
-    'monthly_basic = no history rows, so the salary on the record = '.$b.' (PYR-SAL-01)',
-    'days_in_period = start to end inclusive = '.$d.' (PYR-PER-01)',
-    'days_employed = hired 2020-01-01, before the period; no termination = '.$d.' (PYR-PRO-01)',
-    'period_basic = full_month, no Pagume day = monthly basic = '.$b.' (PYR-PAG-02)',
-    'prorated_basic = '.$b.' x '.$d.' / '.$d.' = '.$b.' (PYR-PRO-02)',
+    'in_run = confirmed, salary ' . $b . ' > 0 = 1 (PYR-SAL-05, PYR-SAL-07)',
+    'monthly_basic = no history rows, so the salary on the record = ' . $b . ' (PYR-SAL-01)',
+    'days_in_period = start to end inclusive = ' . $d . ' (PYR-PER-01)',
+    'days_employed = hired 2020-01-01, before the period; no termination = ' . $d . ' (PYR-PRO-01)',
+    'period_basic = full_month, no Pagume day = monthly basic = ' . $b . ' (PYR-PAG-02)',
+    'prorated_basic = ' . $b . ' x ' . $d . ' / ' . $d . ' = ' . $b . ' (PYR-PRO-02)',
     'lateness_step_logged = deductions switched off = 0 (PYR-LATE-01)',
-    'basic = '.$b.', no leave and no lateness (PYR-GROSS-01)',
-    'gross = '.$b.' + 0 + 0 = '.$b.' (PYR-GROSS-01)',
-    'taxable = '.$b.' - 0 = '.$b.' (PYR-GROSS-02)',
+    'basic = ' . $b . ', no leave and no lateness (PYR-GROSS-01)',
+    'gross = ' . $b . ' + 0 + 0 = ' . $b . ' (PYR-GROSS-01)',
+    'taxable = ' . $b . ' - 0 = ' . $b . ' (PYR-GROSS-02)',
     'pension_exempt = Ethiopian = 0 (PYR-PEN-15)',
-    'pensionable = basic = '.$b.' (PYR-PEN-03)',
+    'pensionable = basic = ' . $b . ' (PYR-PEN-03)',
 ];
 
 $tPw = fn (string $tax, string $ep, string $er, string $td, string $net): array => [
-    'income_tax = '.$tax,
-    'employee_pension = '.$ep,
-    'employer_pension = '.$er,
-    'total_deductions = '.$td,
-    'net = '.$net,
+    'income_tax = ' . $tax,
+    'employee_pension = ' . $ep,
+    'employer_pension = ' . $er,
+    'total_deductions = ' . $td,
+    'net = ' . $net,
 ];
 
 $oct = ['start' => '2026-10-01', 'end' => '2026-10-31', 'pagume_days' => 0, 'label' => 'October 2026'];
@@ -566,6 +566,99 @@ return [
                 '1,500,000 x 11 / 100 = 165,000 (PYR-PEN-05)',
                 '375,000 + 105,000 + 0 + 0 = 480,000 (PYR-NET-01)',
                 '1,500,000 - 480,000 = 1,020,000 (PYR-NET-01)'
+            )),
+        ],
+    ],
+    [
+        'id' => 'GP-TAX-015',
+        'rule' => ['PYR-TAX-01', 'PYR-TAX-03', 'PYR-ROUND-01', 'PYR-PEN-05'],
+        'source' => 'register',
+        'period' => $oct,
+        'employees' => [
+            'T1' => $tEmp(250001),
+            'T2' => $tEmp(250010),
+            'T3' => $tEmp(250004),
+            'T4' => $tEmp(800001),
+            'T5' => $tEmp(800002),
+            'T6' => $tEmp(800003),
+            'T7' => $tEmp(1500001),
+            'T8' => $tEmp(1500010),
+            'T9' => $tEmp(1500002),
+        ],
+        'expect' => [
+            'T1' => $tStd(250001, 31) + $tEx(7500, 17500, 27500, 25000, 225001),
+            'T2' => $tStd(250010, 31) + $tEx(7502, 17501, 27501, 25003, 225007),
+            'T3' => $tStd(250004, 31) + $tEx(7501, 17500, 27500, 25001, 225003),
+            'T4' => $tStd(800001, 31) + $tEx(115000, 56000, 88000, 171000, 629001),
+            'T5' => $tStd(800002, 31) + $tEx(115001, 56000, 88000, 171001, 629001),
+            'T6' => $tStd(800003, 31) + $tEx(115001, 56000, 88000, 171001, 629002),
+            'T7' => $tStd(1500001, 31) + $tEx(320000, 105000, 165000, 425000, 1075001),
+            'T8' => $tStd(1500010, 31) + $tEx(320004, 105001, 165001, 425005, 1075005),
+            'T9' => $tStd(1500002, 31) + $tEx(320001, 105000, 165000, 425001, 1075001),
+        ],
+        'working' => [
+            'T1' => array_merge($tWk('250,001', '31'), $tPw(
+                '250,001 is in 200,001 to 400,000: 250,001 x 15 / 100 = 37,500.15, fraction below half, rounded 37,500; less 30,000 = 7,500 (rounding up would give 7,501) (PYR-TAX-01, PYR-TAX-03, PYR-ROUND-01)',
+                '250,001 x 7 / 100 = 17,500.07, rounded 17,500 (PYR-PEN-05)',
+                '250,001 x 11 / 100 = 27,500.11, rounded 27,500 (PYR-PEN-05)',
+                '7,500 + 17,500 + 0 + 0 = 25,000 (PYR-NET-01)',
+                '250,001 - 25,000 = 225,001 (PYR-NET-01)'
+            )),
+            'T2' => array_merge($tWk('250,010', '31'), $tPw(
+                '250,010 is in 200,001 to 400,000: 250,010 x 15 / 100 = 37,501.5, exactly half, rounded away from zero 37,502; less 30,000 = 7,502 (rounding down would give 7,501) (PYR-TAX-01, PYR-TAX-03, PYR-ROUND-01)',
+                '250,010 x 7 / 100 = 17,500.7, rounded 17,501 (truncating would give 17,500) (PYR-PEN-05)',
+                '250,010 x 11 / 100 = 27,501.1, rounded 27,501 (PYR-PEN-05)',
+                '7,502 + 17,501 + 0 + 0 = 25,003 (PYR-NET-01)',
+                '250,010 - 25,003 = 225,007 (PYR-NET-01)'
+            )),
+            'T3' => array_merge($tWk('250,004', '31'), $tPw(
+                '250,004 is in 200,001 to 400,000: 250,004 x 15 / 100 = 37,500.6, fraction above half, rounded up 37,501; less 30,000 = 7,501 (truncating would give 7,500) (PYR-TAX-01, PYR-TAX-03, PYR-ROUND-01)',
+                '250,004 x 7 / 100 = 17,500.28, rounded 17,500 (PYR-PEN-05)',
+                '250,004 x 11 / 100 = 27,500.44, rounded 27,500 (PYR-PEN-05)',
+                '7,501 + 17,500 + 0 + 0 = 25,001 (PYR-NET-01)',
+                '250,004 - 25,001 = 225,003 (PYR-NET-01)'
+            )),
+            'T4' => array_merge($tWk('800,001', '31'), $tPw(
+                '800,001 is in 700,001 to 1,000,000: 800,001 x 25 / 100 = 200,000.25, below half, rounded 200,000; less 85,000 = 115,000 (rounding up would give 115,001) (PYR-TAX-01, PYR-TAX-03, PYR-ROUND-01)',
+                '800,001 x 7 / 100 = 56,000.07, rounded 56,000 (PYR-PEN-05)',
+                '800,001 x 11 / 100 = 88,000.11, rounded 88,000 (PYR-PEN-05)',
+                '115,000 + 56,000 + 0 + 0 = 171,000 (PYR-NET-01)',
+                '800,001 - 171,000 = 629,001 (PYR-NET-01)'
+            )),
+            'T5' => array_merge($tWk('800,002', '31'), $tPw(
+                '800,002 is in 700,001 to 1,000,000: 800,002 x 25 / 100 = 200,000.5, exactly half, rounded away from zero 200,001; less 85,000 = 115,001 (rounding down would give 115,000) (PYR-TAX-01, PYR-TAX-03, PYR-ROUND-01)',
+                '800,002 x 7 / 100 = 56,000.14, rounded 56,000 (PYR-PEN-05)',
+                '800,002 x 11 / 100 = 88,000.22, rounded 88,000 (PYR-PEN-05)',
+                '115,001 + 56,000 + 0 + 0 = 171,001 (PYR-NET-01)',
+                '800,002 - 171,001 = 629,001 (PYR-NET-01)'
+            )),
+            'T6' => array_merge($tWk('800,003', '31'), $tPw(
+                '800,003 is in 700,001 to 1,000,000: 800,003 x 25 / 100 = 200,000.75, above half, rounded 200,001; less 85,000 = 115,001 (truncating would give 115,000) (PYR-TAX-01, PYR-TAX-03, PYR-ROUND-01)',
+                '800,003 x 7 / 100 = 56,000.21, rounded 56,000 (PYR-PEN-05)',
+                '800,003 x 11 / 100 = 88,000.33, rounded 88,000 (PYR-PEN-05)',
+                '115,001 + 56,000 + 0 + 0 = 171,001 (PYR-NET-01)',
+                '800,003 - 171,001 = 629,002 (PYR-NET-01)'
+            )),
+            'T7' => array_merge($tWk('1,500,001', '31'), $tPw(
+                '1,500,001 is in 1,400,001 and over: 1,500,001 x 35 / 100 = 525,000.35, below half, rounded 525,000; less 205,000 = 320,000 (rounding up would give 320,001) (PYR-TAX-01, PYR-TAX-03, PYR-ROUND-01)',
+                '1,500,001 x 7 / 100 = 105,000.07, rounded 105,000 (PYR-PEN-05)',
+                '1,500,001 x 11 / 100 = 165,000.11, rounded 165,000 (PYR-PEN-05)',
+                '320,000 + 105,000 + 0 + 0 = 425,000 (PYR-NET-01)',
+                '1,500,001 - 425,000 = 1,075,001 (PYR-NET-01)'
+            )),
+            'T8' => array_merge($tWk('1,500,010', '31'), $tPw(
+                '1,500,010 is in 1,400,001 and over: 1,500,010 x 35 / 100 = 525,003.5, exactly half, rounded away from zero 525,004; less 205,000 = 320,004 (rounding down would give 320,003) (PYR-TAX-01, PYR-TAX-03, PYR-ROUND-01)',
+                '1,500,010 x 7 / 100 = 105,000.7, rounded 105,001 (truncating would give 105,000) (PYR-PEN-05)',
+                '1,500,010 x 11 / 100 = 165,001.1, rounded 165,001 (PYR-PEN-05)',
+                '320,004 + 105,001 + 0 + 0 = 425,005 (PYR-NET-01)',
+                '1,500,010 - 425,005 = 1,075,005 (PYR-NET-01)'
+            )),
+            'T9' => array_merge($tWk('1,500,002', '31'), $tPw(
+                '1,500,002 is in 1,400,001 and over: 1,500,002 x 35 / 100 = 525,000.7, above half, rounded 525,001; less 205,000 = 320,001 (truncating would give 320,000) (PYR-TAX-01, PYR-TAX-03, PYR-ROUND-01)',
+                '1,500,002 x 7 / 100 = 105,000.14, rounded 105,000 (PYR-PEN-05)',
+                '1,500,002 x 11 / 100 = 165,000.22, rounded 165,000 (PYR-PEN-05)',
+                '320,001 + 105,000 + 0 + 0 = 425,001 (PYR-NET-01)',
+                '1,500,002 - 425,001 = 1,075,001 (PYR-NET-01)'
             )),
         ],
     ],

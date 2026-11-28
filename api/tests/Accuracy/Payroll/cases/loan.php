@@ -356,4 +356,67 @@ return [
             ],
         ],
     ],
+
+    // GP-LOAN-006: the last instalment with remaining one cent below, equal to and one cent above the instalment
+    [
+        'id' => 'GP-LOAN-006',
+        'rule' => ['PYR-LOAN-01', 'PYR-NET-01'],
+        'source' => '07 LOAN-005',
+        'period' => ['start' => '2026-10-01', 'end' => '2026-10-31', 'pagume_days' => 0, 'label' => 'October 2026'],
+        'org' => ['lateness_deductions' => false],
+        'employees' => [
+            'A' => [
+                'status' => 'confirmed', 'hire_date' => '2025-01-01', 'termination_date' => null, 'salary_cents' => 880000,
+                'loans' => ['L1' => ['instalment_cents' => 40000, 'remaining_cents' => 39999, 'status' => 'active']],
+            ],
+            'B' => [
+                'status' => 'confirmed', 'hire_date' => '2025-01-01', 'termination_date' => null, 'salary_cents' => 880000,
+                'loans' => ['L1' => ['instalment_cents' => 40000, 'remaining_cents' => 40000, 'status' => 'active']],
+            ],
+            'C' => [
+                'status' => 'confirmed', 'hire_date' => '2025-01-01', 'termination_date' => null, 'salary_cents' => 880000,
+                'loans' => ['L1' => ['instalment_cents' => 40000, 'remaining_cents' => 40001, 'status' => 'active']],
+            ],
+        ],
+        'expect' => [
+            'A' => ['in_run' => 1, 'gross' => 880000, 'income_tax' => 135000, 'employee_pension' => 61600, 'loan.L1' => 39999, 'loan.L1.remaining_after' => 0, 'loans' => 39999, 'total_deductions' => 236599, 'net' => 643401],
+            'B' => ['in_run' => 1, 'gross' => 880000, 'income_tax' => 135000, 'employee_pension' => 61600, 'loan.L1' => 40000, 'loan.L1.remaining_after' => 0, 'loans' => 40000, 'total_deductions' => 236600, 'net' => 643400],
+            'C' => ['in_run' => 1, 'gross' => 880000, 'income_tax' => 135000, 'employee_pension' => 61600, 'loan.L1' => 40000, 'loan.L1.remaining_after' => 1, 'loans' => 40000, 'total_deductions' => 236600, 'net' => 643400],
+        ],
+        'working' => [
+            'A' => [
+                'in_run = 1 (PYR-SAL-04)',
+                'gross = 880,000 (PYR-GROSS-01)',
+                'income_tax = 880,000 x 25 / 100 = 220,000; less 85,000 = 135,000 (PYR-TAX-01, PYR-TAX-03)',
+                'employee_pension = 880,000 x 7 / 100 = 61,600 (PYR-PEN-05)',
+                'loan.L1 = max(0, min(40,000, 39,999)) = 39,999; taking the instalment 40,000 would be wrong (PYR-LOAN-01)',
+                'loan.L1.remaining_after = 39,999 - 39,999 = 0 (PYR-LOAN-01)',
+                'loans = 39,999 (PYR-LOAN-01)',
+                'total_deductions = 135,000 + 61,600 + 39,999 + 0 = 236,599 (PYR-NET-01)',
+                'net = 880,000 - 236,599 = 643,401 (PYR-NET-01)',
+            ],
+            'B' => [
+                'in_run = 1 (PYR-SAL-04)',
+                'gross = 880,000 (PYR-GROSS-01)',
+                'income_tax = 135,000 (PYR-TAX-01, PYR-TAX-03)',
+                'employee_pension = 61,600 (PYR-PEN-05)',
+                'loan.L1 = min(40,000, 40,000) = 40,000 (PYR-LOAN-01)',
+                'loan.L1.remaining_after = 40,000 - 40,000 = 0 (PYR-LOAN-01)',
+                'loans = 40,000 (PYR-LOAN-01)',
+                'total_deductions = 135,000 + 61,600 + 40,000 + 0 = 236,600 (PYR-NET-01)',
+                'net = 880,000 - 236,600 = 643,400 (PYR-NET-01)',
+            ],
+            'C' => [
+                'in_run = 1 (PYR-SAL-04)',
+                'gross = 880,000 (PYR-GROSS-01)',
+                'income_tax = 135,000 (PYR-TAX-01, PYR-TAX-03)',
+                'employee_pension = 61,600 (PYR-PEN-05)',
+                'loan.L1 = min(40,000, 40,001) = 40,000; deducting the remaining 40,001 would be wrong (PYR-LOAN-01)',
+                'loan.L1.remaining_after = 40,001 - 40,000 = 1 (PYR-LOAN-01)',
+                'loans = 40,000 (PYR-LOAN-01)',
+                'total_deductions = 135,000 + 61,600 + 40,000 + 0 = 236,600 (PYR-NET-01)',
+                'net = 880,000 - 236,600 = 643,400 (PYR-NET-01)',
+            ],
+        ],
+    ],
 ];
