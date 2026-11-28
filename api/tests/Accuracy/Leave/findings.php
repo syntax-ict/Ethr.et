@@ -13,5 +13,5 @@ declare(strict_types=1);
  */
 
 return [
-    'GL-DAYS-013' => 'a holiday recorded as recurring is matched on its exact date only: LeaveDayCalculator::chargedDates() charged Wed 2026-01-07, so Mon 5 to Fri 9 January 2026 came to 5 days, not 4 (register points 13)',
+    'GL-REQ-020' => 'LVR-DAYS-10 (b) says Labour Day makes Mon 2028-05-01 to Fri 2028-05-05 charge 4; the engine charged 3: the roll-forward also creates Ethiopian Patriots Day on Fri 2028-05-05 (a statutory holiday), which the register example does not mention. Probable wrong register example, not an engine defect.',
 ];

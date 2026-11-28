@@ -23,9 +23,10 @@ $d = fn (string $id, array|string $rule, string $source, array $span, array $wor
 
 return [
     // The register's own worked example.
-    $d('GL-DAYS-001', 'LVR-DAYS-01', 'register', ['2025-01-06', '2025-01-10'], [
+    $d('GL-DAYS-001', ['LVR-DAYS-01', 'LVR-DAYS-03'], 'register', ['2025-01-06', '2025-01-10'], [
         'Mon 6 to Fri 10 January 2025: 5 weekdays',
         'holiday on Wed 8 January: 5 - 1 = 4',
+        'LVR-DAYS-03: no half days, every charged day counts 1, so the count is a whole number',
     ], ['days' => 4, 'dates' => ['2025-01-06', '2025-01-07', '2025-01-09', '2025-01-10']], [
         'org' => ['holidays' => [['date' => '2025-01-08']]],
     ]),
@@ -98,12 +99,17 @@ return [
     ], ['days' => 5, 'dates' => ['2025-01-06', '2025-01-07', '2025-01-08', '2025-01-09', '2025-01-10']], [
         'org' => ['holidays' => [['date' => '2025-01-08', 'active' => false]]],
     ]),
-    $d('GL-DAYS-013', 'LVR-DAYS-01', 'register points 13', ['2026-01-05', '2026-01-09'], [
-        'the register does not define "recurring"; read here as the same Gregorian date every year',
-        'a holiday recorded as recurring on 7 January (Genna), first entered in 2024',
-        'Mon 5 to Fri 9 January 2026: 5 weekdays; Wed 7 January 2026 is that holiday: 5 - 1 = 4',
+    $d('GL-DAYS-013', 'LVR-DAYS-08', 'register points 13, then LVR-DAYS-08', ['2026-01-05', '2026-01-09'], [
+        'first typed as 4 on the writer\'s own reading of "recurring"; the register then stated the rule, LVR-DAYS-08: that typing is withdrawn, not a finding',
+        'LVR-DAYS-08: a holiday lowers the days charged only where an active row exists for that exact date; "recurring" is not read when days are counted',
+        'a holiday recorded as recurring on 7 January 2025, with no row for 7 January 2026: Mon 5 to Fri 9 January 2026 stays at 5 days',
+    ], ['days' => 5, 'dates' => ['2026-01-05', '2026-01-06', '2026-01-07', '2026-01-08', '2026-01-09']], [
+        'org' => ['holidays' => [['date' => '2025-01-07', 'recurring' => true]]],
+    ]),
+    $d('GL-DAYS-019', 'LVR-DAYS-08', 'register', ['2026-01-05', '2026-01-09'], [
+        'the same holiday with its 2026 row (7 January 2026, a Wednesday): 5 - 1 = 4',
     ], ['days' => 4, 'dates' => ['2026-01-05', '2026-01-06', '2026-01-08', '2026-01-09']], [
-        'org' => ['holidays' => [['date' => '2024-01-07', 'recurring' => true]]],
+        'org' => ['holidays' => [['date' => '2025-01-07', 'recurring' => true], ['date' => '2026-01-07', 'recurring' => true]]],
     ]),
     $d('GL-DAYS-014', 'LVR-DAYS-01', 'register', ['2025-01-06', '2025-01-10'], [
         'holidays on the first and the last day of the span (Mon 6, Fri 10): 5 - 2 = 3',
@@ -132,14 +138,70 @@ return [
     ], ['days' => 10, 'dates' => [
         '2026-12-28', '2026-12-29', '2026-12-30', '2026-12-31', '2027-01-01',
         '2027-01-04', '2027-01-05', '2027-01-06', '2027-01-07', '2027-01-08',
-    ]], ['type' => ['code' => 'annual'], 'signed' => null, 'waiting' => '2', 'readings' => ['A' => ['days' => 10], 'B' => ['days' => 12]]]),
+    ]], ['type' => ['code' => 'annual'], 'signed' => null, 'waits_on' => '2', 'readings' => ['A' => ['days' => 10], 'B' => ['days' => 12]]]),
     $d('GL-DAYS-018', ['LVR-DAYS-01'], 'register, waiting item 20', ['2027-03-01', '2027-03-05'], [
         'annual leave Mon 2027-03-01 to Fri 2027-03-05, Adwa recorded on Tue 2 March',
         'reading A (the code): 5 - 1 = 4. Reading B: the holiday is charged, 5',
     ], ['days' => 4, 'dates' => ['2027-03-01', '2027-03-03', '2027-03-04', '2027-03-05']], [
         'org' => ['holidays' => [['date' => '2027-03-02']]],
         'type' => ['code' => 'annual'],
-        'signed' => null, 'waiting' => '20',
+        'signed' => null, 'waits_on' => '20',
         'readings' => ['A' => ['days' => 4], 'B' => ['days' => 5]],
+    ]),
+    $d('GL-DAYS-020', 'LVR-DAYS-09', 'register', ['2027-06-07', '2027-06-11'], [
+        'an own holiday marked recurring with a 2026 row (Wed 10 June 2026) is copied by the 1 December 2026 run to Thu 10 June 2027',
+        'Mon 7 to Fri 11 June 2027: 5 - 1 = 4',
+    ], ['days' => 4, 'dates' => ['2027-06-07', '2027-06-08', '2027-06-09', '2027-06-11']], [
+        'org' => ['holidays' => [['date' => '2026-06-10', 'recurring' => true]]],
+        'act' => [['do' => 'roll_forward', 'at' => '2026-12-01 01:30']],
+    ]),
+    $d('GL-DAYS-021', 'LVR-DAYS-09', 'register', ['2027-06-07', '2027-06-11'], [
+        'only the year before is copied: an own recurring holiday with a 2025 row only reaches 2027 through a 2026 row, and there is none',
+        "the 1 December 2026 run creates 2027's rows; Mon 7 to Fri 11 June 2027 has no row on the 10th: 5",
+    ], ['days' => 5, 'dates' => ['2027-06-07', '2027-06-08', '2027-06-09', '2027-06-10', '2027-06-11']], [
+        'org' => ['holidays' => [['date' => '2025-06-10', 'recurring' => true]]],
+        'act' => [['do' => 'roll_forward', 'at' => '2026-12-01 01:30']],
+    ]),
+    $d('GL-DAYS-022', 'LVR-DAYS-09', 'register', ['2026-06-08', '2026-06-12'], [
+        "the run creates next calendar year's rows, never the current year: a 2025 recurring row, run on 1 December 2026, leaves 2026 as it was",
+        'Mon 8 to Fri 12 June 2026: 5',
+    ], ['days' => 5, 'dates' => ['2026-06-08', '2026-06-09', '2026-06-10', '2026-06-11', '2026-06-12']], [
+        'org' => ['holidays' => [['date' => '2025-06-10', 'recurring' => true]]],
+        'act' => [['do' => 'roll_forward', 'at' => '2026-12-01 01:30']],
+    ]),
+    $d('GL-DAYS-023', 'LVR-DAYS-09', 'register', ['2027-06-07', '2027-06-11'], [
+        'a repeat changes nothing: the run is made twice on 1 December 2026 (Wed 10 June 2026, recurring)',
+        'Mon 7 to Fri 11 June 2027: 4 after both runs',
+    ], ['days' => 4, 'dates' => ['2027-06-07', '2027-06-08', '2027-06-09', '2027-06-11']], [
+        'org' => ['holidays' => [['date' => '2026-06-10', 'recurring' => true]]],
+        'act' => [['do' => 'roll_forward', 'at' => '2026-12-01 01:30'], ['do' => 'roll_forward', 'at' => '2026-12-01 01:30']],
+    ]),
+    $d('GL-DAYS-024', 'LVR-DAYS-09', 'register', ['2027-06-07', '2027-06-11'], [
+        'a holiday not marked recurring is not copied (Wed 10 June 2026)',
+        'Mon 7 to Fri 11 June 2027: 5',
+    ], ['days' => 5, 'dates' => ['2027-06-07', '2027-06-08', '2027-06-09', '2027-06-10', '2027-06-11']], [
+        'org' => ['holidays' => [['date' => '2026-06-10', 'recurring' => false]]],
+        'act' => [['do' => 'roll_forward', 'at' => '2026-12-01 01:30']],
+    ]),
+    $d('GL-DAYS-025', 'LVR-DAYS-09', 'register', ['2027-06-07', '2027-06-11'], [
+        'an own holiday on the Ethiopian calendar is not copied (Wed 10 June 2026, recurring)',
+        'Mon 7 to Fri 11 June 2027: 5',
+    ], ['days' => 5, 'dates' => ['2027-06-07', '2027-06-08', '2027-06-09', '2027-06-10', '2027-06-11']], [
+        'org' => ['holidays' => [['date' => '2026-06-10', 'recurring' => true, 'ethiopian' => true]]],
+        'act' => [['do' => 'roll_forward', 'at' => '2026-12-01 01:30']],
+    ]),
+    $d('GL-DAYS-026', 'LVR-DAYS-09', 'register', ['2027-06-07', '2027-06-11'], [
+        "a copy keeps its branch: the other branch's recurring holiday (Wed 10 June 2026) is copied for that branch only",
+        'Mon 7 to Fri 11 June 2027 for a person of the own branch: 5',
+    ], ['days' => 5, 'dates' => ['2027-06-07', '2027-06-08', '2027-06-09', '2027-06-10', '2027-06-11']], [
+        'org' => ['holidays' => [['date' => '2026-06-10', 'recurring' => true, 'branch' => 'other']]],
+        'act' => [['do' => 'roll_forward', 'at' => '2026-12-01 01:30']],
+    ]),
+    $d('GL-DAYS-027', 'LVR-DAYS-09', 'register', ['2027-06-07', '2027-06-11'], [
+        "a copy keeps its branch: the person's own branch holiday (Wed 10 June 2026, recurring) is copied for that branch",
+        'Mon 7 to Fri 11 June 2027: 5 - 1 = 4',
+    ], ['days' => 4, 'dates' => ['2027-06-07', '2027-06-08', '2027-06-09', '2027-06-11']], [
+        'org' => ['holidays' => [['date' => '2026-06-10', 'recurring' => true, 'branch' => 'own']]],
+        'act' => [['do' => 'roll_forward', 'at' => '2026-12-01 01:30']],
     ]),
 ];

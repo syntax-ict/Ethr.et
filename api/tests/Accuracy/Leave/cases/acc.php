@@ -60,7 +60,7 @@ return [
         'reading B: complete months only, 3: 4.0. Reading C: by days, 92 of 365: 4.03 -> 4.0',
     ], [$acc('2026-06-01')], [$ent(2026, 53)], [
         'employee' => ['hire_date' => '2026-03-31'],
-        'signed' => null, 'waiting' => '8',
+        'signed' => null, 'waits_on' => '8',
         'readings' => ['A' => ['after' => [$ent(2026, 53)]], 'B' => ['after' => [$ent(2026, 40)]], 'C' => ['after' => [$ent(2026, 40)]]],
     ]),
 
@@ -75,7 +75,7 @@ return [
         'reading B (complete months) would count January only; the register does not give its number',
     ], [$acc('2026-09-01')], [$ent(2026, 27)], [
         'employee' => ['hire_date' => '2026-01-01', 'termination_date' => '2026-02-20'],
-        'signed' => null, 'waiting' => '8',
+        'signed' => null, 'waits_on' => '8',
     ]),
 
     $c('GL-ACC-008', ['LVR-ACC-04', 'LVR-ACC-05', 'LVR-YEAR-04'], 'register, waiting item 8', [
@@ -84,7 +84,7 @@ return [
     ], [$acc('2026-09-01')], [$ent(2018, 40)], [
         'org' => ['leave_year' => 'ethiopian'],
         'employee' => ['hire_date' => '2026-01-01', 'termination_date' => '2026-02-20'],
-        'signed' => null, 'waiting' => '8',
+        'signed' => null, 'waits_on' => '8',
     ]),
 
     $c('GL-ACC-009', ['LVR-YEAR-02', 'LVR-YEAR-04', 'LVR-ACC-01'], 'register', [
@@ -105,7 +105,7 @@ return [
     ], [$acc('2026-09-06'), $acc('2026-09-11')], [
         $ent(2018, 13),
         ['balance' => [2019 => ['entitled_tenths' => 13], 2018 => ['entitled_tenths' => 13]]],
-    ], ['org' => ['leave_year' => 'ethiopian'], 'employee' => ['hire_date' => '2026-09-06'], 'signed' => null, 'waiting' => '8']),
+    ], ['org' => ['leave_year' => 'ethiopian'], 'employee' => ['hire_date' => '2026-09-06'], 'signed' => null, 'waits_on' => '8']),
 
     $c('GL-ACC-024', ['LVR-YEAR-02', 'LVR-YEAR-04', 'LVR-ACC-01'], 'register', [
         'hired 2026-09-06 (Ethiopian year 2018), read on 2026-09-11, Meskerem 1 of year 2019',
@@ -119,7 +119,7 @@ return [
         'reading A (the code): 1 month = 1.3',
     ], [$acc('2026-09-08')], [$ent(2018, 13)], [
         'org' => ['leave_year' => 'ethiopian'], 'employee' => ['hire_date' => '2026-09-07'],
-        'signed' => null, 'waiting' => '8',
+        'signed' => null, 'waits_on' => '8',
     ]),
 
     $c('GL-ACC-012', ['LVR-ACC-08'], 'register', [
@@ -135,7 +135,7 @@ return [
     ], [$acc('2026-06-01')], [$ent(2026, 300)], [
         'type' => ['default_days' => 30, 'accrual' => 'annual'],
         'employee' => ['hire_date' => '2026-06-01'],
-        'signed' => null, 'waiting' => '8',
+        'signed' => null, 'waits_on' => '8',
     ]),
 
     $c('GL-ACC-014', ['LVR-ACC-07', 'LVR-ENT-03'], 'register, waiting items 1 and 7', [
@@ -148,7 +148,7 @@ return [
     ], [$acc('2026-02-01'), $acc('2026-03-01'), $acc('2026-12-01')], [$ent(2026, 27), $ent(2026, 43), $ent(2026, 170)], [
         'type' => ['default_days' => 16, 'seniority_every_years' => 2, 'seniority_extra_days' => 1],
         'employee' => ['hire_date' => '2024-03-15'],
-        'signed' => null, 'waiting' => '1, 7',
+        'signed' => null, 'waits_on' => '1, 7',
         'readings' => ['B' => ['after' => [$ent(2026, 27), null, $ent(2026, 168)]]],
     ]),
 
@@ -159,7 +159,7 @@ return [
     ], [$acc('2026-01-01'), $acc('2027-01-01')], [$ent(2026, 160), $ent(2027, 170)], [
         'type' => ['default_days' => 16, 'accrual' => 'annual', 'seniority_every_years' => 2, 'seniority_extra_days' => 1],
         'employee' => ['hire_date' => '2024-03-15'],
-        'signed' => null, 'waiting' => '1, 7',
+        'signed' => null, 'waits_on' => '1, 7',
     ]),
 
     $c('GL-ACC-016', ['LVR-ACC-03', 'LVR-ACC-06'], 'register', [

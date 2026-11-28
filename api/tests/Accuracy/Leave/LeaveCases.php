@@ -39,12 +39,12 @@ final class LeaveCases
             'hire_date' => '2020-01-01', 'termination_date' => null, 'gender' => 'male',
             'shift' => null, 'rotation' => null, 'assignments' => null,
         ],
-        'holiday' => ['branch' => null, 'recurring' => false, 'active' => true],
+        'holiday' => ['branch' => null, 'recurring' => false, 'active' => true, 'ethiopian' => false],
         'now' => '2026-12-01 09:00',
     ];
 
     private const KEYS = [
-        'id', 'rule', 'source', 'working', 'undecided', 'signed', 'waiting', 'readings', 'ruling',
+        'id', 'rule', 'source', 'working', 'undecided', 'signed', 'waits_on', 'readings', 'ruling',
         'org', 'type', 'employee', 'balances', 'requests', 'act', 'now', 'expect',
         'span', 'as_of', 'date', 'pay_period',
     ];
@@ -180,20 +180,20 @@ final class LeaveCases
             }
         }
         if (array_key_exists('signed', $case) && $case['signed'] !== null) {
-            if (! isset($case['waiting'])) {
+            if (! isset($case['waits_on'])) {
                 $fail('a signed case names the item it waited on');
             }
             if (! is_string($case['signed']) || trim($case['signed']) === '') {
                 $fail('signed is null or "<date>, <role>, sign-off row <n>"');
             }
         }
-        if (array_key_exists('signed', $case) && ! isset($case['waiting'])) {
-            $fail('signed without waiting');
+        if (array_key_exists('signed', $case) && ! isset($case['waits_on'])) {
+            $fail('signed without waits_on');
         }
-        if (isset($case['waiting']) && ! array_key_exists('signed', $case)) {
-            $fail('waiting without signed (use signed => null)');
+        if (isset($case['waits_on']) && ! array_key_exists('signed', $case)) {
+            $fail('waits_on without signed (use signed => null)');
         }
-        if (($case['undecided'] ?? false) && isset($case['waiting'])) {
+        if (($case['undecided'] ?? false) && isset($case['waits_on'])) {
             $fail('a case is undecided or waiting for a signature, not both');
         }
 
@@ -230,7 +230,7 @@ final class LeaveCases
             }
         }
         foreach ($case['act'] ?? [] as $act) {
-            if (! in_array($act['do'] ?? null, ['accrue', 'carry', 'terminate', 'file', 'approve', 'reject', 'cancel', 'recall', 'add_holiday'], true)) {
+            if (! in_array($act['do'] ?? null, ['accrue', 'carry', 'terminate', 'file', 'approve', 'reject', 'cancel', 'recall', 'add_holiday', 'roll_forward'], true)) {
                 $fail('unknown act '.json_encode($act));
             }
         }

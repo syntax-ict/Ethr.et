@@ -87,6 +87,9 @@ final class LeaveRunner
     {
         [$from, $to] = $case['span'];
         $employee = $ctx['employee'];
+        foreach ($case['act'] as $act) {
+            LeaveFixture::act($ctx, $act);
+        }
 
         if ($case['type']['counts_calendar_days']) {
             // A calendar-days type is counted where a request is filed, not by the day calculator.
@@ -105,7 +108,11 @@ final class LeaveRunner
             $dates = app(SickLeaveTiers::class)->datesBetween($employee, $ctx['type'], Carbon::parse($from), Carbon::parse($to));
         } else {
             $calculator = app(LeaveDayCalculator::class);
-            $days = (int) round($calculator->calculateDays(Carbon::parse($from), Carbon::parse($to), $ctx['tenant']->id, $employee->branch_id, $employee));
+            $raw = $calculator->calculateDays(Carbon::parse($from), Carbon::parse($to), $ctx['tenant']->id, $employee->branch_id, $employee);
+            if ($raw !== (float) round($raw)) {
+                $say('days charged is a whole number', (float) round($raw), $raw);
+            }
+            $days = (int) round($raw);
             $dates = $calculator->chargedDates(Carbon::parse($from), Carbon::parse($to), $ctx['tenant']->id, $employee->branch_id, $employee);
         }
 
@@ -186,7 +193,7 @@ final class LeaveRunner
     private static function acts(array $ctx, array $case, array $expect, \Closure $say): void
     {
         if (isset($expect['initial'])) {
-            self::check($ctx, $expect['initial'], ['refused' => false, 'kept_days' => null], 'before any act', $say);
+            self::check($ctx, $expect['initial'], ['refused' => false, 'kept_days' => null, 'status' => null], 'before any act', $say);
         }
 
         foreach ($case['act'] as $i => $act) {
@@ -208,6 +215,9 @@ final class LeaveRunner
     {
         if (array_key_exists('refused', $want) && $want['refused'] !== $result['refused']) {
             $say("{$label}: refused", $want['refused'], $result['refused']);
+        }
+        if (array_key_exists('status', $want) && $want['status'] !== $result['status']) {
+            $say("{$label}: HTTP status", $want['status'], $result['status']);
         }
         if (array_key_exists('kept_days', $want) && (float) $want['kept_days'] !== (float) $result['kept_days']) {
             $say("{$label}: kept days", $want['kept_days'], $result['kept_days']);

@@ -64,13 +64,24 @@ return [
         'the new last day must be BEFORE the current last day: ending on Friday 2026-12-11 is refused',
         'used stays 5',
     ], [$end('2026-12-11')], [
-        ['refused' => true, 'balance' => [2026 => ['used_tenths' => 50]]],
+        ['refused' => true, 'status' => 422, 'balance' => [2026 => ['used_tenths' => 50]]],
     ]),
 
     $c('GL-RECALL-006', 'LVR-RECALL-02', 'register', [
         'the new last day must be on or after the first day: ending on Sunday 2026-12-06 is refused',
         'used stays 5',
     ], [$end('2026-12-06')], [
-        ['refused' => true, 'balance' => [2026 => ['used_tenths' => 50]]],
+        ['refused' => true, 'status' => 422, 'balance' => [2026 => ['used_tenths' => 50]]],
+    ]),
+
+    $c('GL-RECALL-007', ['LVR-RECALL-04', 'LVR-DAYS-05', 'LVR-RECALL-01'], 'register', [
+        'an approved request Mon 2026-12-28 to Fri 2027-01-08, stored 10 and charged to the year it starts in (2026)',
+        'HR cancels it: the 10 days go back to the 2026 balance, not 2027: 2026 used 10 - 10 = 0, 2027 used stays 0',
+    ], [['do' => 'cancel', 'key' => 'R1', 'by' => 'hr']], [
+        ['refused' => false, 'requests' => ['R1' => ['status' => 'cancelled']], 'balance' => [2026 => ['used_tenths' => 0, 'remaining_tenths' => 160], 2027 => ['used_tenths' => 0]]],
+    ], [
+        'undecided' => true,
+        'balances' => [['year' => 2026, 'entitled_tenths' => 160, 'used_tenths' => 100, 'carried_tenths' => 0, 'pending_tenths' => 0]],
+        'requests' => [['key' => 'R1', 'from' => '2026-12-28', 'to' => '2027-01-08', 'days' => 10, 'status' => 'approved']],
     ]),
 ];

@@ -5,7 +5,9 @@ declare(strict_types=1);
 /*
  * Yearly entitlement (LVR-ENT-01, LVR-ENT-03, LVR-ENT-04, LVR-ENT-08). DATA ONLY.
  *
- * Built on the type's OWN values (default 16, one more day for every 2
+ * Every case here cites LVR-ENT-01, whose value is LVR-ENT-02 (Undecided, legal, item 2), so the
+ * register ("How to read a row") has them reported as waiting; they are typed now and assert on
+ * the day item 2 is signed. Built on the type's OWN values (default 16, one more day for every 2
  * completed years), never on the statutory ones, so a case isolates the
  * arithmetic from LVR-ENT-02. LVR-ENT-03 is ruled only where its two readings
  * agree: 1, 3 and 5 completed years. At 2 and 4 the readings differ and the
@@ -26,24 +28,24 @@ $e = fn (string $id, array|string $rule, string $source, ?string $hire, string $
     ...$extra,
 ];
 
-$waitItem1 = fn (int $a, int $b): array => ['signed' => null, 'waiting' => '1', 'readings' => ['A' => ['entitlement_tenths' => $a], 'B' => ['entitlement_tenths' => $b]]];
+$waitItem1 = fn (int $a, int $b): array => ['signed' => null, 'waits_on' => '1', 'readings' => ['A' => ['entitlement_tenths' => $a], 'B' => ['entitlement_tenths' => $b]]];
 
 return [
     $e('GL-ENT-001', ['LVR-ENT-01', 'LVR-ENT-03'], 'register', '2025-06-01', '2026-12-31', [
         'hired 2025-06-01, taken 2026-12-31: 1 completed year',
         'readings A and B agree at 1 year (table, item 1): 16',
         '16 days = 160 tenths',
-    ], 160),
+    ], 160, ['signed' => null, 'waits_on' => '2']),
     $e('GL-ENT-002', ['LVR-ENT-01', 'LVR-ENT-03'], 'register', '2023-06-01', '2026-12-31', [
         'hired 2023-06-01, taken 2026-12-31: 3 completed years',
         'readings A and B agree at 3 years (table, item 1): 17',
         '17 days = 170 tenths',
-    ], 170),
+    ], 170, ['signed' => null, 'waits_on' => '2']),
     $e('GL-ENT-003', ['LVR-ENT-01', 'LVR-ENT-03'], 'register', '2021-06-01', '2026-12-31', [
         'hired 2021-06-01, taken 2026-12-31: 5 completed years',
         'readings A and B agree at 5 years (table, item 1): 18',
         '18 days = 180 tenths',
-    ], 180),
+    ], 180, ['signed' => null, 'waits_on' => '2']),
     $e('GL-ENT-004', ['LVR-ENT-01', 'LVR-ENT-03'], 'register, waiting item 1', '2024-06-01', '2026-12-31', [
         'hired 2024-06-01, taken 2026-12-31: 2 completed years',
         'reading A (the code): 17. Reading B: 16',
@@ -80,9 +82,9 @@ return [
     $e('GL-ENT-012', 'LVR-ENT-01', 'register', '2016-01-01', '2026-12-31', [
         'both step fields must be above zero; with the step cleared (every 0, extra 0) the entitlement is the type\'s default',
         '10 completed years, no step: 16 = 160 tenths',
-    ], 160, [], ['seniority_every_years' => 0, 'seniority_extra_days' => 0]),
+    ], 160, ['signed' => null, 'waits_on' => '2'], ['seniority_every_years' => 0, 'seniority_extra_days' => 0]),
     $e('GL-ENT-013', 'LVR-ENT-01', 'register', '2026-12-31', '2026-12-31', [
         'the step needs a hire date BEFORE the date taken: hired the same day, 0 completed years',
         '16 = 160 tenths',
-    ], 160),
+    ], 160, ['signed' => null, 'waits_on' => '2']),
 ];

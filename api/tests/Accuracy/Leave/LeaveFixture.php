@@ -20,6 +20,8 @@ use App\Models\ShiftRotationStep;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Approval\ApprovalEngine;
+use App\Services\CurrentTenant;
+use App\Services\Holiday\HolidayService;
 use App\Services\Leave\LeaveBalanceService;
 use App\Services\Leave\LeaveRecallService;
 use App\Services\Leave\LeaveYear;
@@ -110,7 +112,7 @@ final class LeaveFixture
             'date' => $holiday['date'],
             'recurring' => $holiday['recurring'],
             'is_active' => $holiday['active'],
-            'ethiopian_calendar' => false,
+            'ethiopian_calendar' => $holiday['ethiopian'],
         ]);
     }
 
@@ -238,7 +240,7 @@ final class LeaveFixture
             Carbon::setTestNow(Carbon::parse($act['at'], 'UTC'));
         }
         $tenant = $ctx['tenant'];
-        $result = ['refused' => false, 'kept_days' => null];
+        $result = ['refused' => false, 'kept_days' => null, 'status' => null];
         $service = app(LeaveBalanceService::class);
 
         switch ($act['do']) {
@@ -260,6 +262,11 @@ final class LeaveFixture
             case 'add_holiday':
                 self::holiday($tenant, [...LeaveCases::DEFAULTS['holiday'], 'date' => $act['date']], $ctx['own'], $ctx['other']);
                 break;
+            case 'roll_forward':
+                // The monthly job's own service: next calendar year's rows, for the server's year plus one.
+                app(CurrentTenant::class)->set($tenant);
+                app(HolidayService::class)->rollForward($tenant->id, Carbon::now()->year + 1);
+                break;
             case 'file':
                 $payload = [
                     'leave_type_public_id' => $ctx['type']->public_id,
@@ -270,6 +277,7 @@ final class LeaveFixture
                 }
                 $response = self::send($ctx, $act['by'], 'POST', 'request', $payload);
                 $result['refused'] = $response->getStatusCode() >= 400;
+                $result['status'] = $response->getStatusCode();
                 if (! $result['refused']) {
                     $ctx['requests'][$act['key']] = LeaveRequest::query()->where('public_id', $response->json('public_id'))->firstOrFail();
                 }
@@ -278,6 +286,7 @@ final class LeaveFixture
             case 'reject':
                 $response = self::send($ctx, $act['by'], 'PUT', "{$ctx['requests'][$act['key']]->public_id}/{$act['do']}", $act['do'] === 'reject' ? ['reason' => 'accuracy case'] : []);
                 $result['refused'] = $response->getStatusCode() >= 400;
+                $result['status'] = $response->getStatusCode();
                 break;
             case 'cancel':
                 // The employee cancels their own pending request; HR ends approved leave through recall.
@@ -286,12 +295,14 @@ final class LeaveFixture
                     ? self::send($ctx, 'employee', 'PUT', "{$id}/cancel", [])
                     : self::send($ctx, $act['by'], 'PUT', "{$id}/recall", ['reason' => 'accuracy case']);
                 $result['refused'] = $response->getStatusCode() >= 400;
+                $result['status'] = $response->getStatusCode();
                 break;
             case 'recall':
                 $request = $ctx['requests'][$act['key']];
                 $result['kept_days'] = app(LeaveRecallService::class)->daysUntil($request->fresh(), Carbon::parse($act['end']));
                 $response = self::send($ctx, $act['by'], 'PUT', "{$request->public_id}/recall", ['end_date' => $act['end'], 'reason' => 'accuracy case']);
                 $result['refused'] = $response->getStatusCode() >= 400;
+                $result['status'] = $response->getStatusCode();
                 break;
         }
 

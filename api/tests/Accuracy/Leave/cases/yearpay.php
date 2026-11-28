@@ -23,12 +23,13 @@ $y = fn (string $id, array|string $rule, string $source, string $kind, string $d
     'expect' => $expect,
 ];
 
-$p = fn (string $id, array|string $rule, string $source, array $period, array $working, array $requests, int $thousandths, array $type = []): array => [
+$p = fn (string $id, array|string $rule, string $source, array $period, array $working, array $requests, int $thousandths, array $type = [], array $holidays = []): array => [
     'id' => $id,
     'rule' => (array) $rule,
     'source' => $source,
     'working' => $working,
     'type' => ['code' => 'acc_unpaid', 'default_days' => 0, 'is_paid' => false, ...$type],
+    'org' => ['holidays' => $holidays],
     'pay_period' => $period,
     'requests' => $requests,
     'expect' => ['unpaid_thousandths' => $thousandths],
@@ -88,4 +89,19 @@ return [
     $p('GL-PAYDAYS-004', ['LVR-PAY-01', 'LVR-PAY-02'], 'register', ['2026-07-01', '2026-07-31'], [
         'a PAID annual request inside the period changes no pay: the unpaid days are 0',
     ], [$ap('R1', '2026-07-06', '2026-07-10', 5)], 0, ['code' => 'acc_paid', 'default_days' => 16, 'is_paid' => true]),
+
+    $p('GL-PAYDAYS-005', ['LVR-DAYS-10', 'LVR-DAYS-06', 'LVR-PAY-02'], 'register', ['2028-05-01', '2028-05-31'], [
+        'LVR-DAYS-10 (c): an unpaid request Mon 2028-05-01 to Fri 2028-05-05 counted at 5 before Labour Day\'s row existed',
+        'the row for 1 May 2028 now exists, but payroll deducts the stored 5 for a request wholly inside the pay period: 5000 thousandths',
+    ], [$ap('R1', '2028-05-01', '2028-05-05', 5)], 5000, [], [['date' => '2028-05-01']]),
+
+    $p('GL-PAYDAYS-006', 'LVR-DAYS-11', 'register', ['2026-07-01', '2026-07-31'], [
+        'a row written directly holds 0.5 days (decimal(5,1)), wholly inside the period: payroll deducts half a day',
+        '0.5 day = 500 thousandths',
+    ], [['key' => 'R1', 'from' => '2026-07-06', 'to' => '2026-07-06', 'days' => 0.5, 'status' => 'approved']], 500),
+
+    $p('GL-PAYDAYS-007', ['LVR-PAY-04', 'LVR-PAY-02'], 'register', ['2026-07-01', '2026-07-31'], [
+        'an Art. 85 sick type that is not paid, approved Mon 2026-07-06 to Fri 2026-07-10, is never counted as unpaid leave as well',
+        'unpaid days from the unpaid-leave step: 0',
+    ], [$ap('R1', '2026-07-06', '2026-07-10', 5)], 0, ['code' => 'acc_sick', 'default_days' => 30, 'is_paid' => false, 'follows_art85' => true]),
 ];

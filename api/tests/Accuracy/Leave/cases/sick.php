@@ -29,12 +29,12 @@ $c = fn (string $id, array|string $rule, string $source, string $waiting, array 
     'requests' => $requests,
     'expect' => $expect,
     'signed' => null,
-    'waiting' => $waiting,
+    'waits_on' => $waiting,
     ...$extra,
 ];
 
 return [
-    $c('GL-SICK-001', ['LVR-SICK-06', 'LVR-SICK-02'], 'register', '4', [
+    $c('GL-SICK-001', ['LVR-SICK-01', 'LVR-SICK-06', 'LVR-SICK-02'], 'register', '4', [
         'one run of 133 charged days from Mon 2026-04-06, no holiday, M = 22',
         'day 1 = 6 April; day n = 6 April + 7 x intdiv(n-1, 5) + (n-1) mod 5 days',
         'day 22: +28 +1 = 5 May, full. Day 23: 6 May, half',

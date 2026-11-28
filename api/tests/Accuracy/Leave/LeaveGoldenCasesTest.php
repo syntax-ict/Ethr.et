@@ -35,8 +35,8 @@ it('gives the leave answer typed by hand', function (array $case) {
     if ($case['undecided'] ?? false) {
         test()->markTestSkipped("{$case['id']}: rule undecided ({$rules}), the register has no answer to assert");
     }
-    if (array_key_exists('waiting', $case) && ($case['signed'] ?? null) === null) {
-        test()->markTestSkipped("{$case['id']}: waiting for a signed expected value, item {$case['waiting']} ({$rules})");
+    if (array_key_exists('waits_on', $case) && ($case['signed'] ?? null) === null) {
+        test()->markTestSkipped("{$case['id']}: waiting for a signed expected value, item {$case['waits_on']} ({$rules})");
     }
 
     $expect = array_replace_recursive($case['expect'], $case['readings'][$case['ruling'] ?? ''] ?? []);
