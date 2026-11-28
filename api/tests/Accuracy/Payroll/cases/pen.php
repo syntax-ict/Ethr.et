@@ -10,17 +10,17 @@ $pStd = fn (int $b): array => [
 ];
 
 $pWk = fn (string $b): array => [
-    'in_run = confirmed, salary ' . $b . ' > 0 = 1 (PYR-SAL-05, PYR-SAL-07)',
-    'monthly_basic = no history rows, so the salary on the record = ' . $b . ' (PYR-SAL-01)',
+    'in_run = confirmed, salary '.$b.' > 0 = 1 (PYR-SAL-05, PYR-SAL-07)',
+    'monthly_basic = no history rows, so the salary on the record = '.$b.' (PYR-SAL-01)',
     'days_in_period = 2026-10-01 to 2026-10-31 inclusive = 31 (PYR-PER-01)',
     'days_employed = hired 2020-01-01, before the period; no termination = 31 (PYR-PRO-01)',
-    'period_basic = full_month, no Pagume day = monthly basic = ' . $b . ' (PYR-PAG-02)',
-    'prorated_basic = ' . $b . ' x 31 / 31 = ' . $b . ' (PYR-PRO-02)',
+    'period_basic = full_month, no Pagume day = monthly basic = '.$b.' (PYR-PAG-02)',
+    'prorated_basic = '.$b.' x 31 / 31 = '.$b.' (PYR-PRO-02)',
     'lateness_step_logged = deductions switched off = 0 (PYR-LATE-01)',
-    'basic = ' . $b . ', no leave and no lateness (PYR-GROSS-01)',
-    'gross = ' . $b . ' + 0 + 0 = ' . $b . ' (PYR-GROSS-01)',
-    'taxable = ' . $b . ' - 0 = ' . $b . ' (PYR-GROSS-02)',
-    'pensionable = basic = ' . $b . ' (PYR-PEN-03, PYR-PEN-15)',
+    'basic = '.$b.', no leave and no lateness (PYR-GROSS-01)',
+    'gross = '.$b.' + 0 + 0 = '.$b.' (PYR-GROSS-01)',
+    'taxable = '.$b.' - 0 = '.$b.' (PYR-GROSS-02)',
+    'pensionable = basic = '.$b.' (PYR-PEN-03, PYR-PEN-15)',
 ];
 
 $oct = ['start' => '2026-10-01', 'end' => '2026-10-31', 'pagume_days' => 0, 'label' => 'October 2026'];

@@ -15,26 +15,26 @@ $tEx = fn (int $tax, int $ep, int $er, int $td, int $net): array => [
 ];
 
 $tWk = fn (string $b, string $d): array => [
-    'in_run = confirmed, salary ' . $b . ' > 0 = 1 (PYR-SAL-05, PYR-SAL-07)',
-    'monthly_basic = no history rows, so the salary on the record = ' . $b . ' (PYR-SAL-01)',
-    'days_in_period = start to end inclusive = ' . $d . ' (PYR-PER-01)',
-    'days_employed = hired 2020-01-01, before the period; no termination = ' . $d . ' (PYR-PRO-01)',
-    'period_basic = full_month, no Pagume day = monthly basic = ' . $b . ' (PYR-PAG-02)',
-    'prorated_basic = ' . $b . ' x ' . $d . ' / ' . $d . ' = ' . $b . ' (PYR-PRO-02)',
+    'in_run = confirmed, salary '.$b.' > 0 = 1 (PYR-SAL-05, PYR-SAL-07)',
+    'monthly_basic = no history rows, so the salary on the record = '.$b.' (PYR-SAL-01)',
+    'days_in_period = start to end inclusive = '.$d.' (PYR-PER-01)',
+    'days_employed = hired 2020-01-01, before the period; no termination = '.$d.' (PYR-PRO-01)',
+    'period_basic = full_month, no Pagume day = monthly basic = '.$b.' (PYR-PAG-02)',
+    'prorated_basic = '.$b.' x '.$d.' / '.$d.' = '.$b.' (PYR-PRO-02)',
     'lateness_step_logged = deductions switched off = 0 (PYR-LATE-01)',
-    'basic = ' . $b . ', no leave and no lateness (PYR-GROSS-01)',
-    'gross = ' . $b . ' + 0 + 0 = ' . $b . ' (PYR-GROSS-01)',
-    'taxable = ' . $b . ' - 0 = ' . $b . ' (PYR-GROSS-02)',
+    'basic = '.$b.', no leave and no lateness (PYR-GROSS-01)',
+    'gross = '.$b.' + 0 + 0 = '.$b.' (PYR-GROSS-01)',
+    'taxable = '.$b.' - 0 = '.$b.' (PYR-GROSS-02)',
     'pension_exempt = Ethiopian = 0 (PYR-PEN-15)',
-    'pensionable = basic = ' . $b . ' (PYR-PEN-03)',
+    'pensionable = basic = '.$b.' (PYR-PEN-03)',
 ];
 
 $tPw = fn (string $tax, string $ep, string $er, string $td, string $net): array => [
-    'income_tax = ' . $tax,
-    'employee_pension = ' . $ep,
-    'employer_pension = ' . $er,
-    'total_deductions = ' . $td,
-    'net = ' . $net,
+    'income_tax = '.$tax,
+    'employee_pension = '.$ep,
+    'employer_pension = '.$er,
+    'total_deductions = '.$td,
+    'net = '.$net,
 ];
 
 $oct = ['start' => '2026-10-01', 'end' => '2026-10-31', 'pagume_days' => 0, 'label' => 'October 2026'];
