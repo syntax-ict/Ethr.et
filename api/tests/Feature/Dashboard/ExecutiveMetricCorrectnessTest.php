@@ -97,7 +97,7 @@ test('the hires chart counts Ethiopian months for an organisation on the Ethiopi
     $tenant = createTenant();
     actingAsUser(['role' => UserRole::TENANT_ADMIN], $tenant);
 
-    // 31 October 2026 is Tikimt 20, 2019. Pagume 2018 (6 to 10 September) is
+    // 31 October 2026 is Tikimt 21, 2019. Pagume 2018 (6 to 10 September) is
     // a month of its own, as the Analytics page counts months.
     $this->travelTo(Carbon::parse('2026-10-31 10:00'));
     Employee::factory()->create(['tenant_id' => $tenant->id, 'hire_date' => '2026-10-11']); // Tikimt 1
@@ -132,7 +132,7 @@ test('the hires chart carries the headcount at the end of each month', function 
 });
 
 test('the default period is the current month of the organisation calendar', function () {
-    // 3 November 2026 is Tikimt 23, 2019: Tikimt runs 11 October to 9 November.
+    // 3 November 2026 is Tikimt 24, 2019: Tikimt runs 11 October to 9 November.
     $this->travelTo(Carbon::parse('2026-11-03 12:00', 'Africa/Addis_Ababa'));
 
     $ethiopian = createTenant();

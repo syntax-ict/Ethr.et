@@ -314,8 +314,8 @@ The sheet `./scripts/accuracy-session.sh` writes as `session-sheet.md` next to i
 | Charter | Status | Duration | Log | Note |
 |---|---|---|---|---|
 | preflight | passed | 0:01 | 01-preflight.log | |
-| conformance | passed | 1:00 | 02-conformance.log | |
-| robustness | not built yet | - | - | |
+| conformance | passed | 8:00 | 02-conformance.log | |
+| robustness | not built yet | - | - | the leave properties ran inside conformance, see Robustness output; the generated runs and idempotency tests are not built yet |
 | races | not run: no database server | - | - | |
 | strength | not built yet | - | - | |
 | restated | not run: local stack not running; restated-figures tests not built yet | - | - | |
@@ -323,20 +323,38 @@ The sheet `./scripts/accuracy-session.sh` writes as `session-sheet.md` next to i
 
 ## Conformance by engine
 
-Counts are copied from the last Pest "Tests:" line of each run. Incomplete means a recorded finding. Skipped means the rule is undecided.
+The PHP rows come from one Pest run, split by test file from its JUnit file and checked against Pest's own "Tests:" line. Incomplete means a recorded finding. A skip is counted under its reason: the rule is undecided, the case waits for a signed expected value, or another reason.
 
-| Engine | Source | Passed | Failed | Incomplete | Skipped |
-|---|---|---|---|---|---|
-| attendance | tests/Accuracy | | | | |
-| payroll | PayrollGoldenPayslipsTest and TaxCalculatorTest | | | | |
-| leave | not measured, no cases built yet | | | | |
-| calendar | not measured, no cross-check built yet | | | | |
+| Engine | Source | Passed | Failed | Incomplete | Skipped: rule undecided | Skipped: waiting for a signature | Skipped: other |
+|---|---|---|---|---|---|---|---|
+| attendance | GoldenCasesTest, OracleCasesTest, OracleReadingsTest | | | | | | |
+| payroll | tests/Accuracy/Payroll | | | | | | |
+| leave | tests/Accuracy/Leave | | | | | | |
+| calendar (PHP) | tests/Accuracy/Calendar | | | | | | |
+| calendar and clock (TypeScript) | ethiopian-calendar-table.test.ts, ethiopian-clock-roundtrip.test.ts | | | | | | |
+| shared guards | OracleIndependenceTest (with the IntegerOnlyScan self-tests), RegisterConsistencyTest | | | | | | |
+
+Check: the per-engine PHP rows add up to Pest's own totals (passed N, failed N, incomplete N, skipped N).
+
+## What was not compared
+
+A passed test means every comparable field agreed; the lines below say what was not compared and why.
+
+```text
+PAYROLL TALLY: <n> stated fields not comparable against the engine (<field> x<n>, ...); <n> fields withheld in <n> undecided cases (<case ids>)
+```
+
+(or, when no such line was printed: "none printed")
 
 ## Robustness output
 
-Lines copied unchanged from the test output: seed, number of cases, disagreements, input distribution. No interval is computed.
+Lines copied unchanged from the test output: seed, number of cases, disagreements, input distribution. No interval or percentage is computed.
 
-None: the robustness charter did not run, or printed none of those lines.
+```text
+LEAVE PROPERTY <name>: seed=<n> cases=<n> disagreements=<n>
+```
+
+(or, when no test that prints those lines ran: "None: no test that prints those lines ran.")
 
 ## Triage
 

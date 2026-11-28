@@ -54,6 +54,19 @@
 # part that ran passed; otherwise the skip reasons, joined. A part that did not
 # run is named in the Note column.
 #
+# ## Conformance, split by engine
+#
+# One run of the whole PHP suite: the command accuracy_gate in gates.sh runs
+# (php -d memory_limit=-1 vendor/bin/pest -c phpunit.accuracy.xml, from api/)
+# plus --display-skipped, --display-incomplete and --log-junit, which only add
+# output. The JUnit file gives tests, failures and skips per test file, and the
+# log gives each skip's reason; the counts per engine come from those, and are
+# checked against Pest's own "Tests:" line. If they do not add up the sheet says
+# so and shows no split. The TypeScript calendar and clock tests run under
+# Vitest, only when src/node_modules exists. The Leave properties print their
+# seed, cases and disagreements; those lines are copied unchanged into the
+# sheet's Robustness output.
+#
 # ## Test hooks (environment variables; none is a credential)
 #
 #   ACCURACY_SESSION_DB_PORT   port probed for the database server (default
@@ -95,13 +108,15 @@ declare -A CH_WHAT=(
     [production]='npm run test:e2e:production, read-only, saved sessions only'
 )
 declare -A CH_DEADLINE=(
-    [preflight]=120 [conformance]=1500 [robustness]=2700 [races]=1200
+    [preflight]=120 [conformance]=1800 [robustness]=2700 [races]=1200
     [strength]=300 [restated]=2400 [production]=1200
 )
 
 declare -A CH_STATUS=() CH_DUR=() CH_LOG=() CH_NOTE=()
 declare -A ENGINE_COUNTS=()
 ROBUST_LINES=""
+CONF_NOTE=""
+TALLY_LINES=""
 
 # ── Arguments ────────────────────────────────────────────────────────────────
 
@@ -412,20 +427,28 @@ write_sheet() {
         printf '\n'
 
         printf '## Conformance by engine\n\n'
-        printf 'Counts are copied from the last Pest "Tests:" line of each run. Incomplete means a recorded finding. Skipped means the rule is undecided.\n\n'
-        printf '| Engine | Source | Passed | Failed | Incomplete | Skipped |\n|---|---|---|---|---|---|\n'
+        printf 'The PHP rows come from one Pest run, split by test file from its JUnit file and checked against Pest'"'"'s own "Tests:" line. Incomplete means a recorded finding. A skip is counted under its reason: the rule is undecided, the case waits for a signed expected value, or another reason.\n\n'
+        printf '| Engine | Source | Passed | Failed | Incomplete | Skipped: rule undecided | Skipped: waiting for a signature | Skipped: other |\n|---|---|---|---|---|---|---|---|\n'
         local e
-        for e in attendance payroll leave calendar; do
-            printf '%s\n' "${ENGINE_COUNTS[$e]:-| $e | not run | | | | |}"
+        for e in attendance payroll leave calendar calendar_ts guards; do
+            printf '%s\n' "${ENGINE_COUNTS[$e]:-| $e | not run | | | | | | |}"
         done
-        printf '\n'
+        printf '\n%s\n\n' "${CONF_NOTE:-Check: the conformance charter did not run.}"
+
+        printf '## What was not compared\n\n'
+        printf 'A passed test means every comparable field agreed; the lines below say what was not compared and why.\n\n'
+        if [[ -n "$TALLY_LINES" ]]; then
+            printf '```text\n%s\n```\n\n' "$TALLY_LINES"
+        else
+            printf 'none printed\n\n'
+        fi
 
         printf '## Robustness output\n\n'
-        printf 'Lines copied unchanged from the test output: seed, number of cases, disagreements, input distribution. No interval is computed.\n\n'
+        printf 'Lines copied unchanged from the test output: seed, number of cases, disagreements, input distribution. No interval or percentage is computed.\n\n'
         if [[ -n "$ROBUST_LINES" ]]; then
             printf '```text\n%s\n```\n\n' "$ROBUST_LINES"
         else
-            printf 'None: the robustness charter did not run, or printed none of those lines.\n\n'
+            printf 'None: no test that prints those lines ran.\n\n'
         fi
 
         printf '## Triage\n\n'
@@ -485,15 +508,6 @@ finish_charter() { # <name> <start-seconds> <skip-note-or-empty>
     CH_NOTE[$c]="$skipnote"
 }
 
-engine_row() { # <engine> <source> <summary-line>
-    local line="$3"
-    if [[ -z "$line" ]]; then
-        ENGINE_COUNTS[$1]="| $1 | $2 | no summary line | no summary line | no summary line | no summary line |"
-    else
-        ENGINE_COUNTS[$1]="| $1 | $2 | $(count_in_line passed "$line") | $(count_in_line failed "$line") | $(count_in_line incomplete "$line") | $(count_in_line skipped "$line") |"
-    fi
-}
-
 charter_preflight() {
     local start=$SECONDS
     begin_charter preflight 1
@@ -521,31 +535,181 @@ charter_preflight() {
     printf '  preflight: passed\n'
 }
 
+engine_row() { # <key> <label> <source> <passed> <failed> <incomplete> <skipped undecided> <skipped signature> <skipped other>
+    ENGINE_COUNTS[$1]="| $2 | $3 | $4 | $5 | $6 | $7 | $8 | $9 |"
+}
+
+engine_text() { # <key> <label> <text>
+    ENGINE_COUNTS[$1]="| $2 | $3 | | | | | | |"
+}
+
+# The helper that splits one Pest run by test file. It reads the JUnit file
+# Pest wrote (tests, failures, errors and skipped per test file; JUnit counts an
+# incomplete test as skipped) and the run's own log (which lists each skipped
+# and incomplete test with its reason when Pest is given --display-skipped and
+# --display-incomplete), and prints tab separated lines:
+#   ROW key passed failed incomplete undecided signature other files
+#   CHECK ok|mismatch text      (against Pest's own totals, passed in as arguments)
+#   WARN text                   (a file whose skip reasons do not add up)
+write_split_php() { # <path>
+    cat >"$1" <<'PHP'
+<?php
+// accuracy-session.sh helper: split one Pest run by test file. Reads two files and writes to stdout.
+[$self, $junit, $log, $pp, $pf, $pi, $ps] = $argv;
+$x = @simplexml_load_file($junit);
+if ($x === false) { echo "ERROR\tno readable JUnit file\n"; exit(0); }
+$suites = [];
+foreach ($x->xpath('//testsuite[@file]') as $s) {
+    $suites[(string) $s['name']] = [
+        'file' => str_replace('\\', '/', (string) $s['file']),
+        'tests' => (int) $s['tests'],
+        'bad' => (int) $s['failures'] + (int) $s['errors'],
+        'skip' => (int) $s['skipped'],
+        'inc' => 0, 'undec' => 0, 'sig' => 0, 'other' => 0, 'seen' => 0,
+    ];
+}
+$cur = null;
+foreach (file($log, FILE_IGNORE_NEW_LINES) ?: [] as $line) {
+    $line = preg_replace('/\e\[[0-9;]*[A-Za-z]/', '', $line);
+    if (preg_match('/^\s+(?:PASS|WARN|FAIL|DONE|RUN)\s+(Tests\\\\\S+)\s*$/u', $line, $m)) { $cur = $m[1]; continue; }
+    if ($cur === null || ! isset($suites[$cur])) { continue; }
+    if (! preg_match('/^\s+(-|…)\s+(.*)$/u', $line, $m)) { continue; }
+    $reason = preg_match('/→\s*(.*?)\s+[0-9.]+(?:ms|s)\s*$/u', $m[2], $r) ? $r[1] : '';
+    $suites[$cur]['seen']++;
+    if ($m[1] === '…') { $suites[$cur]['inc']++; continue; }
+    if (stripos($reason, 'waiting for a signed') !== false) { $suites[$cur]['sig']++; }
+    elseif (stripos($reason, 'undecided') !== false) { $suites[$cur]['undec']++; }
+    else { $suites[$cur]['other']++; }
+}
+$engine = function (string $file): string {
+    if (str_contains($file, 'Accuracy/Payroll/')) { return 'payroll'; }
+    if (str_contains($file, 'Accuracy/Leave/')) { return 'leave'; }
+    if (str_contains($file, 'Accuracy/Calendar/')) { return 'calendar'; }
+    $base = basename($file);
+    if ($base === 'OracleIndependenceTest.php' || $base === 'RegisterConsistencyTest.php') { return 'guards'; }
+    return 'attendance';
+};
+$rows = [];
+foreach ($suites as $name => $s) {
+    $k = $engine($s['file']);
+    $rows[$k] ??= ['p' => 0, 'f' => 0, 'i' => 0, 'u' => 0, 'g' => 0, 'o' => 0, 'n' => 0];
+    $logged = $s['inc'] + $s['undec'] + $s['sig'] + $s['other'];
+    if ($logged !== $s['skip']) {
+        echo "WARN\t".$s['file'].": JUnit counts ".$s['skip']." skipped or incomplete, the log lists ".$logged.". The difference is shown under other.\n";
+        $s['other'] = max(0, $s['skip'] - $s['inc'] - $s['undec'] - $s['sig']);
+    }
+    $rows[$k]['p'] += $s['tests'] - $s['bad'] - $s['skip'];
+    $rows[$k]['f'] += $s['bad'];
+    $rows[$k]['i'] += $s['inc'];
+    $rows[$k]['u'] += $s['undec'];
+    $rows[$k]['g'] += $s['sig'];
+    $rows[$k]['o'] += $s['other'];
+    $rows[$k]['n']++;
+}
+$tp = $tf = $ti = $ts = 0;
+foreach ($rows as $k => $r) {
+    echo "ROW\t$k\t{$r['p']}\t{$r['f']}\t{$r['i']}\t{$r['u']}\t{$r['g']}\t{$r['o']}\t{$r['n']}\n";
+    $tp += $r['p']; $tf += $r['f']; $ti += $r['i']; $ts += $r['u'] + $r['g'] + $r['o'];
+}
+if ((int) $pp < 0) {
+    echo "CHECK\tmismatch\tPest printed no Tests: line to check against.\n";
+} elseif ($tp === (int) $pp && $tf === (int) $pf && $ti === (int) $pi && $ts === (int) $ps) {
+    echo "CHECK\tok\tpassed $tp, failed $tf, incomplete $ti, skipped $ts\n";
+} else {
+    echo "CHECK\tmismatch\tsplit: passed $tp, failed $tf, incomplete $ti, skipped $ts; Pest: passed $pp, failed $pf, incomplete $pi, skipped $ps\n";
+}
+PHP
+}
+
 charter_conformance() {
-    local start=$SECONDS part line payroll_note=""
+    local start=$SECONDS part rc line pestline payroll_note="" junit split_php split_out k label
     begin_charter conformance 2
     part_reset
+    CONF_NOTE=""
+    junit="$OUT_DIR/02-conformance.junit.xml"
+    split_php="$OUT_DIR/.conformance-split.php"
+    part="$OUT_DIR/.conformance-part.txt"
+    : >"$part"
 
-    printf '\n--- gates.sh accuracy ---\n' >>"$CUR_LOG"
-    part="$(mktemp)"
-    run_bounded 900 "$part" bash "$REPO_ROOT/scripts/gates.sh" accuracy
-    local rc=$?
+    # One run of the whole PHP suite. It is the command accuracy_gate in
+    # gates.sh runs (php -d memory_limit=-1 vendor/bin/pest -c
+    # phpunit.accuracy.xml, from api/) plus three flags that only add output: the
+    # reasons of skipped and incomplete tests, and a JUnit file for the split.
+    printf '\n--- pest -c phpunit.accuracy.xml (the accuracy gate'"'"'s command) ---\n' >>"$CUR_LOG"
+    (cd "$API_DIR" && run_bounded 900 "$part" php -d memory_limit=-1 vendor/bin/pest -c phpunit.accuracy.xml \
+        --display-skipped --display-incomplete --log-junit "$junit")
+    rc=$?
     cat "$part" >>"$CUR_LOG"
     line="$(last_tests_line "$part")"
-    rm -f "$part"
-    part_result $rc "gates.sh accuracy" 900
-    local label="tests/Accuracy (attendance golden cases and oracle)"
-    if accuracy_has_dir Payroll || accuracy_has_dir Leave || accuracy_has_dir Calendar; then
-        label="tests/Accuracy (attendance, and the engines whose folders exist)"
+    pestline="$line"
+    part_result $rc "pest -c phpunit.accuracy.xml" 900
+
+    # Leave's properties print seed, cases and disagreements. Copied unchanged.
+    ROBUST_LINES="$(strip_ansi <"$part" | grep -E 'seed=[0-9]+' | head -n 60)"
+    # Lines such as PAYROLL TALLY: what a test could not compare or withheld. Copied unchanged.
+    TALLY_LINES="$(strip_ansi <"$part" | grep -E '^[[:space:]]*[A-Z]+ TALLY:' | sed 's/^[[:space:]]*//')"
+
+    write_split_php "$split_php"
+    local pp="-1" pf=0 pi=0 ps=0 trusted=0 checktext=""
+    if [[ -n "$line" ]]; then
+        pp="$(count_in_line passed "$line")"; pf="$(count_in_line failed "$line")"
+        pi="$(count_in_line incomplete "$line")"; ps="$(count_in_line skipped "$line")"
     fi
-    engine_row attendance "$label" "$line"
+    declare -A R=()
+    local warns=""
+    if [[ -f "$junit" ]]; then
+        split_out="$("$TIMEOUT_CMD" -k 5 60 php "$split_php" "$junit" "$part" "$pp" "$pf" "$pi" "$ps" 2>&1)"
+        printf '\n--- split by test file ---\n%s\n' "$split_out" >>"$CUR_LOG"
+        local tag a b c d e f g h
+        while IFS=$'\t' read -r tag a b c d e f g h; do
+            case "$tag" in
+                ROW) R[$a]="$b|$c|$d|$e|$f|$g|$h" ;;
+                CHECK) [[ "$a" == ok ]] && trusted=1; checktext="$b" ;;
+                WARN) warns="${warns:+$warns }$a" ;;
+            esac
+        done <<<"$split_out"
+    else
+        checktext="no JUnit file was written (the run ended before it could)"
+    fi
+    rm -f "$part" "$split_php"
+
+    local keys=(attendance payroll leave calendar guards)
+    declare -A LABEL=([attendance]="attendance" [payroll]="payroll" [leave]="leave" [calendar]="calendar (PHP)" [guards]="shared guards")
+    declare -A SRC=(
+        [attendance]="GoldenCasesTest, OracleCasesTest, OracleReadingsTest"
+        [payroll]="tests/Accuracy/Payroll"
+        [leave]="tests/Accuracy/Leave"
+        [calendar]="tests/Accuracy/Calendar"
+        [guards]="OracleIndependenceTest (with the IntegerOnlyScan self-tests), RegisterConsistencyTest"
+    )
+    local ekey
+    for k in "${keys[@]}"; do
+        ekey="$k"; [[ "$k" == calendar ]] && ekey=calendar
+        label="${LABEL[$k]}"
+        if [[ -n "${R[$k]:-}" ]]; then
+            IFS='|' read -r a b c d e f g <<<"${R[$k]}"
+            if [[ $trusted -eq 1 ]]; then
+                engine_row "$ekey" "$label" "${SRC[$k]}" "$a" "$b" "$c" "$d" "$e" "$f"
+            else
+                engine_text "$ekey" "$label" "split not shown: it does not add up to Pest's totals (see the note below)"
+            fi
+        else
+            case "$k" in
+                leave) engine_text leave "$label" "not measured, no cases built yet" ;;
+                calendar) engine_text calendar "$label" "not measured, no cross-check built yet" ;;
+                guards) engine_text guards "$label" "none found" ;;
+                payroll) : ;;
+                *) engine_text "$k" "$label" "not run: the PHP run wrote no result" ;;
+            esac
+        fi
+    done
 
     if accuracy_has_dir Payroll; then
-        ENGINE_COUNTS[payroll]="| payroll | in the tests/Accuracy row above | | | | |"
         payroll_note="payroll cases are in the accuracy suite"
     elif [[ -f "$API_DIR/tests/Feature/Payroll/PayrollGoldenPayslipsTest.php" && -f "$API_DIR/tests/Feature/Payroll/TaxCalculatorTest.php" ]]; then
         printf '\n--- payroll golden payslips and tax points ---\n' >>"$CUR_LOG"
-        part="$(mktemp)"
+        part="$OUT_DIR/.conformance-part.txt"
+        : >"$part"
         (cd "$API_DIR" && run_bounded 600 "$part" php -d memory_limit=-1 vendor/bin/pest \
             tests/Feature/Payroll/PayrollGoldenPayslipsTest.php tests/Feature/Payroll/TaxCalculatorTest.php)
         rc=$?
@@ -553,15 +717,47 @@ charter_conformance() {
         line="$(last_tests_line "$part")"
         rm -f "$part"
         part_result $rc "payroll golden payslips and tax points" 600
-        engine_row payroll "PayrollGoldenPayslipsTest and TaxCalculatorTest" "$line"
-    else
-        ENGINE_COUNTS[payroll]="| payroll | not run: test files not found | | | | |"
+        if [[ -z "$line" ]]; then
+            engine_text payroll "payroll" "no summary line"
+        else
+            engine_row payroll "payroll" "PayrollGoldenPayslipsTest and TaxCalculatorTest" \
+                "$(count_in_line passed "$line")" "$(count_in_line failed "$line")" "$(count_in_line incomplete "$line")" 0 0 "$(count_in_line skipped "$line")"
+        fi
+    elif [[ -z "${R[payroll]:-}" ]]; then
+        engine_text payroll "payroll" "not run: test files not found"
     fi
 
-    if accuracy_has_dir Leave; then ENGINE_COUNTS[leave]="| leave | in the tests/Accuracy row above | | | | |"
-    else ENGINE_COUNTS[leave]="| leave | not measured, no cases built yet | | | | |"; fi
-    if accuracy_has_dir Calendar; then ENGINE_COUNTS[calendar]="| calendar | in the tests/Accuracy row above | | | | |"
-    else ENGINE_COUNTS[calendar]="| calendar | not measured, no cross-check built yet | | | | |"; fi
+    # Calendar and clock on the TypeScript side, run by Vitest.
+    local t1="src/test/ethiopian-calendar-table.test.ts" t2="src/test/ethiopian-clock-roundtrip.test.ts"
+    label="calendar and clock (TypeScript)"
+    if [[ ! -d "$WEB_DIR/node_modules" ]]; then
+        engine_text calendar_ts "$label" "not run: no src/node_modules"
+    elif [[ ! -f "$WEB_DIR/$t1" || ! -f "$WEB_DIR/$t2" ]]; then
+        engine_text calendar_ts "$label" "not built yet"
+    else
+        printf '\n--- vitest: calendar table and clock round trip ---\n' >>"$CUR_LOG"
+        part="$OUT_DIR/.conformance-part.txt"
+        : >"$part"
+        (cd "$WEB_DIR" && run_bounded 300 "$part" node node_modules/vitest/vitest.mjs run "$t1" "$t2")
+        rc=$?
+        cat "$part" >>"$CUR_LOG"
+        line="$(strip_ansi <"$part" | grep -E '^[[:space:]]*Tests[[:space:]]' | tail -n 1 | sed 's/^[[:space:]]*//')"
+        rm -f "$part"
+        part_result $rc "vitest calendar and clock" 300
+        if [[ -z "$line" ]]; then
+            engine_text calendar_ts "$label" "no summary line"
+        else
+            engine_row calendar_ts "$label" "ethiopian-calendar-table.test.ts, ethiopian-clock-roundtrip.test.ts" \
+                "$(count_in_line passed "$line")" "$(count_in_line failed "$line")" 0 0 0 "$(count_in_line skipped "$line")"
+        fi
+    fi
+
+    if [[ $trusted -eq 1 ]]; then
+        CONF_NOTE="Check: the per-engine PHP rows add up to Pest's own totals (${checktext})."
+    else
+        CONF_NOTE="Check: THE SPLIT DOES NOT ADD UP, so no per-engine PHP counts are shown. ${checktext}. Pest's own line: ${pestline:-none}."
+    fi
+    [[ -n "$warns" ]] && CONF_NOTE="$CONF_NOTE Skip reasons: $warns"
 
     finish_charter conformance "$start" "$payroll_note"
 }
@@ -583,7 +779,8 @@ charter_robustness() {
         cat "$part" >>"$CUR_LOG"
         # Verbatim: whatever the test prints about seed, cases, disagreements and
         # the input distribution. Nothing is computed from it here.
-        ROBUST_LINES="$(strip_ansi <"$part" | grep -iE 'seed|cases|disagree|distribution' | head -n 60)"
+        ROBUST_LINES="$(printf '%s
+%s' "$ROBUST_LINES" "$(strip_ansi <"$part" | grep -iE 'seed|cases|disagree|distribution' | head -n 60)" | sed '/^$/d')"
         rm -f "$part"
         part_result $rc "generated run and properties" 1500
     fi
@@ -765,6 +962,9 @@ main() {
     for c in "${CHARTERS[@]}"; do
         case "${CH_STATUS[$c]:-}" in failed*) failed=1 ;; esac
     done
+    if [[ -n "$ROBUST_LINES" && "${CH_STATUS[robustness]:-}" == "not built yet" ]]; then
+        CH_NOTE[robustness]="the leave properties ran inside conformance, see Robustness output; the generated runs and idempotency tests are not built yet"
+    fi
 
     write_sheet
 

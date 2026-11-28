@@ -1,6 +1,6 @@
 # 12. Attendance accuracy
 
-**At a glance.** This file says how ETHR measures whether the attendance engine gives the right answer, which of the layers exist today, how to run them, and how to add a case. It states only what has been built and run. Everything else is listed as not built yet.
+**At a glance.** This file says how ETHR measures whether the attendance engine gives the right answer, which of the layers exist today, how to run them, and how to add a case. It states only what has been built and run. Everything else is listed as not built yet. The same method for payroll is in [13](13-PAYROLL-ACCURACY.md), for leave and the calendar in [14](14-LEAVE-CALENDAR-AND-RESTATED-FIGURES.md), and the session that runs them all in [15](15-ACCURACY-SESSION.md).
 
 Companion documents: the rule register [ATTENDANCE-RULES.md](../ATTENDANCE-RULES.md) (every rule, with an id), [ATTENDANCE-PIPELINE.md](../ATTENDANCE-PIPELINE.md) (how a punch travels), and the expected values in [05](05-E2E-ATTENDANCE-SHIFTS-DEVICES.md) and [07](07-E2E-PAYROLL.md) that the golden cases were typed from.
 
