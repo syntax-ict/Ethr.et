@@ -8,7 +8,8 @@ use DateTimeZone;
 
 /**
  * Register sections 5 to 7: the ordered punches of one person in, the records
- * that exist and each punch's outcome out. One person, one organisation.
+ * that exist and each punch's outcome out. One person, one organisation. Every
+ * Undecided rule it meets is read through the Readings it was given.
  *
  * A record is an array: in, out (null while open), method, wd (work date),
  * conflict, breaks (list of 'out' and 'in'), auto.
@@ -23,6 +24,8 @@ final class Resolver
 
     private const CLOSE_AFTER_END = 6 * 3600; // AR-NIGHT-02/03
 
+    private const AUTO_MAX_AGE = 2 * 86400; // AR-AUTO-02
+
     /** @var list<array<string, mixed>> */
     private array $records = [];
 
@@ -32,10 +35,14 @@ final class Resolver
     /** @var array<string, true> */
     private array $keys = [];
 
+    /** @var array<string, Trace> by work date */
+    private array $traces = [];
+
     /** @param array<string, mixed>|null $shift */
     public function __construct(
         private readonly ?array $shift,
         private readonly DateTimeZone $tz,
+        private readonly Readings $readings,
     ) {}
 
     /**
@@ -45,14 +52,13 @@ final class Resolver
     {
         $key = $punch['key'] ?? null;
         if ($key !== null && isset($this->keys[$key])) {
-            // AR-DAY-01: the same key answers with the original and records nothing.
             $this->outcomes[] = 'duplicate';
 
             return;
         }
 
         $outcome = match ($punch['type']) {
-            'in' => $this->checkIn($punch['ts'], $punch['method'], false),
+            'in' => $this->checkIn($punch['ts'], $punch['method']),
             'out' => $this->checkOut($punch['ts']),
             'auto' => $this->automatic($punch['ts'], $punch['method']),
             'manual' => $this->manual($punch['in'], $punch['out'], $punch['method']),
@@ -60,6 +66,7 @@ final class Resolver
 
         if ($key !== null) {
             $this->keys[$key] = true;
+            $this->hit($this->workDateOf($punch['ts'] ?? $punch['in']), 'AR-DAY-01');
         }
         $this->outcomes[] = $outcome;
     }
@@ -76,11 +83,15 @@ final class Resolver
                 continue;
             }
             $end = $this->shiftEnd($r['wd']);
-            if ($r['in'] >= $end || $runAt - $r['in'] > 2 * 86400 || $runAt < $end + $minutesAfterEnd * 60) {
+            // AR-AUTO-02: a check-in after the end is not closed; exactly at the end is AR-NIGHT-05.
+            $afterEnd = $this->readings->flag('auto_at_end_open') ? $r['in'] >= $end : $r['in'] > $end;
+            if ($afterEnd || ! $this->readings->atMost($runAt - $r['in'], self::AUTO_MAX_AGE) || $runAt < $end + $minutesAfterEnd * 60) {
                 continue;
             }
             $this->records[$i]['out'] = $end;
             $this->records[$i]['auto'] = true;
+            $this->hit($r['wd'], 'AR-AUTO-01');
+            $this->hit($r['wd'], 'AR-AUTO-02');
         }
     }
 
@@ -101,43 +112,54 @@ final class Resolver
         return count(array_filter($this->records, static fn (array $r): bool => $r['conflict']));
     }
 
+    /** @return array<string, Trace> */
+    public function traces(): array
+    {
+        return $this->traces;
+    }
+
     // -- punches ---------------------------------------------------------
 
-    private function checkIn(int $ts, string $method, bool $ignoreOpen): ?string
+    private function checkIn(int $ts, string $method): ?string
     {
         $wd = $this->workDateOf($ts);
+        $this->hit($wd, 'AR-CLOCK-02');
 
-        if (! $ignoreOpen) {
-            $open = $this->openFor($ts, $wd);
-            if ($open !== null) {
-                $r = $this->records[$open];
-                if ($r['method'] !== $method && abs($ts - $r['in']) <= self::MERGE) {
-                    // AR-DAY-03: close sources are one arrival; the outcome is not in the register.
-                    $this->records[$open]['in'] = min($r['in'], $ts);
+        // AR-DAY-09: only a record of this very work date can be open for it.
+        $open = $this->openOn($wd, $ts);
+        if ($open !== null) {
+            $r = $this->records[$open];
+            if ($r['method'] !== $method && $this->readings->atMost(abs($ts - $r['in']), self::MERGE)) {
+                $this->hit($wd, 'AR-DAY-03');
+                $this->records[$open]['in'] = min($r['in'], $ts);
 
-                    return null;
-                }
-
-                // AR-DAY-02
-                return 'duplicate';
+                return null;
             }
+
+            $this->hit($wd, 'AR-DAY-02');
+
+            return 'duplicate';
         }
+        $this->hit($wd, 'AR-DAY-09');
 
         $closed = $this->lastClosedOn($wd);
         if ($closed !== null) {
             $gap = $ts - $this->records[$closed]['out'];
-            $beforeEnd = $this->shift === null || $ts < $this->shiftEnd($wd); // AR-BREAK-04
-            if ($gap >= 0 && $gap <= self::MAX_BREAK && $beforeEnd) {
-                // AR-BREAK-01: the day is reopened.
+            $beforeEnd = $this->shift === null || $ts < $this->shiftEnd($wd);
+            if ($this->shift === null) {
+                $this->hit($wd, 'AR-BREAK-04');
+            }
+            if ($gap >= 0 && $this->readings->atMost($gap, self::MAX_BREAK) && $beforeEnd) {
+                $this->hit($wd, 'AR-BREAK-01');
                 $this->records[$closed]['out'] = null;
                 $this->records[$closed]['breaks'][] = 'out';
                 $this->records[$closed]['breaks'][] = 'in';
 
                 return 'ok';
             }
+            $this->hit($wd, 'AR-BREAK-02');
         }
 
-        // AR-BREAK-02: a second session beside an existing record of the day is a conflict.
         $this->add($ts, null, $method, $wd, $this->hasRecordOn($wd));
 
         return 'ok';
@@ -146,19 +168,22 @@ final class Resolver
     private function checkOut(int $ts): string
     {
         $wd = $this->workDateOf($ts);
-        $open = $this->openFor($ts, $wd);
+        $open = $this->openForCheckOut($ts, $wd);
         if ($open !== null) {
+            $this->hit($this->records[$open]['wd'], 'AR-NIGHT-02');
             $this->records[$open]['out'] = $ts;
 
             return 'ok';
         }
 
-        // AR-DAY-04 / AR-DAY-05
         foreach ($this->records as $r) {
-            if ($r['out'] !== null && $ts - $r['out'] >= 0 && $ts - $r['out'] <= self::MERGE) {
+            if ($r['out'] !== null && $ts - $r['out'] >= 0 && $this->readings->atMost($ts - $r['out'], self::MERGE)) {
+                $this->hit($r['wd'], 'AR-DAY-04');
+
                 return 'duplicate';
             }
         }
+        $this->hit($wd, 'AR-DAY-05');
 
         return 'refused:no_open_check_in';
     }
@@ -171,71 +196,106 @@ final class Resolver
         if ($open !== null) {
             $r = $this->records[$open];
             if ($r['wd'] >= $wd) {
-                if ($ts - $r['in'] <= self::MERGE) {
-                    return 'duplicate'; // AR-DAY-06
+                $this->hit($r['wd'], 'AR-DAY-06');
+                if ($this->readings->atMost($ts - $r['in'], self::MERGE)) {
+                    return 'duplicate';
                 }
                 $this->records[$open]['out'] = $ts;
 
                 return 'ok';
             }
 
-            if ($this->shift !== null && $ts <= $this->shiftEnd($r['wd']) + self::CLOSE_AFTER_END) {
-                $this->records[$open]['out'] = $ts; // AR-NIGHT-03
+            // Yesterday's open record. AR-NIGHT-03 needs a shift end; with no shift, AR-NIGHT-05.
+            $closes = $this->shift !== null
+                ? $this->readings->inside($ts - $this->shiftEnd($r['wd']), self::CLOSE_AFTER_END)
+                : ($this->readings->flag('auto_noshift_closes') && $this->readings->inside($ts - $r['in'], self::MAX_OPEN));
+            if ($closes) {
+                $this->hit($r['wd'], 'AR-NIGHT-03');
+                $this->records[$open]['out'] = $ts;
 
                 return 'ok';
             }
 
-            // AR-NIGHT-03: later than that it is a new arrival.
-            return $this->checkIn($ts, $method, true);
+            return $this->checkIn($ts, $method);
         }
 
         foreach ($this->records as $r) {
-            if ($r['out'] !== null && $ts - $r['out'] >= 0 && $ts - $r['out'] <= self::MERGE) {
-                return 'duplicate'; // AR-DAY-04
+            if ($r['out'] !== null && $ts - $r['out'] >= 0 && $this->readings->atMost($ts - $r['out'], self::MERGE)) {
+                $this->hit($r['wd'], 'AR-DAY-04');
+
+                return 'duplicate';
             }
         }
+        $this->hit($wd, 'AR-DAY-06');
 
-        return $this->checkIn($ts, $method, false);
+        return $this->checkIn($ts, $method);
     }
 
     private function manual(int $in, int $out, string $method): ?string
     {
         if ($out - $in >= self::MAX_OPEN) {
-            // AR-NIGHT-04: 14 hours or more is a mistyped time.
+            $this->hit($this->workDateOf($in), 'AR-NIGHT-04');
+
             return 'refused:span_too_long';
         }
 
         $wd = $this->workDateOf($in);
+        $this->hit($wd, 'AR-NIGHT-04');
 
         foreach ($this->records as $i => $r) {
             if ($r['wd'] !== $wd) {
                 continue;
             }
-            $existing = array_filter([$r['in'], $r['out']], static fn (?int $t): bool => $t !== null);
-            foreach ($existing as $punch) {
-                if (abs($punch - $in) <= self::MERGE || abs($punch - $out) <= self::MERGE) {
-                    // AR-DAY-03: kept as one, earliest check-in and latest check-out.
-                    $this->records[$i]['in'] = min($r['in'], $in);
-                    $this->records[$i]['out'] = $r['out'] === null ? $out : max($r['out'], $out);
+            if ($this->nearExisting($r, $in, $out)) {
+                $this->hit($wd, 'AR-DAY-03');
+                $this->records[$i]['in'] = min($r['in'], $in);
+                $this->records[$i]['out'] = $r['out'] === null ? $out : max($r['out'], $out);
 
-                    return null;
-                }
+                return null;
             }
         }
 
-        // AR-DAY-07: further than 5 minutes from every punch of the day.
+        $this->hit($wd, 'AR-DAY-07');
         $this->add($in, $out, $method, $wd, $this->hasRecordOn($wd));
 
         return null;
     }
 
+    /**
+     * Whether a manual entry is within 5 minutes of a punch of the record.
+     * Which pairs are measured is AR-DAY-08.
+     *
+     * @param  array<string, mixed>  $r
+     */
+    private function nearExisting(array $r, int $in, int $out): bool
+    {
+        if ($this->readings->flag('check_ins_only')) {
+            return $this->readings->atMost(abs($r['in'] - $in), self::MERGE);
+        }
+
+        foreach (array_filter([$r['in'], $r['out']], static fn (?int $t): bool => $t !== null) as $punch) {
+            if ($this->readings->atMost(abs($punch - $in), self::MERGE) || $this->readings->atMost(abs($punch - $out), self::MERGE)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     // -- helpers ---------------------------------------------------------
+
+    private function hit(string $workDate, string $rule): void
+    {
+        ($this->traces[$workDate] ??= new Trace)->decided($rule);
+    }
 
     /** AR-NIGHT-01 and AR-SHIFT-05. */
     private function workDateOf(int $ts): string
     {
         $date = Calendar::localDate($ts, $this->tz);
         if ($this->shift !== null && $this->shift['crosses'] && Calendar::secondOfDay($ts, $this->tz) < $this->shift['end']) {
+            $this->hit(Calendar::addDays($date, -1), 'AR-NIGHT-01');
+
             return Calendar::addDays($date, -1);
         }
 
@@ -247,13 +307,24 @@ final class Resolver
         return Shifts::window($this->shift, $workDate, $this->tz)[1];
     }
 
+    /** The latest record of work date `$wd` that is open at `$ts`. */
+    private function openOn(string $wd, int $ts): ?int
+    {
+        foreach ($this->openIndexes($ts) as $i) {
+            if ($this->records[$i]['wd'] === $wd) {
+                return $i;
+            }
+        }
+
+        return null;
+    }
+
     /**
-     * The open record a punch at `$ts` (work date `$wd`) belongs to. A record of
-     * an earlier work date counts only inside the closing window (AR-NIGHT-02);
-     * the same window decides whether yesterday's open day is still the
-     * person's current one when a check-in arrives.
+     * The open record a check-out at `$ts` closes: one of its own work date, or
+     * yesterday's inside the closing window (AR-NIGHT-02). A same-date record
+     * has no limit; the windows are about yesterday's.
      */
-    private function openFor(int $ts, string $wd): ?int
+    private function openForCheckOut(int $ts, string $wd): ?int
     {
         foreach ($this->openIndexes($ts) as $i) {
             $r = $this->records[$i];
@@ -268,13 +339,13 @@ final class Resolver
     /** @param array<string, mixed> $r */
     private function withinCloseWindow(array $r, int $ts): bool
     {
-        if ($ts - $r['in'] <= self::MAX_OPEN) {
+        if ($this->readings->inside($ts - $r['in'], self::MAX_OPEN)) {
             return true;
         }
 
         return $this->shift !== null
             && $this->shift['crosses']
-            && $ts <= $this->shiftEnd($r['wd']) + self::CLOSE_AFTER_END;
+            && $this->readings->inside($ts - $this->shiftEnd($r['wd']), self::CLOSE_AFTER_END);
     }
 
     /** @return list<int> open records started at or before `$ts`, latest first. */

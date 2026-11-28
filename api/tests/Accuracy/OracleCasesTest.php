@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use Tests\Accuracy\Oracle\CaseAdapter;
-use Tests\Accuracy\Oracle\Comparer;
+use Tests\Accuracy\OracleComparer;
 
 /*
  * The independent oracle (tests/Accuracy/Oracle) against the hand values of
@@ -57,8 +57,9 @@ it('gives the answer a person would by hand', function (array $case): void {
     $id = $case['id'];
     $rules = implode(', ', $case['rule']);
 
-    $answer = CaseAdapter::run($case, oracleShifts());
-    $result = Comparer::compare($case, $answer);
+    // The dates are a question put to the oracle; the hand values stay here.
+    $answer = CaseAdapter::run($case, oracleShifts(), array_keys($case['expect']['days'] ?? []) ?: null);
+    $result = OracleComparer::compare($case, $answer);
 
     if (getenv('ORACLE_REPORT')) {
         fwrite(STDERR, sprintf(

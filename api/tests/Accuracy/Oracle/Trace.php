@@ -5,42 +5,49 @@ declare(strict_types=1);
 namespace Tests\Accuracy\Oracle;
 
 /**
- * Which register rules one answer relied on. Undecided rules are named so the
- * test can say "rule undecided" instead of pass or fail; Implemented rules are
- * named because they were copied from the code, not chosen, so agreement on
- * them proves stability and not correctness.
+ * Which register rules an answer relied on. Decided rules were applied as
+ * written; Implemented rules were copied from the code, not chosen, so
+ * agreement on them proves stability and not correctness. Undecided rules are
+ * not recorded here: an answer carries those as Undecided values, and only
+ * where their readings would give different answers.
  */
 final class Trace
 {
     /** @var array<string, true> */
-    private array $implemented = [];
+    private array $decided = [];
 
     /** @var array<string, true> */
-    private array $undecided = [];
+    private array $implemented = [];
+
+    public function decided(string $rule): void
+    {
+        $this->decided[$rule] = true;
+    }
 
     public function implemented(string $rule): void
     {
         $this->implemented[$rule] = true;
     }
 
-    public function undecided(string $rule): void
+    public function merge(self $other): void
     {
-        $this->undecided[$rule] = true;
+        $this->decided += $other->decided;
+        $this->implemented += $other->implemented;
     }
 
     /** @return list<string> */
-    public function implementedRules(): array
+    public function decidedRules(): array
     {
-        $rules = array_keys($this->implemented);
+        $rules = array_keys($this->decided);
         sort($rules);
 
         return $rules;
     }
 
     /** @return list<string> */
-    public function undecidedRules(): array
+    public function implementedRules(): array
     {
-        $rules = array_keys($this->undecided);
+        $rules = array_keys($this->implemented);
         sort($rules);
 
         return $rules;

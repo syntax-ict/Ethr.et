@@ -25,7 +25,7 @@ use App\Services\CurrentTenant;
 use App\Services\Payroll\StatutoryRules;
 use Carbon\Carbon;
 use Tests\Accuracy\Oracle\CaseAdapter;
-use Tests\Accuracy\Oracle\Comparer;
+use Tests\Accuracy\OracleComparer;
 
 /*
  * The golden cases: every expected value in tests/Accuracy/cases is typed by
@@ -424,7 +424,9 @@ it('gives the answer typed by hand', function (array $case) {
  */
 function accuracyVerdict(array $case): string
 {
-    $oracle = Comparer::compare($case, CaseAdapter::run($case, require __DIR__.'/fixtures/shifts.php'));
+    // The dates are the question asked; the oracle never reads the answers.
+    $answer = CaseAdapter::run($case, require __DIR__.'/fixtures/shifts.php', array_keys($case['expect']['days'] ?? []) ?: null);
+    $oracle = OracleComparer::compare($case, $answer);
 
     if ($oracle['mismatches'] === [] && $oracle['undecided'] === []) {
         return 'THREE-WAY: the oracle agrees with every hand value of this case, so the engine is outvoted two to one. Suspect the engine.';
@@ -433,6 +435,10 @@ function accuracyVerdict(array $case): string
     $lines = array_map(fn (string $m): string => '  oracle: '.$m, $oracle['mismatches']);
     foreach ($oracle['undecided'] as $u) {
         $lines[] = "  oracle: {$u['field']} depends on undecided rule {$u['rule']}";
+    }
+
+    if ($oracle['mismatches'] === []) {
+        return "THREE-WAY: the oracle has no decided answer here; the field depends on an undecided rule. The register must be ruled on first.\n".implode("\n", $lines);
     }
 
     return "THREE-WAY: the oracle also disagrees with the hand value here. Suspect the hand value or the register first.\n".implode("\n", $lines);

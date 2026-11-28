@@ -4,107 +4,207 @@ declare(strict_types=1);
 
 /*
  * The oracle is worth something only while it shares nothing with the engine:
- * no application code, no Laravel, no Carbon, no database, and no reading of
- * the clock. Function names here are prefixed `oracle` (see OracleCasesTest).
+ * no application code, no Laravel, no Carbon, no database, no reading of the
+ * clock, the environment or the file system, and no way to build a name at run
+ * time. Function names here are prefixed `oracle` (see OracleCasesTest).
  */
+
+// Pest's arch `toOnlyUse` sees the classes a file names, not what they call
+// in turn, so the token scan below covers the rest.
+arch('the oracle uses only itself and a few named PHP classes')
+    ->expect('Tests\Accuracy\Oracle')
+    ->toOnlyUse(['DateTimeImmutable', 'DateTimeZone', 'DateInterval', 'Closure', 'InvalidArgumentException', 'Tests\Accuracy\Oracle']);
 
 arch('the oracle uses no application, framework, date library or database code')
     ->expect('Tests\Accuracy\Oracle')
-    ->not->toUse(['App', 'Illuminate', 'Carbon', 'Database']);
+    ->not->toUse(['App', 'Illuminate', 'Carbon', 'Database', 'Laravel', 'Symfony', 'Pest', 'PHPUnit', 'Tests\Accuracy\OracleComparer']);
+
+const ORACLE_CLOCK_AND_WORLD_FUNCTIONS = [
+    // the clock
+    'now', 'today', 'time', 'date', 'gmdate', 'date_create', 'date_create_immutable', 'date_create_from_format',
+    'date_create_immutable_from_format', 'getdate', 'localtime', 'idate', 'gettimeofday', 'microtime', 'hrtime',
+    'mktime', 'gmmktime', 'strtotime', 'date_default_timezone_get', 'strftime', 'gmstrftime',
+    // framework helpers
+    'collect', 'config', 'app', 'env', 'resolve', 'base_path', 'storage_path',
+    // the file system, the environment, other processes
+    'file_get_contents', 'file_put_contents', 'file', 'fopen', 'readfile', 'fgets', 'fread', 'glob', 'scandir',
+    'opendir', 'is_file', 'file_exists', 'getenv', 'putenv', 'exec', 'shell_exec', 'system', 'passthru', 'proc_open',
+    // names built at run time
+    'call_user_func', 'call_user_func_array', 'constant', 'eval', 'forward_static_call', 'forward_static_call_array',
+    'is_callable', 'func_get_args',
+    // randomness
+    'rand', 'mt_rand', 'random_int', 'uniqid', 'shuffle',
+];
+
+const ORACLE_FORBIDDEN_VARIABLES = ['$_SERVER', '$_ENV', '$GLOBALS', '$_GET', '$_POST', '$_COOKIE', '$_FILES', '$_REQUEST', '$_SESSION'];
+
+const ORACLE_DATE_CLASSES = ['DateTime', 'DateTimeImmutable', 'DateTimeZone', 'DatePeriod', 'DateInterval'];
 
 /**
- * Calls in the oracle's code, found with the tokeniser so comments, strings,
- * methods and names such as getTimestamp() or strtotime() are not hit.
+ * Everything in the oracle's source that reaches outside its input, found with
+ * the tokeniser, so comments, strings, methods and names such as
+ * getTimestamp() are not hit.
  *
- * @return list<string> one line per forbidden call: file, line, call
+ * @return list<string> `path:line what`
  */
-function oracleForbiddenCalls(string $directory): array
+function oracleForbiddenUses(string $directory): array
 {
-    $forbidden = ['now', 'today', 'collect', 'config', 'app', 'time', 'date'];
     $found = [];
+    $files = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($directory, FilesystemIterator::SKIP_DOTS));
 
-    foreach (glob($directory.'/*.php') ?: [] as $file) {
-        $tokens = token_get_all((string) file_get_contents($file));
-        $significant = [];
-        foreach ($tokens as $i => $token) {
+    foreach ($files as $file) {
+        if ($file->getExtension() !== 'php') {
+            continue;
+        }
+
+        $relative = ltrim(substr($file->getPathname(), strlen($directory)), '\\/');
+        $isCalendar = basename($file->getPathname()) === 'Calendar.php';
+        $tokens = [];
+        foreach (token_get_all((string) file_get_contents($file->getPathname())) as $token) {
             if (is_array($token) && in_array($token[0], [T_WHITESPACE, T_COMMENT, T_DOC_COMMENT], true)) {
                 continue;
             }
-            $significant[] = [$i, $token];
+            $tokens[] = $token;
         }
 
-        foreach ($significant as $position => [$i, $token]) {
-            if (! is_array($token) || $token[0] !== T_STRING || ! in_array($token[1], $forbidden, true)) {
-                continue;
-            }
-            $next = $significant[$position + 1][1] ?? null;
-            $previous = $significant[$position - 1][1] ?? null;
-            if ($next !== '(') {
-                continue;
-            }
-            if (is_array($previous) && in_array($previous[0], [T_OBJECT_OPERATOR, T_NULLSAFE_OBJECT_OPERATOR, T_DOUBLE_COLON, T_FUNCTION, T_NEW], true)) {
-                continue;
+        $name = static fn (mixed $t): ?string => is_array($t) && in_array($t[0], [T_STRING, T_NAME_QUALIFIED, T_NAME_FULLY_QUALIFIED], true) ? ltrim($t[1], '\\') : null;
+        $line = static fn (mixed $t): int => is_array($t) ? $t[2] : 0;
+
+        foreach ($tokens as $i => $token) {
+            $previous = $tokens[$i - 1] ?? null;
+            $next = $tokens[$i + 1] ?? null;
+            $after = is_array($previous) ? $previous[0] : $previous;
+            $member = in_array($after, [T_OBJECT_OPERATOR, T_NULLSAFE_OBJECT_OPERATOR, T_DOUBLE_COLON, T_FUNCTION, T_CONST], true);
+            $where = $relative.':'.$line($token);
+
+            // include, require, eval
+            if (is_array($token) && in_array($token[0], [T_REQUIRE, T_REQUIRE_ONCE, T_INCLUDE, T_INCLUDE_ONCE, T_EVAL], true)) {
+                $found[] = "{$where} {$token[1]}";
             }
 
-            if ($token[1] === 'date' && oracleTopLevelArguments($significant, $position + 1) >= 2) {
-                continue; // date() with an explicit timestamp reads no clock
+            // $_SERVER and the like
+            if (is_array($token) && $token[0] === T_VARIABLE && in_array($token[1], ORACLE_FORBIDDEN_VARIABLES, true)) {
+                $found[] = "{$where} {$token[1]}";
             }
 
-            $found[] = sprintf('%s:%d %s()', basename($file), $token[2], $token[1]);
+            // a call to a function that reads the clock, the world, or builds a name
+            $called = $name($token);
+            if ($called !== null && $next === '(' && ! $member && in_array(strtolower($called), ORACLE_CLOCK_AND_WORLD_FUNCTIONS, true)) {
+                $found[] = "{$where} {$called}()";
+            }
+
+            // `new $class`, `new (expr)`: a name built at run time
+            if (is_array($token) && $token[0] === T_NEW) {
+                if ((is_array($next) && $next[0] === T_VARIABLE) || $next === '(') {
+                    $found[] = "{$where} new with a name built at run time";
+                }
+                $class = $name($next);
+                if ($class !== null && in_array($class, ORACLE_DATE_CLASSES, true) && ! $isCalendar) {
+                    $found[] = "{$where} new {$class} outside Calendar.php";
+                }
+                if ($isCalendar && ($class === 'DateTimeImmutable' || $class === 'DateTime') && ! oracleCalendarArgumentIsGuarded($tokens, $i + 3)) {
+                    $found[] = "{$where} new {$class} from an argument that is not validated or an @timestamp";
+                }
+            }
+
+            // DateTimeImmutable::createFromFormat() and friends
+            if ($called !== null && in_array($called, ORACLE_DATE_CLASSES, true) && is_array($next) && $next[0] === T_DOUBLE_COLON) {
+                $method = is_array($tokens[$i + 2] ?? null) ? $tokens[$i + 2][1] : '';
+                if (! ($isCalendar && $called === 'DateTimeZone' && $method === 'listIdentifiers')) {
+                    $found[] = "{$where} {$called}::{$method}";
+                }
+            }
         }
     }
 
     return $found;
 }
 
-/** Number of top-level arguments of the call whose '(' is at `$open`. */
-function oracleTopLevelArguments(array $significant, int $open): int
+/**
+ * The first argument of `new DateTimeImmutable(` in Calendar.php must be a
+ * validated date (`self::date(`) joined to a time, or `'@'` and a timestamp.
+ * `$open` is the index of the first token after the opening parenthesis.
+ *
+ * @param  list<mixed>  $tokens
+ */
+function oracleCalendarArgumentIsGuarded(array $tokens, int $open): bool
 {
+    $text = '';
     $depth = 0;
-    $arguments = 0;
-    for ($i = $open, $n = count($significant); $i < $n; $i++) {
-        $token = $significant[$i][1];
-        $text = is_array($token) ? $token[1] : $token;
-        if (in_array($text, ['(', '[', '{'], true)) {
+    for ($i = $open, $n = count($tokens); $i < $n; $i++) {
+        $t = is_array($tokens[$i]) ? $tokens[$i][1] : $tokens[$i];
+        if ($t === '(') {
             $depth++;
-            if ($depth === 1 && $significant[$i + 1][1] !== ')') {
-                $arguments = 1;
-            }
-        } elseif (in_array($text, [')', ']', '}'], true)) {
+        } elseif ($t === ')') {
             $depth--;
-            if ($depth === 0) {
+            if ($depth < 0) {
                 break;
             }
-        } elseif ($text === ',' && $depth === 1) {
-            $arguments++;
+        } elseif ($t === ',' && $depth === 0) {
+            break;
+        }
+        $text .= $t;
+    }
+
+    return str_starts_with($text, "'@'.") || str_contains($text, 'self::date(');
+}
+
+it('reads no clock, environment, file or framework helper, and builds no name at run time', function (): void {
+    expect(oracleForbiddenUses(__DIR__.'/Oracle'))->toBe([]);
+});
+
+it('can find every kind of thing it forbids', function (): void {
+    $snippets = [
+        'a global clock call' => '$a = now();',
+        'a fully qualified clock call' => '$a = \now();',
+        'a fully qualified date call' => '$a = \date("Y");',
+        'date with an explicit timestamp' => '$a = date("Y", $_SERVER["REQUEST_TIME"]);',
+        'gmdate' => '$a = gmdate("Y", 5);',
+        'date_create' => '$a = date_create();',
+        'getdate' => '$a = getdate();',
+        'microtime' => '$a = microtime(true);',
+        'hrtime' => '$a = hrtime(true);',
+        'mktime' => '$a = mktime(0, 0, 0, 1, 1, 2026);',
+        'strtotime' => '$a = strtotime("2026-01-01");',
+        'a date object outside Calendar.php' => '$a = new DateTimeImmutable("now");',
+        'a fully qualified date object' => '$a = new \DateTimeImmutable("2026-01-01");',
+        'a static factory' => '$a = DateTimeImmutable::createFromFormat("Y", "2026");',
+        'a name built at run time' => '$a = new $class();',
+        'call_user_func' => '$a = call_user_func("x");',
+        'constant()' => '$a = constant("X");',
+        'require' => 'require "x.php";',
+        'file_get_contents' => '$a = file_get_contents("x");',
+        'getenv' => '$a = getenv("X");',
+        '$_SERVER' => '$a = $_SERVER["X"];',
+        '$_ENV' => '$a = $_ENV["X"];',
+        'app()' => '$a = app();',
+    ];
+
+    $clean = '// now() date() in a comment, "time()" in a string
+        $a = $x->time() + self::date("x") + $d->getTimestamp(); $b = "now()"; $c = strlen("x");';
+
+    foreach ($snippets as $what => $code) {
+        $dir = sys_get_temp_dir().DIRECTORY_SEPARATOR.'oracle-scan-'.getmypid().'-'.md5($what);
+        mkdir($dir.DIRECTORY_SEPARATOR.'sub', 0777, true);
+        $file = $dir.DIRECTORY_SEPARATOR.'sub'.DIRECTORY_SEPARATOR.'Bad.php'; // also proves the scan is recursive
+        file_put_contents($file, "<?php\n{$code}\n");
+
+        try {
+            expect(oracleForbiddenUses($dir))->not->toBe([], "the scan did not flag: {$what}");
+        } finally {
+            unlink($file);
+            rmdir($dir.DIRECTORY_SEPARATOR.'sub');
+            rmdir($dir);
         }
     }
 
-    return $arguments;
-}
-
-it('reads no clock and uses no framework helper', function (): void {
-    expect(oracleForbiddenCalls(__DIR__.'/Oracle'))->toBe([]);
-});
-
-it('builds no moment from the current time or a relative string', function (): void {
-    foreach (glob(__DIR__.'/Oracle/*.php') ?: [] as $file) {
-        $source = (string) file_get_contents($file);
-        expect($source)->not->toMatch('/new\s+(?:\\\\)?DateTime(?:Immutable)?\s*\(\s*\)/', basename($file));
-        expect($source)->not->toMatch('/\b(?:strtotime|mktime|microtime|hrtime)\s*\(/', basename($file));
-    }
-});
-
-it('can find a forbidden call', function (): void {
-    // The scan is only worth anything if it can see what it forbids.
-    $dir = sys_get_temp_dir().'/oracle-scan-'.getmypid();
+    $dir = sys_get_temp_dir().DIRECTORY_SEPARATOR.'oracle-scan-'.getmypid().'-clean';
     mkdir($dir);
-    file_put_contents($dir.'/Bad.php', "<?php\n// now( in a comment is fine\n\$a = now();\n\$b = date('Y');\n\$c = date('Y', 5);\n\$d = \$x->time();\n");
-
+    file_put_contents($dir.DIRECTORY_SEPARATOR.'Clean.php', "<?php\n{$clean}\n");
     try {
-        expect(oracleForbiddenCalls($dir))->toBe(['Bad.php:3 now()', 'Bad.php:4 date()']);
+        expect(oracleForbiddenUses($dir))->toBe([]);
     } finally {
-        unlink($dir.'/Bad.php');
+        unlink($dir.DIRECTORY_SEPARATOR.'Clean.php');
         rmdir($dir);
     }
 });

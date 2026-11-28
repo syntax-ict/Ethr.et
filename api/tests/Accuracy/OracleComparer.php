@@ -2,14 +2,18 @@
 
 declare(strict_types=1);
 
-namespace Tests\Accuracy\Oracle;
+namespace Tests\Accuracy;
+
+use Tests\Accuracy\Oracle\NoOpinion;
+use Tests\Accuracy\Oracle\Undecided;
 
 /**
- * A case's hand values against the oracle's answer, field by field. A field the
+ * A case's hand values against the oracle's answer, field by field. This is the
+ * only place that reads `expect`; the oracle itself never sees it. A field the
  * oracle has no opinion on is skipped; a field that depends on an Undecided
  * rule is reported as such and never counted as agreement or disagreement.
  */
-final class Comparer
+final class OracleComparer
 {
     /**
      * @param  array<string, mixed>  $case
@@ -28,7 +32,7 @@ final class Comparer
         }
 
         foreach ($expect['outcomes'] ?? [] as $i => $hand) {
-            $mine = $answer['outcomes'][$i] ?? new NoOpinion('no such punch');
+            $mine = array_key_exists($i, $answer['outcomes']) ? $answer['outcomes'][$i] : new NoOpinion('no such punch');
             self::check($result, 'outcome of punch '.($i + 1), $hand, $mine ?? new NoOpinion('the register gives no outcome for this punch'));
         }
 
@@ -47,12 +51,23 @@ final class Comparer
                     'code' => self::check($result, $date.' absent', $hand === 'A', $day['absent']),
                     'overtime' => self::check($result, $field, self::buckets($hand), self::bucketsOf($day['overtime'])),
                     'metadata' => self::metadata($result, $date, $hand, $day['metadata']),
+                    'check_in', 'check_out' => self::check($result, $field, $hand, self::clock($hand, $day[$key])),
                     default => self::check($result, $field, $hand, array_key_exists($key, $day) ? $day[$key] : new NoOpinion('not produced')),
                 };
             }
         }
 
         return $result;
+    }
+
+    /** The oracle always answers `H:i:s`; a hand value of `H:i` is compared at that precision. */
+    private static function clock(mixed $hand, mixed $mine): mixed
+    {
+        if (is_string($hand) && strlen($hand) === 5 && is_string($mine) && str_ends_with($mine, ':00')) {
+            return substr($mine, 0, 5);
+        }
+
+        return $mine;
     }
 
     /** @param array<string, mixed> $result */
@@ -67,8 +82,8 @@ final class Comparer
         if ($mine instanceof Undecided) {
             $result['undecided'][] = [
                 'field' => $field,
-                'rule' => $mine->rule,
-                'literal_agrees' => $mine->literal !== null && $mine->literal === $hand,
+                'rule' => $mine->label(),
+                'literal_agrees' => $mine->literal !== null && ! $mine->literal instanceof NoOpinion && $mine->literal === $hand,
             ];
 
             return;
@@ -86,11 +101,15 @@ final class Comparer
     /**
      * @param  array<string, mixed>  $result
      * @param  array<string, mixed>  $hand
-     * @param  array<string, mixed>  $mine
      */
-    private static function metadata(array &$result, string $date, array $hand, array $mine): void
+    private static function metadata(array &$result, string $date, array $hand, mixed $mine): void
     {
         foreach ($hand as $key => $value) {
+            if ($mine instanceof Undecided || $mine instanceof NoOpinion) {
+                self::check($result, $date.' metadata.'.$key, $value, $mine);
+
+                continue;
+            }
             self::check($result, $date.' metadata.'.$key, $value, $mine[$key] ?? false);
         }
     }
@@ -107,10 +126,13 @@ final class Comparer
         return $buckets;
     }
 
-    /** @return array<string, int>|Undecided */
     private static function bucketsOf(mixed $mine): mixed
     {
-        return $mine instanceof Undecided || $mine instanceof NoOpinion ? $mine : self::buckets($mine);
+        if ($mine instanceof Undecided) {
+            return new Undecided($mine->rules, is_array($mine->literal) ? self::buckets($mine->literal) : $mine->literal);
+        }
+
+        return $mine instanceof NoOpinion ? $mine : self::buckets($mine);
     }
 
     private static function show(mixed $value): string
