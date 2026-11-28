@@ -5,12 +5,12 @@
 $aEmp = fn (int $b, array $more = []): array => $more + ['status' => 'confirmed', 'hire_date' => '2020-01-01', 'termination_date' => null, 'salary_cents' => $b];
 
 $aWk = fn (string $b): array => [
-    'in_run = confirmed, salary ' . $b . ' > 0 = 1 (PYR-SAL-05, PYR-SAL-07)',
-    'monthly_basic = no history rows, so the salary on the record = ' . $b . ' (PYR-SAL-01)',
+    'in_run = confirmed, salary '.$b.' > 0 = 1 (PYR-SAL-05, PYR-SAL-07)',
+    'monthly_basic = no history rows, so the salary on the record = '.$b.' (PYR-SAL-01)',
     'days_in_period = 2026-10-01 to 2026-10-31 inclusive = 31 (PYR-PER-01)',
     'days_employed = hired 2020-01-01, before the period; no termination = 31 (PYR-PRO-01)',
-    'period_basic = full_month, no Pagume day = monthly basic = ' . $b . ' (PYR-PAG-02)',
-    'prorated_basic = ' . $b . ' x 31 / 31 = ' . $b . ' (PYR-PRO-02)',
+    'period_basic = full_month, no Pagume day = monthly basic = '.$b.' (PYR-PAG-02)',
+    'prorated_basic = '.$b.' x 31 / 31 = '.$b.' (PYR-PRO-02)',
     'lateness_step_logged = deductions switched off = 0 (PYR-LATE-01)',
     'pension_exempt = Ethiopian = 0 (PYR-PEN-15)',
 ];
