@@ -76,7 +76,7 @@ The same article carries a table of the Gregorian day on which each Ethiopian mo
 - no exemption is stale: its rule is Decided, exists, and is not cited by a case;
 - a leave case citing a Decided rule whose text says "Value:" and names an Undecided rule carries `waits_on`.
 
-An engine whose case directory does not exist yet is skipped, not failed. The attendance, payroll and leave case directories all exist now, so all three are checked. At commit `1c833bba61` the payroll check fails on five Decided rules with neither a case nor an exemption (see [13, section 3](13-PAYROLL-ACCURACY.md#the-last-run)); the attendance and leave checks pass.
+An engine whose case directory does not exist yet is skipped, not failed. The attendance, payroll and leave case directories all exist now, so all three are checked. All three checks passed in the last run.
 
 On the attendance register today, 19 Decided rules have no case and each has an exemption: AR-CLOCK-03, AR-CLOCK-05, AR-SHIFT-01 to AR-SHIFT-04, AR-STATUS-02, AR-BREAK-04, AR-BREAK-05, AR-NIGHT-03, AR-AUTO-03, AR-ABS-06, AR-OT-04 to AR-OT-07 and AR-LATE-01 to AR-LATE-03. They are the rules [12-ATTENDANCE-ACCURACY.md](12-ATTENDANCE-ACCURACY.md) section 8 lists as having no golden case yet, less those that are Undecided.
 
@@ -169,7 +169,7 @@ LEAVE_CASE=GL-DAYS-015,GL-YEAR-003 php -d memory_limit=-1 vendor/bin/pest -c php
 
 ### The last run
 
-From the session sheet of 2026-11-28 18:21 UTC, commit `1c833bba61` (worktree not clean: uncommitted edits to the session script and to documents). Leave: **102 passed, 0 failed, 0 incomplete, 7 skipped as undecided, 27 skipped as waiting for a signature.** The 102 are the 97 asserted cases, the test that checks every case's shape, and the four property tests. The properties printed:
+From the session sheet of 2026-11-28 18:56 UTC, commit `6ebca2c779`, worktree clean (tracked files). Leave: **102 passed, 0 failed, 0 incomplete, 7 skipped as undecided, 27 skipped as waiting for a signature.** The 102 are the 97 asserted cases, the test that checks every case's shape, and the four property tests. The properties printed:
 
 ```text
 LEAVE PROPERTY splitting: seed=20261128 cases=60 disagreements=0
@@ -178,13 +178,13 @@ LEAVE PROPERTY accrual: seed=20261128 cases=10 disagreements=0
 LEAVE PROPERTY repeat: seed=20261128 cases=8 disagreements=0
 ```
 
-The same run passed the 9 PHP calendar tests and the 14 TypeScript calendar and clock tests. The register consistency test failed on payroll, not on leave: see [13, section 3](13-PAYROLL-ACCURACY.md#the-last-run). These are counts of designed cases and generated inputs, not a rate.
+The same run passed the 9 PHP calendar tests and the 14 TypeScript calendar and clock tests. The shared guards, which include the register consistency test, passed (23 tests). These are counts of designed cases and generated inputs, not a rate.
 
 
 ### What this does not prove
 
 - **Leave accuracy is not signed off.** The register's own words are "Leave accuracy is not certified": every statutory value in it waits on counsel or HR in writing ([Waiting for a decision](../LEAVE-RULES.md#waiting-for-a-decision), 23 items, none signed). The 27 cases that wait on a signature are the measure of that gap. A pass on the 97 asserted cases says the engine does what the register says where the register has an answer. It does not say the law or a customer's policy is met.
-- The cases and the register share one reading, so a misreading they share passes. The register's Implemented rows copy what the code does.
+- The cases and the register share one reading, so a misreading they share passes. The register's Implemented rows copy what the code does, so agreement on one shows the engine and the hand value are consistent with the code, never that what the code does is right.
 - No real balance or request has been compared with a signed figure.
 - Not covered: attachments and medical certificates, who may read a leave reason, approval chains and their reminders, delegation, notifications and webhooks, leave reports and the team calendar (the register's "What this register does not cover"). Two requests racing from separate processes is not tested here either: the register consistency exemption for LVR-BAL-07 points to the concurrency gate.
 

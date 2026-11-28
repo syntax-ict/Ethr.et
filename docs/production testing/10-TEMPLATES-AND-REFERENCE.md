@@ -336,6 +336,16 @@ The PHP rows come from one Pest run, split by test file from its JUnit file and 
 
 Check: the per-engine PHP rows add up to Pest's own totals (passed N, failed N, incomplete N, skipped N).
 
+## What was not compared
+
+A passed test means every comparable field agreed; the lines below say what was not compared and why.
+
+```text
+PAYROLL TALLY: <n> stated fields not comparable against the engine (<field> x<n>, ...); <n> fields withheld in <n> undecided cases (<case ids>)
+```
+
+(or, when no such line was printed: "none printed")
+
 ## Robustness output
 
 Lines copied unchanged from the test output: seed, number of cases, disagreements, input distribution. No interval or percentage is computed.

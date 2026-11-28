@@ -116,6 +116,7 @@ declare -A CH_STATUS=() CH_DUR=() CH_LOG=() CH_NOTE=()
 declare -A ENGINE_COUNTS=()
 ROBUST_LINES=""
 CONF_NOTE=""
+TALLY_LINES=""
 
 # ── Arguments ────────────────────────────────────────────────────────────────
 
@@ -434,6 +435,14 @@ write_sheet() {
         done
         printf '\n%s\n\n' "${CONF_NOTE:-Check: the conformance charter did not run.}"
 
+        printf '## What was not compared\n\n'
+        printf 'A passed test means every comparable field agreed; the lines below say what was not compared and why.\n\n'
+        if [[ -n "$TALLY_LINES" ]]; then
+            printf '```text\n%s\n```\n\n' "$TALLY_LINES"
+        else
+            printf 'none printed\n\n'
+        fi
+
         printf '## Robustness output\n\n'
         printf 'Lines copied unchanged from the test output: seed, number of cases, disagreements, input distribution. No interval or percentage is computed.\n\n'
         if [[ -n "$ROBUST_LINES" ]]; then
@@ -637,6 +646,8 @@ charter_conformance() {
 
     # Leave's properties print seed, cases and disagreements. Copied unchanged.
     ROBUST_LINES="$(strip_ansi <"$part" | grep -E 'seed=[0-9]+' | head -n 60)"
+    # Lines such as PAYROLL TALLY: what a test could not compare or withheld. Copied unchanged.
+    TALLY_LINES="$(strip_ansi <"$part" | grep -E '^[[:space:]]*[A-Z]+ TALLY:' | sed 's/^[[:space:]]*//')"
 
     write_split_php "$split_php"
     local pp="-1" pf=0 pi=0 ps=0 trusted=0 checktext=""
