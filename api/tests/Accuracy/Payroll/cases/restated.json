@@ -1,0 +1,12 @@
+[
+  {"id": "GR-PAYSLIP-001", "rule": ["PYR-RST-04"], "source": "07 OUT-006", "case": "GP-OT-001", "covers": "overtime of all five kinds"},
+  {"id": "GR-PAYSLIP-002", "rule": ["PYR-RST-04"], "source": "07 OUT-006", "case": "GP-NET-001", "covers": "unpaid leave, taxable and non-taxable allowances"},
+  {"id": "GR-PAYSLIP-003", "rule": ["PYR-RST-04"], "source": "07 OUT-006", "case": "GP-SICK-003", "covers": "sick leave and unpaid leave"},
+  {"id": "GR-PAYSLIP-004", "rule": ["PYR-RST-04"], "source": "07 OUT-006", "case": "GP-LATE-009", "covers": "lateness, a loan and cost sharing"},
+  {"id": "GR-PAYSLIP-005", "rule": ["PYR-RST-04"], "source": "07 OUT-006", "case": "GP-LATE-007", "covers": "unpaid leave, lateness and a loan"},
+  {"id": "GR-PAYSLIP-006", "rule": ["PYR-RST-04"], "source": "07 OUT-006", "case": "GP-PEN-004", "covers": "pension-exempt people"},
+  {"id": "GR-PAYSLIP-007", "rule": ["PYR-RST-04"], "source": "07 OUT-006", "case": "GP-RUN-002", "covers": "an approved run with a loan and cost sharing"},
+  {"id": "GR-PAYSLIP-008", "rule": ["PYR-RST-04"], "source": "07 OUT-006", "case": "GP-ALW-001", "covers": "allowances by name, and a person with a zero basic"},
+  {"id": "GR-BANK-001", "rule": ["PYR-BANK-02", "PYR-BANK-03"], "source": "07 OUT-002, OUT-012", "case": "GP-RUN-001", "covers": "bank file rows against the register and the stored bank details"},
+  {"id": "GR-SCHEDULE-001", "rule": ["PYR-RST-03"], "source": "07 OUT-004, OUT-005", "case": "GP-RUN-001", "covers": "tax and pension schedule rows and CSV totals against the entries"}
+]
