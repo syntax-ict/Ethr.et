@@ -712,7 +712,14 @@ export default function AdminConsolePage() {
             </Button>
           </CardHeader>
           <CardContent>
-            {!audit ? (
+            {needsMfa ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">
+                {t(
+                  "admin_console_page.audit_needs_mfa",
+                  "The platform activity lists people from every organisation, so it needs two-factor authentication to read.",
+                )}
+              </p>
+            ) : !audit ? (
               <Skeleton className="h-32 w-full" />
             ) : audit.data.length === 0 ? (
               <p className="py-8 text-center text-sm text-muted-foreground">

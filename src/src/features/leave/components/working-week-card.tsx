@@ -17,13 +17,13 @@ import { ErrorState } from "@/components/shared/error-state";
 
 /** ISO weekdays, Monday = 1 … Sunday = 7, the encoding the API stores. */
 const DAYS = [
-  [1, "weekday.mon", "Mon", "weekday.monday", "Monday"],
-  [2, "weekday.tue", "Tue", "weekday.tuesday", "Tuesday"],
-  [3, "weekday.wed", "Wed", "weekday.wednesday", "Wednesday"],
-  [4, "weekday.thu", "Thu", "weekday.thursday", "Thursday"],
-  [5, "weekday.fri", "Fri", "weekday.friday", "Friday"],
-  [6, "weekday.sat", "Sat", "weekday.saturday", "Saturday"],
-  [7, "weekday.sun", "Sun", "weekday.sunday", "Sunday"],
+  [1, "weekday.monday", "Monday"],
+  [2, "weekday.tuesday", "Tuesday"],
+  [3, "weekday.wednesday", "Wednesday"],
+  [4, "weekday.thursday", "Thursday"],
+  [5, "weekday.friday", "Friday"],
+  [6, "weekday.saturday", "Saturday"],
+  [7, "weekday.sunday", "Sunday"],
 ] as const;
 
 /**
@@ -120,16 +120,20 @@ export function WorkingWeekCard() {
             role="group"
             aria-label={t("leave_types_page.working_week", "Working week")}
           >
-            {DAYS.map(([day, key, fallback, fullKey, fullFallback]) => (
+            {/* The full day name is the visible text, so it is also the
+                accessible name (WCAG 2.5.3). The three-letter form was named
+                "Monday" for a screen reader but showed "Mon", and in Afaan
+                Oromoo "Wix" against "Wiixata". Buttons wrap onto a second row
+                on a phone. */}
+            {DAYS.map(([day, key, fallback]) => (
               <button
                 key={day}
                 type="button"
-                aria-label={t(fullKey, fullFallback)}
                 aria-pressed={days.includes(day)}
                 disabled={!can.manageSettings}
                 onClick={() => toggle(day)}
                 className={cn(
-                  "w-12 rounded-md border py-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-70",
+                  "rounded-md border px-3 py-1.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-70",
                   days.includes(day)
                     ? "border-primary bg-primary text-primary-foreground"
                     : "border-input bg-background text-muted-foreground hover:bg-muted",
