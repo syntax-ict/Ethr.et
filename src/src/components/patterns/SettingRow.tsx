@@ -28,7 +28,7 @@ interface SettingRowProps {
   error?: React.ReactNode;
   /** The control: a Switch, Select, Input, or button. */
   children: React.ReactNode;
-  /** Stack the control under the text at every width, not only below `sm`. */
+  /** Put the control on its own row under the help, full width: selects, text inputs. */
   stacked?: boolean;
   className?: string;
 }
@@ -115,27 +115,40 @@ export function SettingRow({
     <div className={cn("space-y-2", className)}>
       <div
         className={cn(
-          "flex flex-col gap-2",
-          !stacked && "sm:flex-row sm:items-center sm:justify-between sm:gap-4",
+          "grid gap-x-3 gap-y-1",
+          stacked ? "grid-cols-1 gap-y-2" : "grid-cols-[minmax(0,1fr)_auto]",
         )}
       >
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <p id={titleId} className="text-label text-foreground">
-              {title}
-            </p>
-            {badge && <Badge variant="neutral">{badge}</Badge>}
-          </div>
-          {description && (
-            <p
-              id={descId}
-              className="mt-0.5 text-caption text-muted-foreground"
-            >
-              {description}
-            </p>
+        <div
+          className={cn(
+            "flex min-w-0 flex-wrap items-center gap-2",
+            !stacked && "col-start-1 row-start-1",
           )}
+        >
+          <p id={titleId} className="text-label text-foreground">
+            {title}
+          </p>
+          {badge && <Badge variant="neutral">{badge}</Badge>}
         </div>
-        <div className={cn(!stacked && "sm:shrink-0")}>{control}</div>
+        {description && (
+          <p
+            id={descId}
+            className={cn(
+              "text-caption text-muted-foreground",
+              !stacked && "col-span-2 row-start-2",
+            )}
+          >
+            {description}
+          </p>
+        )}
+        <div
+          className={cn(
+            !stacked && "col-start-2 row-start-1 self-center",
+            stacked && "order-last",
+          )}
+        >
+          {control}
+        </div>
       </div>
       {error}
       {warning && <Alert variant="warning">{warning}</Alert>}
