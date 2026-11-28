@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use Tests\Accuracy\IntegerOnlyScan;
+
 /*
  * The oracle is worth something only while it shares nothing with the engine:
  * no application code, no Laravel, no Carbon, no database, no reading of the
@@ -17,7 +19,7 @@ arch('the oracle uses only itself and a few named PHP classes')
 
 arch('the oracle uses no application, framework, date library or database code')
     ->expect('Tests\Accuracy\Oracle')
-    ->not->toUse(['App', 'Illuminate', 'Carbon', 'Database', 'Laravel', 'Symfony', 'Pest', 'PHPUnit', 'Tests\Accuracy\OracleComparer']);
+    ->not->toUse(['App', 'Illuminate', 'Carbon', 'Database', 'Laravel', 'Symfony', 'Pest', 'PHPUnit', 'Tests\Accuracy\OracleComparer', 'Tests\Accuracy\Payroll', 'Tests\Accuracy\Leave', 'Tests\Accuracy\Calendar', 'Tests\Accuracy\IntegerOnlyScan']);
 
 const ORACLE_CLOCK_AND_WORLD_FUNCTIONS = [
     // the clock
@@ -58,7 +60,8 @@ function oracleForbiddenUses(string $directory): array
         }
 
         $relative = ltrim(substr($file->getPathname(), strlen($directory)), '\\/');
-        $isCalendar = basename($file->getPathname()) === 'Calendar.php';
+        // Exactly Oracle/Calendar.php: a Calendar.php in a subdirectory is not exempt.
+        $isCalendar = str_replace('\\', '/', $relative) === 'Calendar.php';
         $tokens = [];
         foreach (token_get_all((string) file_get_contents($file->getPathname())) as $token) {
             if (is_array($token) && in_array($token[0], [T_WHITESPACE, T_COMMENT, T_DOC_COMMENT], true)) {
@@ -207,4 +210,89 @@ it('can find every kind of thing it forbids', function (): void {
         unlink($dir.DIRECTORY_SEPARATOR.'Clean.php');
         rmdir($dir);
     }
+});
+
+it('exempts only Oracle/Calendar.php itself from the date-class rule', function (): void {
+    $dir = sys_get_temp_dir().DIRECTORY_SEPARATOR.'oracle-scan-'.getmypid().'-calendar';
+    mkdir($dir.DIRECTORY_SEPARATOR.'sub', 0777, true);
+    $file = $dir.DIRECTORY_SEPARATOR.'sub'.DIRECTORY_SEPARATOR.'Calendar.php';
+    file_put_contents($file, "<?php\n\$a = new DateTimeImmutable(\"2026-01-01\");\n");
+
+    try {
+        $found = oracleForbiddenUses($dir);
+        expect($found)->not->toBe([], 'a Calendar.php in a subdirectory was exempt');
+        expect(implode(' ', $found))->toContain('outside Calendar.php');
+    } finally {
+        unlink($file);
+        rmdir($dir.DIRECTORY_SEPARATOR.'sub');
+        rmdir($dir);
+    }
+});
+
+it('keeps the payroll oracle to whole cents, with all division in Exact.php', fn () => expect(IntegerOnlyScan::violations(__DIR__.'/Oracle/Payroll'))->toBe([]));
+
+it('has the one audited division helper', function (): void {
+    if (! is_dir(__DIR__.'/Oracle/Payroll')) {
+        test()->markTestSkipped('the payroll oracle (Oracle/Payroll) does not exist yet');
+    }
+
+    expect(is_file(__DIR__.'/Oracle/Payroll/Exact.php'))->toBeTrue();
+});
+
+it('can find every float, division and rounding it forbids', function (): void {
+    $bad = [
+        'a float literal' => '$a = 1.5;',
+        'an exponent literal' => '$a = 1e3;',
+        'a division' => '$a = $b / 2;',
+        'a division assignment' => '$a /= 2;',
+        'a modulo' => '$a = $b % 2;',
+        'a modulo assignment' => '$a %= 2;',
+        'a power' => '$a = $b ** 2;',
+        'a power assignment' => '$a **= 2;',
+        'a float cast' => '$a = (float) $b;',
+        'a double cast' => '$a = (double) $b;',
+        'round' => '$a = round($b);',
+        'a fully qualified floor' => '$a = \floor($b);',
+        'ceil' => '$a = ceil($b);',
+        'intdiv outside the helper' => '$a = intdiv($b, 2);',
+        'fdiv' => '$a = fdiv(1, 2);',
+        'fmod' => '$a = fmod(1, 2);',
+        'pow' => '$a = pow(2, 3);',
+        'floatval' => '$a = floatval($b);',
+        'bcdiv' => "\$a = bcdiv('1', '3');",
+        'the answer key expect' => "\$x = \$case['expect'];",
+        'the answer key working' => '$x = $case["working"];',
+    ];
+    $badHelper = [
+        'a division' => '$a = $b / 2;',
+        'a float literal' => '$a = 0.5;',
+        'round' => '$a = round($b);',
+        'a float cast' => '$a = (float) $b;',
+        'ceil' => '$a = ceil($b);',
+        'the answer key expect' => "\$x = \$case['expect'];",
+    ];
+
+    $scan = static function (string $file, string $code): array {
+        $dir = sys_get_temp_dir().DIRECTORY_SEPARATOR.'integer-scan-'.getmypid().'-'.md5($file.$code);
+        mkdir($dir);
+        file_put_contents($dir.DIRECTORY_SEPARATOR.$file, "<?php\n{$code}\n");
+
+        try {
+            return IntegerOnlyScan::violations($dir);
+        } finally {
+            unlink($dir.DIRECTORY_SEPARATOR.$file);
+            rmdir($dir);
+        }
+    };
+
+    foreach ($bad as $what => $code) {
+        expect($scan('Bad.php', $code))->not->toBe([], "the scan did not flag: {$what}");
+    }
+    foreach ($badHelper as $what => $code) {
+        expect($scan('Exact.php', $code))->not->toBe([], "the scan did not flag, in Exact.php: {$what}");
+    }
+
+    $clean = "// a / b, 1.5 and round() in a comment\n\$s = 'a/b 1.5'; \$a = \$b * 3 + 7; \$r = \$x->round(); \$q = Exact::mulDivHalfUp(1, 2, 3);";
+    expect($scan('Clean.php', $clean))->toBe([]);
+    expect($scan('Exact.php', '$q = intdiv($a, $b); $r = $a % $b;'))->toBe([]);
 });

@@ -5,7 +5,7 @@
          colors="true"
 >
     <!--
-        Does the attendance engine give the answer a person would give by hand?
+        Do the attendance, payroll, leave and calendar engines give the answer a person would give by hand?
 
             ./scripts/gates.sh accuracy
 
