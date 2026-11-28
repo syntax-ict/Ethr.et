@@ -1739,6 +1739,7 @@ class ComposerStaticInit4084be8d735b2ecc40754476bcec958c
         'App\\Services\\Device\\DeviceSilence' => __DIR__ . '/../..' . '/app/Services/Device/DeviceSilence.php',
         'App\\Services\\Device\\GenericHttpAdapter' => __DIR__ . '/../..' . '/app/Services/Device/GenericHttpAdapter.php',
         'App\\Services\\Device\\HeartbeatCapture' => __DIR__ . '/../..' . '/app/Services/Device/HeartbeatCapture.php',
+        'App\\Services\\Device\\HeldBadgeDays' => __DIR__ . '/../..' . '/app/Services/Device/HeldBadgeDays.php',
         'App\\Services\\Device\\HikvisionAdapter' => __DIR__ . '/../..' . '/app/Services/Device/HikvisionAdapter.php',
         'App\\Services\\Device\\HikvisionEvent' => __DIR__ . '/../..' . '/app/Services/Device/HikvisionEvent.php',
         'App\\Services\\Device\\HikvisionPushAdapter' => __DIR__ . '/../..' . '/app/Services/Device/HikvisionPushAdapter.php',

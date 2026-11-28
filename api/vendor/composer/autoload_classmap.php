@@ -1077,6 +1077,7 @@ return array(
     'App\\Services\\Device\\DeviceSilence' => $baseDir . '/app/Services/Device/DeviceSilence.php',
     'App\\Services\\Device\\GenericHttpAdapter' => $baseDir . '/app/Services/Device/GenericHttpAdapter.php',
     'App\\Services\\Device\\HeartbeatCapture' => $baseDir . '/app/Services/Device/HeartbeatCapture.php',
+    'App\\Services\\Device\\HeldBadgeDays' => $baseDir . '/app/Services/Device/HeldBadgeDays.php',
     'App\\Services\\Device\\HikvisionAdapter' => $baseDir . '/app/Services/Device/HikvisionAdapter.php',
     'App\\Services\\Device\\HikvisionEvent' => $baseDir . '/app/Services/Device/HikvisionEvent.php',
     'App\\Services\\Device\\HikvisionPushAdapter' => $baseDir . '/app/Services/Device/HikvisionPushAdapter.php',
