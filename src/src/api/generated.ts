@@ -1995,6 +1995,37 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/backups/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Back up now, from the console: the same `ethr:backup` the nightly run
+         *     performs (room check, off-host copy, prune, disk measure), so the button
+         *     proves what the schedule would do. `--off-host` is not passed: it makes
+         *     the command fail when no destination is configured, and a local backup
+         *     is worth taking on its own
+         * @description Live `max_execution_time` is 30 seconds and a backup plus an upload
+         *     outlasts it, so the limit is lifted and a closed tab does not stop it.
+         *     It takes the lock the release-step maintenance tasks take, so the two
+         *     cannot overlap. Known gap, accepted: the 01:00 scheduled run takes a
+         *     different one (the scheduler's `withoutOverlapping()` mutex), so a click
+         *     at exactly 01:00 could overlap it.
+         *
+         *     A failure is reported in the body, never as a 500.
+         */
+        post: operations["backupStorage.run"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/imports/balances/{kind}/template": {
         parameters: {
             query?: never;
@@ -20831,6 +20862,53 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "backupStorage.run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        source: "console" | "env" | "none";
+                        enabled: boolean;
+                        available: boolean;
+                        blocker: string | null;
+                        keep: number;
+                        residency_enforced: boolean;
+                        storage: {
+                            [key: string]: unknown;
+                        } | null;
+                        key: {
+                            [key: string]: unknown;
+                        } | null;
+                        google_drive: {
+                            [key: string]: unknown;
+                        };
+                        health: {
+                            [key: string]: unknown;
+                        };
+                        run: {
+                            ok: boolean;
+                            exit_code: number | null;
+                            output: string;
+                            off_host_copied: boolean;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
         };
     };
     "balanceImport.template": {

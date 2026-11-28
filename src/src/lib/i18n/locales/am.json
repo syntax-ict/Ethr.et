@@ -8526,5 +8526,16 @@
   "device_wizard.done_intro": "ቀጥሎ ሰዎችን ወደ መሣሪያው ያምጡ።",
   "device_wizard.done_no_roster": "በዚህ መሣሪያ የተመዘገበው ማን እንደሆነ መጠየቅ አይቻልም። ለእያንዳንዱ ሠራተኛ በመሣሪያው የሚጠቀምበትን የባጅ ቁጥር በመገለጫው ላይ ይስጡ።",
   "device_wizard.open_device": "የመሣሪያውን ገጽ ክፈት",
-  "device_wizard.push_quarantined": "ወደ ETHR ደርሷል፤ ነገር ግን ሊመዘገብ አልቻለም። ምክንያቱን የመሣሪያው ገጽ «ትኩረት የሚሹ የመገኘት ምዝገባዎች» ስር ያሳያል።"
+  "device_wizard.push_quarantined": "ወደ ETHR ደርሷል፤ ነገር ግን ሊመዘገብ አልቻለም። ምክንያቱን የመሣሪያው ገጽ «ትኩረት የሚሹ የመገኘት ምዝገባዎች» ስር ያሳያል።",
+  "admin_backups.run_title": "ምትኬ አሁን ይውሰዱ",
+  "admin_backups.run_help": "የሌሊቱን ሥራ ሳይጠብቁ ምትኬ ይውሰዱ። ከአገልጋዩ ውጭ ማከማቻ ከበራ የተመሰጠረ ቅጂም ይጫናል።",
+  "admin_backups.run_button": "ምትኬ አሁን ይውሰዱ",
+  "admin_backups.run_running": "ምትኬ በመውሰድ ላይ። ይህን ገጽ ክፍት ያድርጉ።",
+  "admin_backups.run_confirm_title": "ምትኬ አሁን ይውሰዱ?",
+  "admin_backups.run_confirm_body": "ይህ በዚህ አገልጋይ ላይ ያለውን የመረጃ ቋት እና ሰነዶች ሙሉ ምትኬ ይወስዳል። ከአገልጋዩ ውጭ ማከማቻ ከበራ የተመሰጠረ ቅጂም ይጫናል። ጥቂት ደቂቃዎች ሊወስድ ይችላል።",
+  "admin_backups.run_confirm": "ምትኬ ይውሰዱ",
+  "admin_backups.run_done": "ምትኬ በዚህ አገልጋይ ላይ ተፈጥሯል።",
+  "admin_backups.run_done_copied": "ምትኬ ተፈጥሮ ከአገልጋዩ ውጭ ተቀድቷል።",
+  "admin_backups.run_failed": "ምትኬው አልተጠናቀቀም።",
+  "admin_backups.run_no_answer": "አገልጋዩ በጊዜው አልመለሰም። እንደገና ከመሞከርዎ በፊት ከላይ ያለውን የመጨረሻ ምትኬ ጊዜ ይመልከቱ።"
 }
