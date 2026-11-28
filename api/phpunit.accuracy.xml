@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="tests/bootstrap.php"
+         colors="true"
+>
+    <!--
+        Does the attendance engine give the answer a person would give by hand?
+
+            ./scripts/gates.sh accuracy
+
+        ## What this suite is
+
+        Golden cases: each is typed by hand from the rule register
+        (docs/ATTENDANCE-RULES.md) or the QA pack, with its expected values
+        written down before the engine was asked. The engine is then fed the
+        punches and read back through its own functions. The test compares two
+        numbers and implements no rule. See docs/production testing/
+        12-ATTENDANCE-ACCURACY.md.
+
+        ## Why it cannot live in the other suites
+
+        tests/Accuracy sits outside the Unit and Feature testsuites, as
+        tests/Performance and tests/Concurrency do, on purpose: the
+        collection-count check in the root CLAUDE.md compares those two
+        directories with `find`, and a suite added to either would change that
+        count. It never joins the full sweep.
+
+        ## Setup
+
+        None. It runs on SQLite :memory: with the array cache, in any
+        checkout that can run the backend suite, with no database server.
+    -->
+    <testsuites>
+        <testsuite name="Accuracy">
+            <directory>tests/Accuracy</directory>
+        </testsuite>
+    </testsuites>
+    <php>
+        <ini name="memory_limit" value="2G"/>
+        <env name="APP_ENV" value="testing" force="true"/>
+        <env name="APP_MAINTENANCE_DRIVER" value="file" force="true"/>
+        <env name="BCRYPT_ROUNDS" value="4" force="true"/>
+        <env name="BROADCAST_CONNECTION" value="null" force="true"/>
+        <env name="FRONTEND_URL" value="" force="true"/>
+        <env name="DEVICE_ALLOW_PRIVATE_HOSTS" value="true" force="true"/>
+        <env name="CACHE_STORE" value="array" force="true"/>
+        <env name="SIGNALS_CACHE_DRIVER" value="array" force="true"/>
+        <env name="DISK_MEASURE_ROOT" value="tests/Unit" force="true"/>
+        <env name="DB_CONNECTION" value="sqlite" force="true"/>
+        <env name="DB_DATABASE" value=":memory:" force="true"/>
+        <env name="DB_URL" value="" force="true"/>
+        <env name="FILESYSTEM_DISK" value="local" force="true"/>
+        <env name="MAIL_MAILER" value="array" force="true"/>
+        <env name="QUEUE_CONNECTION" value="sync" force="true"/>
+        <env name="CRON_OPPORTUNISTIC" value="false" force="true"/>
+        <env name="SESSION_DRIVER" value="array" force="true"/>
+    </php>
+</phpunit>
