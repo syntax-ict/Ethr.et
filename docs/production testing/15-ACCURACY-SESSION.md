@@ -37,15 +37,27 @@ A figure for one says nothing about the others.
 
 ## 4. Engines and their status today
 
-Checked against the files on 2026-11-28.
+Checked against the files on 2026-11-28, and against one session on commit `1c833bba61` (counts of tests, not of cases: a case can be run by more than one test). Every figure is a count of designed cases; none estimates real-world accuracy.
 
-| Engine | Written rules | Measured today | Status |
+| Engine | Written rules | Measured today | Not measured | Status |
+|---|---|---|---|---|
+| Attendance | [ATTENDANCE-RULES.md](../ATTENDANCE-RULES.md) | 79 golden cases (unique `GC-` ids under `api/tests/Accuracy/cases/`), and the independent oracle run on the same cases: conformance. Four tests skipped, each a case on an Undecided rule | Generated runs, real-world agreement | Measured for conformance |
+| Payroll | [PAYROLL-RULES.md](../payroll/PAYROLL-RULES.md) | 89 hand-valued cases (unique ids under `api/tests/Accuracy/Payroll/cases/`) through `PayrollEngine::preview()`, a blind oracle under `Oracle/Payroll/`, and the three-way comparison. Ten cases wait on Undecided rules (20 skipped tests: each case is skipped once in the golden suite and once in the oracle suite). The 8 golden payslips and 15 tax points still run in the backend suite | Real-world agreement, until the accountant signs. Robustness | Measured for conformance on designed cases. Not certified |
+| Leave | [LEAVE-RULES.md](../LEAVE-RULES.md) | The cases that need no signature, typed from the register, and four properties with a fixed seed (they print it). The cases that wait for a signature or on an Undecided rule are typed and skipped | The skipped cases, real-world agreement | Measured on the cases that need no signature. Not certified until HR or counsel sign the legally significant cases |
+| Ethiopian calendar | None | PHP against a table from a third implementation (`api/tests/Accuracy/Calendar/`), and the TypeScript side, `src/src/test/ethiopian-calendar-table.test.ts` and `ethiopian-clock-roundtrip.test.ts`, run by Vitest | Real-world agreement | Measured against one table |
+| Restated figures | None | Nothing | All of it. File 14 plans it | Not measured |
+
+[14](14-LEAVE-CALENDAR-AND-RESTATED-FIGURES.md) says how leave, the calendar and restated figures are checked. A file `13-PAYROLL-ACCURACY.md` is being written for payroll and is not linked here yet.
+
+**Three kinds of skip.** A skipped test is never a pass and never a failure. Each has its own reason in the test's message, and the sheet counts them separately.
+
+| Kind | Meaning | Where it comes from | List them |
 |---|---|---|---|
-| Attendance | [ATTENDANCE-RULES.md](../ATTENDANCE-RULES.md) | 79 golden cases (unique `GC-` ids under `api/tests/Accuracy/cases/`), and the independent oracle run on the same cases: conformance | Measured for conformance. Robustness and real-world agreement not measured |
-| Payroll | [PAYROLL-RULES.md](../payroll/PAYROLL-RULES.md) | Hand-worked golden payslips G1 to G8 in `PayrollGoldenPayslipsTest.php` and 15 tax points in `TaxCalculatorTest.php`. No oracle, and the payroll cases are not yet in the accuracy gate | Partly measured |
-| Leave | [LEAVE-RULES.md](../LEAVE-RULES.md) | Nothing | Not measured. Not certified until HR or counsel sign the legally significant cases |
-| Ethiopian calendar | None | Nothing | Not measured |
-| Restated figures | None | Nothing | Not measured |
+| Rule undecided | The case depends on a rule the register marks Undecided, so nothing is asserted. Expected while rules wait for a ruling | The register's "Waiting for a decision" section | `grep "rule undecided"` in `02-conformance.log` |
+| Waiting for a signed expected value | A leave case whose expected value needs a signature from HR or counsel before it may be asserted | `api/tests/Accuracy/Leave/`; the item number is in the message | `grep "waiting for a signed"` in `02-conformance.log` |
+| Other | A test that says why it cannot run, for example a payroll case the fixture cannot build ("NOT COVERABLE") | The message | The same log, the lines that are neither of the above |
+
+The log lists them because the charter runs Pest with `--display-skipped` and `--display-incomplete`. To list them without a session, run the same command from `api/`: `php -d memory_limit=-1 vendor/bin/pest -c phpunit.accuracy.xml --display-skipped --display-incomplete`. An incomplete test is a recorded finding and is listed after a `…` marker rather than `-`.
 
 ## 5. Before you start
 
@@ -128,8 +140,8 @@ A charter whose precondition is missing is recorded `not run: <reason>`. One who
 | # | Charter | What it runs | Needs | Timebox | Status today |
 |---|---|---|---|---|---|
 | 1 | `preflight` | Commit, branch, whether tracked files are clean, PHP, Composer and Node versions, `api/vendor`, the count of test files on disk, probes for the database, the stack and `gh` | Nothing | 2 min | Runs today |
-| 2 | `conformance` | `./scripts/gates.sh accuracy`, then `PayrollGoldenPayslipsTest` and `TaxCalculatorTest` while `api/tests/Accuracy/Payroll` does not exist | `api/vendor` | 15 + 10 min | Runs today |
-| 3 | `robustness` | The generated seeded run and properties, and `api/tests/Feature/Idempotency` | `api/vendor` | 45 min | Not built yet |
+| 2 | `conformance` | One run of the whole PHP accuracy suite (the command `./scripts/gates.sh accuracy` runs, see below), split by engine; the TypeScript calendar and clock tests under Vitest when `src/node_modules` exists; and `PayrollGoldenPayslipsTest` with `TaxCalculatorTest` only while `api/tests/Accuracy/Payroll` does not exist | `api/vendor`; `src/node_modules` for the TypeScript row | 15 + 5 min | Runs today |
+| 3 | `robustness` | The generated seeded run and properties, and `api/tests/Feature/Idempotency`. The leave properties already run inside `conformance`, and the sheet copies their seed, cases and disagreements | `api/vendor` | 45 min | Generated runs and idempotency tests not built yet |
 | 4 | `races` | `./scripts/gates.sh concurrency` | A database server | 20 min | Runs today when a server answers |
 | 5 | `strength` | Reads the latest completed run of the CI job `accuracy-mutation` with `gh` | `gh` signed in | 5 min | Not built yet |
 | 6 | `restated` | Restated-figures tests, and `./scripts/gates.sh e2e-attendance` | The local stack for the journeys | 40 min | Journeys run today when the stack answers. Tests not built yet |
@@ -152,8 +164,8 @@ A charter whose precondition is missing is recorded `not run: <reason>`. One who
 **How to read each result.**
 
 - **preflight.** The two numbers are the test files under `api/tests/Unit` and `api/tests/Feature`, the same ones the root [CLAUDE.md](../../CLAUDE.md) says to compare with what Pest collects. A dirty worktree is recorded, not refused: say so in the report.
-- **conformance.** The counts come from Pest's own last `Tests:` line, per engine. **Incomplete** is a recorded finding (the engine disagrees with a hand value and the case is listed in `findings.php`). **Skipped** is a case that depends on a rule the register marks Undecided ([12, section 3](12-ATTENDANCE-ACCURACY.md#what-a-result-means)). Skips of that kind are expected while rules wait for a ruling; they are listed so they are not forgotten and are never asserted. The register's [Waiting for a decision](../ATTENDANCE-RULES.md#waiting-for-a-decision) section lists the rules and the question each asks, and a session does not decide them. To see which tests were skipped, run from `api/`: `php -d memory_limit=-1 vendor/bin/pest -c phpunit.accuracy.xml --display-skipped` (the option is in Pest's own help; it is a separate run and writes nothing). A skip that is not about an Undecided rule is not expected: file it. **Failed** is new. The attendance row is the whole `tests/Accuracy` suite, oracle tests included, so it holds more tests than the 79 cases. Read a failing case as [12, section 3](12-ATTENDANCE-ACCURACY.md#read-a-failing-case) says. If there is no summary line, the sheet says so; it never writes zeros.
-- **robustness.** Not built yet. When it exists, the sheet copies the seed, the number of cases, the disagreements and the input distribution unchanged from the test's output, and computes nothing (section 9).
+- **conformance.** One row per engine, with passed, failed, incomplete and the three kinds of skip (section 4). The PHP rows come from one Pest run, not one run per folder. The charter runs the command `accuracy_gate` in `scripts/gates.sh` runs, `php -d memory_limit=-1 vendor/bin/pest -c phpunit.accuracy.xml` from `api/`, with three flags that only add output: `--display-skipped`, `--display-incomplete` and `--log-junit`, so the charter and the gate run the same tests. The JUnit file gives tests, failures and skips per test file, and the log gives the reason of each skip; the rows are counted from those, then **checked against Pest's own last `Tests:` line**. If they do not add up, the sheet says so and shows no split rather than a wrong one. JUnit counts an incomplete test as skipped; the split takes it out using the log. A failure is new. **Incomplete** is a recorded finding (the engine disagrees with a hand value and the case is listed in a `findings.php`). The attendance row holds more tests than the 79 cases, because the oracle tests run the same cases again. The shared guards row holds `OracleIndependenceTest`, the register consistency test and the `IntegerOnlyScan` self-tests. Read a failing case as [12, section 3](12-ATTENDANCE-ACCURACY.md#read-a-failing-case) says. If Pest prints no summary line, the sheet says so; it never writes zeros. The old extra run of the payroll golden payslips and tax points happens only while `api/tests/Accuracy/Payroll` is absent.
+- **robustness.** The generated runs and the idempotency tests are not built yet, so the charter is `not built yet`. The leave properties run inside `conformance` and print their seed, cases and disagreements; the sheet copies those lines, in its Robustness output section, unchanged, and computes nothing (section 9).
 - **races.** Needs a real server: it is the only proof of attendance above a single process ([BASELINE](../audit/BASELINE.md) section 25j). Without one it is `not run`, and the report says attendance concurrency was not measured.
 - **strength.** Reads the conclusion of the latest completed run that did not skip the manual job. It starts no CI run. It also notes when that run was on another commit than this checkout.
 - **restated.** The journeys read back what the API stored, not a toast, and never retry. They seed the local database and need the queue worker for the payroll journey.
