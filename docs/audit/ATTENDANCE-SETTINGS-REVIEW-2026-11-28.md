@@ -69,7 +69,7 @@ Two people changing the *same* rule still end with the later value. That is acce
 
 **D7. Rules by branch offers everything the server accepts.** Methods (each as on, off or same as the organisation), the automatic check-out wait and the office networks join the dialog. Until that ships, the admin guide says what the dialog offers today.
 
-**D8. Copy and layout.** The page description drops "grace periods" and the page links to Shifts for lateness grace. Silent terminals says "the organisation's admins and HR admins" and "Tell the admins". The method grid takes fewer columns inside the settings layout, the reconciliation row is stacked like the kiosk sound row, and the card of a method that is off says so. Amharic and Afaan Oromoo text is written by the implementer and read by a native reader before release, as #857 was.
+**D8. Copy and layout.** The page description drops "grace periods" and the page links to Shifts for lateness grace. "Daily overtime limit" becomes "Your own daily overtime limit", and its hint says first that the legal limits (4 hours a day, 12 a week) are checked whatever is set here: the default of 2 hours has been read as a wrong legal value, and it is the organisation's own stricter limit. Silent terminals says "the organisation's admins and HR admins" and "Tell the admins". The method grid takes fewer columns inside the settings layout, the reconciliation row is stacked like the kiosk sound row, and the card of a method that is off says so. Amharic and Afaan Oromoo text is written by the implementer and read by a native reader before release, as #857 was.
 
 **D9. The page says who last changed the rules.** One line under the title, "Last changed by <name> on <date>", linking to the audit log filtered to this page's entries. The settings resource gains `last_changed_at` and `last_changed_by` from the newest `attendance.settings_updated` entry. This is a contract change, so the `@response` annotation moves with it.
 
@@ -86,6 +86,8 @@ Two people changing the *same* rule still end with the later value. That is acce
 | G7 | Rules by department or grade | **Not recommended.** `AttendancePolicy` resolves organisation, branch, then the person's mode, three levels on purpose, so "which rule applies here" has an answer a person can predict |
 | G8 | Office networks for phone punches | **Not recommended.** A phone on mobile data has no fixed address. The geofence and the registered phone do this job |
 | G9 | Copy one branch's rules to another, reset to defaults | **Later, after PR 4.** Discard in the save bar (D6) covers the common case |
+| G10 | Overtime: limits seen before payroll, a request that respects the week, rules for workers under 18, a fixed list of reasons, a floor for worked overtime | **A plan of its own:** [`OVERTIME-WORKING-TIME-PLAN-2026-11-28.md`](OVERTIME-WORKING-TIME-PLAN-2026-11-28.md). Raised by the owner the same day. Only the wording of the daily limit (D8) is done here |
+| G11 | Overtime approval on by default for a new organisation | **Owner decision**, W4 of that plan. If yes, it is one line in `AttendanceSetting::defaults()` or the provisioner, new organisations only, and it travels with PR 5 here |
 
 ## The pull requests, in order
 
@@ -125,6 +127,7 @@ Each PR carries its own tests, its own cases in [`../production testing/05-E2E-A
 1. **G1**: may an organisation limit how far back its people file claims, and is "empty means no limit" the right default?
 2. **G2**: the wording of the staff notice, and whether sending it is offered or required before the switch.
 3. **G3**: whether an exempt mode is wanted at all.
+4. **G11**: whether overtime approval is on for a new organisation.
 
 PRs 1 to 5 need no decision and can start.
 
