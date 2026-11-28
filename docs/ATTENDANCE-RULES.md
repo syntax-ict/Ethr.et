@@ -50,6 +50,7 @@ All times below are wall-clock times in the organisation's zone unless a row say
 | AR-STATUS-05 | A manual entry and an imported row are rated exactly as a live punch at the same times. | 05 AIMP-002, CAP-001, CAP-002 | Decided |
 | AR-STATUS-06 | `absent`, `on_leave` and `holiday` are never stored on a record. They are worked out when read (section 8). | `api/app/Services/Attendance/ExpectedDays.php` | Implemented |
 | AR-STATUS-07 | Whether a check-in at 08:45:30 is present or late, with grace ending at 08:45:00. | none | Undecided |
+| AR-STATUS-08 | On a day off (a rest day by the person's shift or rotation, or a public holiday of their branch) a record is `present`, never `late` or `early_leave`: there are no scheduled hours to be late for. A day of approved leave is not a day off here (AR-ABS-08). | AR-MIN-06; BASELINE 25bt | Implemented |
 
 ## 4. Minutes
 
@@ -60,7 +61,7 @@ All times below are wall-clock times in the organisation's zone unless a row say
 | AR-MIN-03 | A late day that also ends early missed late plus early minutes: 08:46 to 17:10 is 16 + 20 = 36. | 07 LATE-004 | Decided |
 | AR-MIN-04 | Worked minutes are check-out minus check-in, minus the shift's fixed `break_minutes` once, never below zero. The break actually taken is stored and is not what is subtracted. 08:50 to 17:00 with a 60 minute break is 430. | 05 PUNCH-011; PIPE "A break inside the day" | Decided |
 | AR-MIN-05 | A record with no check-out has worked minutes 0. A record with no shift subtracts no break. | `api/app/Models/AttendanceRecord.php` `workedMinutes()` | Implemented |
-| AR-MIN-06 | Late and early minutes are zero on a day that is not a working day for the person. | `api/app/Services/Attendance/TimesheetLedger.php` | Implemented |
+| AR-MIN-06 | Late and early minutes are zero on a day that is not a working day for the person: on the record, in payroll's reconciliation and in a lateness decision, as on the timesheet. Since 2026-11-28 also for a record stored before then, and for a holiday added after the punch. | `api/app/Services/Attendance/TimesheetLedger.php`, `AttendanceEngine::lateMinutes()`; BASELINE 25bt | Implemented |
 | AR-MIN-07 | Arriving before shift start is not overtime: on a working day only time after the shift's end counts (AR-OT-01). It earns nothing else either; no document gives it a value. | 07 section 1.3 ("only time after the shift ends counts") | Decided |
 | AR-MIN-08 | Whether a day with two records (a second session, AR-BREAK-02) has the shift's break subtracted once per record or once for the day. | none | Undecided |
 

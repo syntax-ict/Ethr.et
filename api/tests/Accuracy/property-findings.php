@@ -20,10 +20,4 @@ declare(strict_types=1);
  * removed.
  */
 
-return [
-    'pattern:day-off-late-early' => [
-        'finding' => 'GC-REST-001, GC-REST-002 (BASELINE 25bs)',
-        'properties' => ['p5'],
-        'classes' => ['rest_day', 'holiday', 'not_employed'],
-    ],
-];
+return [];

@@ -7,6 +7,7 @@ namespace App\Services\Attendance;
 use App\Enums\AttendanceSource;
 use App\Enums\AttendanceStatus;
 use App\Enums\EmployeeStatus;
+use App\Enums\ExpectedDay;
 use App\Events\AttendanceRecorded;
 use App\Exceptions\AttendanceRefused;
 use App\Exceptions\DeviceBindingRefused;
@@ -47,6 +48,7 @@ final class AttendanceEngine
         private readonly AttendancePlaces $places,
         private readonly AttendanceRiskScorer $risk,
         private readonly FileStorageService $storage,
+        private readonly ExpectedDays $expectedDays,
     ) {}
 
     /**
@@ -331,7 +333,7 @@ final class AttendanceEngine
                 : new PunchOutcome(PunchOutcome::CHECKED_OUT);
         }
 
-        return $record->status === AttendanceStatus::LATE
+        return $record->status === AttendanceStatus::LATE && ! $this->isDayOff($record, $zone)
             ? new PunchOutcome(PunchOutcome::CHECKED_IN_LATE, $this->lateMinutes($record, $zone))
             : new PunchOutcome(PunchOutcome::CHECKED_IN);
     }
@@ -824,7 +826,9 @@ final class AttendanceEngine
 
         $status = AttendanceStatus::PENDING;
         if ($shift) {
-            $statusStr = $this->shiftMatcher->calculateStatus($local, $shift, $workDate);
+            $statusStr = $this->dayOffOn($employee, $workDate)
+                ? AttendanceStatus::PRESENT->value
+                : $this->shiftMatcher->calculateStatus($local, $shift, $workDate);
             $status = AttendanceStatus::from($statusStr);
         }
 
@@ -1005,7 +1009,7 @@ final class AttendanceEngine
             ]);
         }
 
-        if ($record->shift && $record->status === AttendanceStatus::PRESENT && $this->leftEarly($record, $zone)) {
+        if ($record->shift && $record->status === AttendanceStatus::PRESENT && $this->leftEarly($record, $zone) && ! $this->isDayOff($record, $zone)) {
             $record->update(['status' => AttendanceStatus::EARLY_LEAVE]);
         }
 
@@ -1056,6 +1060,11 @@ final class AttendanceEngine
             $status = AttendanceStatus::EARLY_LEAVE;
         }
 
+        // AR-MIN-06: on a day off nothing is late or early.
+        if ($status !== AttendanceStatus::PRESENT && $this->isDayOff($record, $zone)) {
+            $status = AttendanceStatus::PRESENT;
+        }
+
         if ($status !== $record->status) {
             $record->update(['status' => $status]);
         }
@@ -1073,28 +1082,39 @@ final class AttendanceEngine
      * who left three hours early was counted 20 minutes — the cap on a
      * lateness deduction, and what payroll was shown — until 2026-11-08.
      */
-    public function missedMinutes(AttendanceRecord $record, ?string $zone = null): int
+    public function missedMinutes(AttendanceRecord $record, ?string $zone = null, ?bool $dayOff = null): int
     {
-        return $this->lateMinutes($record, $zone) + $this->earlyMinutes($record, $zone);
+        return $this->lateMinutes($record, $zone, $dayOff) + $this->earlyMinutes($record, $zone, $dayOff);
     }
 
-    /** From the shift's start to a `late` record's check-in. */
-    public function lateMinutes(AttendanceRecord $record, ?string $zone): int
+    /**
+     * From the shift's start to a `late` record's check-in. Zero on a day off
+     * (AR-MIN-06). $dayOff is the caller's answer when it already has one for
+     * the record's work date (the timesheet knows each cell's kind), so a batch
+     * reader makes no query per record; null asks isDayOff(), and only for a
+     * record that would otherwise be late.
+     */
+    public function lateMinutes(AttendanceRecord $record, ?string $zone, ?bool $dayOff = null): int
     {
         if (! $record->shift || ! $record->check_in || $record->status !== AttendanceStatus::LATE) {
             return 0;
         }
 
         $zone ??= TenantTime::zone(Tenant::query()->find($record->tenant_id));
+
+        if ($dayOff ?? $this->isDayOff($record, $zone)) {
+            return 0;
+        }
+
         [$shiftStart] = $record->shift->windowOn($record->workDate($zone), $zone);
 
         return max(0, (int) $shiftStart->diffInMinutes($record->check_in, false));
     }
 
-    /** From an early departure's check-out to the shift's end. */
-    public function earlyMinutes(AttendanceRecord $record, ?string $zone): int
+    /** From an early departure's check-out to the shift's end. Zero on a day off; see lateMinutes(). */
+    public function earlyMinutes(AttendanceRecord $record, ?string $zone, ?bool $dayOff = null): int
     {
-        if (! $record->shift || ! $record->check_out || ! $this->isEarlyDeparture($record, $zone)) {
+        if (! $record->shift || ! $record->check_out || ! $this->isEarlyDeparture($record, $zone, $dayOff)) {
             return 0;
         }
 
@@ -1105,19 +1125,51 @@ final class AttendanceEngine
     }
 
     /**
-     * Whether the record ended in an early departure: `early_leave`, or a
-     * `late` arrival that also left before the early-departure threshold.
+     * Whether the record's work date is a day off for its employee: a rest day
+     * by their shift or rotation, or a public holiday of their branch. A day of
+     * approved leave is not one (how it is rated is undecided, AR-ABS-08).
+     * Asks ExpectedDays: one set of queries per call.
      */
-    private function isEarlyDeparture(AttendanceRecord $record, ?string $zone): bool
+    public function isDayOff(AttendanceRecord $record, ?string $zone = null): bool
     {
-        if ($record->status === AttendanceStatus::EARLY_LEAVE) {
-            return true;
-        }
-        if ($record->status !== AttendanceStatus::LATE || ! $record->shift || ! $record->check_out) {
+        // Never a lazy load: the record's own employee when its caller loaded it, else one lookup.
+        $employee = $record->relationLoaded('employee')
+            ? $record->employee
+            : Employee::query()->find($record->employee_id);
+
+        if ($employee === null) {
             return false;
         }
 
-        return $this->leftEarly($record, $zone ?? TenantTime::zone(Tenant::query()->find($record->tenant_id)));
+        $zone ??= TenantTime::zone(Tenant::query()->find($record->tenant_id));
+
+        return $this->dayOffOn($employee, $record->workDate($zone));
+    }
+
+    /** isDayOff() for an employee and a work date (Y-m-d), before any record exists. */
+    public function dayOffOn(Employee $employee, string $workDate): bool
+    {
+        $kind = $this->expectedDays->onDate(collect([$employee]), Carbon::parse($workDate))[$employee->id] ?? null;
+
+        return $kind === ExpectedDay::REST_DAY || $kind === ExpectedDay::HOLIDAY;
+    }
+
+    /**
+     * Whether the record ended in an early departure: `early_leave`, or a
+     * `late` arrival that also left before the early-departure threshold;
+     * never on a day off.
+     */
+    private function isEarlyDeparture(AttendanceRecord $record, ?string $zone, ?bool $dayOff = null): bool
+    {
+        $early = $record->status === AttendanceStatus::EARLY_LEAVE
+            || ($record->status === AttendanceStatus::LATE && $record->shift && $record->check_out
+                && $this->leftEarly($record, $zone ?? TenantTime::zone(Tenant::query()->find($record->tenant_id))));
+
+        if (! $early) {
+            return false;
+        }
+
+        return ! ($dayOff ?? $this->isDayOff($record, $zone));
     }
 
     /** Whether the record's check-out came before its shift's early-departure threshold. */
