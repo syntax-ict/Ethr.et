@@ -575,6 +575,7 @@
   "admin_tenant_detail_page.mfa_off": "Cufameera",
   "admin_tenant_detail_page.last_sign_in": "Seensa dhumaa",
   "admin_tenant_detail_page.privileged_actions": "Gochaalee aangoo addaa dhihoo",
+  "attendance.import_page.choose_file": "Faayilii filadhu",
   "attendance.presence.failed": "Deebiin keessan ergamuu hin dandeenye. Irra deebi'ii yaalaa.",
   "attendance.presence.find_location": "Bakka koo barbaadi",
   "attendance.presence.i_am_here": "Asan jira",

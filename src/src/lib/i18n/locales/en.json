@@ -575,6 +575,7 @@
   "admin_tenant_detail_page.mfa_off": "Off",
   "admin_tenant_detail_page.last_sign_in": "Last sign-in",
   "admin_tenant_detail_page.privileged_actions": "Recent privileged actions",
+  "attendance.import_page.choose_file": "Choose a file",
   "attendance.presence.failed": "Your answer could not be sent. Try again.",
   "attendance.presence.find_location": "Find my location",
   "attendance.presence.i_am_here": "I am here",
