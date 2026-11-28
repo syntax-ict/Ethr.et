@@ -27,6 +27,7 @@ import {
   useAssignUnmatchedBadge,
   useUnmatchedBadges,
 } from "@/features/devices/api";
+import { isWarningsRefusal } from "@/features/devices/bring-in";
 import { apiErrorDetail } from "@/lib/api/error-message";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -491,6 +492,18 @@ function NewEmployeeForm({ origin }: { origin: BadgeOrigin | null }) {
         );
       }
     } catch (err) {
+      // The server holds a badge back until its warnings are read, which this
+      // page cannot show. Nothing failed: the employee is saved and the
+      // punches wait on Devices.
+      if (isWarningsRefusal(err)) {
+        toast.info(
+          t(
+            "employee.badge_replay_needs_check",
+            "The employee was saved. The badge's punches are still held on the Devices page, where its warnings can be checked before they are assigned.",
+          ),
+        );
+        return;
+      }
       toast.error(
         apiErrorDetail(err) ||
           t(

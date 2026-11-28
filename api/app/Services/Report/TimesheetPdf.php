@@ -30,7 +30,7 @@ use Illuminate\Validation\ValidationException;
  * shows, so the paper cannot say what the screen does not. A month of more
  * people than a request can lay out is refused with the way to narrow it,
  * rather than cut: a printed sheet that silently leaves people off is worse
- * than none. Excel and a queued file wait for Reports step 4.
+ * than none. The Excel file is `TimesheetXlsx`, which reads `data()` below so the two cannot differ; a queued file waits for Reports step 4b.
  */
 final class TimesheetPdf
 {
@@ -87,11 +87,11 @@ final class TimesheetPdf
      * @param  array<string, mixed>  $filters
      * @return array<string, mixed>
      */
-    public function data(Tenant $tenant, User $viewer, array $filters, ReaderDates $reader, bool $withPay): array
+    public function data(Tenant $tenant, User $viewer, array $filters, ReaderDates $reader, bool $withPay, int $limit = self::MAX_PEOPLE, string $tooManyKey = 'too_many_for_pdf'): array
     {
         $locale = $reader->locale;
         $tooMany = fn (): ValidationException => ValidationException::withMessages([
-            'department' => (string) __('report.timesheet.too_many_for_pdf', ['max' => self::MAX_PEOPLE], $locale),
+            'department' => (string) __('report.timesheet.'.$tooManyKey, ['max' => $limit], $locale),
         ]);
 
         // Refuse before the work: counting the people costs a query, and the grid
@@ -100,12 +100,12 @@ final class TimesheetPdf
         // after, as well.
         $span = $this->report->span($filters, Carbon::parse(TenantTime::today($tenant)->format('Y-m-d')), TimesheetReport::MAX_DAYS);
         if ($span !== null && empty($filters['shift'])
-            && $this->report->employees($tenant->id, $filters, $viewer, $span[0], $span[1])->count() > self::MAX_PEOPLE) {
+            && $this->report->employees($tenant->id, $filters, $viewer, $span[0], $span[1])->count() > $limit) {
             throw $tooMany();
         }
 
-        $grid = $this->report->grid($tenant, $viewer, $filters, 1, self::MAX_PEOPLE, $withPay);
-        if (($grid['total'] ?? 0) > self::MAX_PEOPLE) {
+        $grid = $this->report->grid($tenant, $viewer, $filters, 1, $limit, $withPay);
+        if (($grid['total'] ?? 0) > $limit) {
             throw $tooMany();
         }
 
@@ -160,6 +160,7 @@ final class TimesheetPdf
                 'en' => (string) __('report.timesheet.title', [], 'en'),
                 'am' => (string) __('report.timesheet.title', [], 'am'),
             ],
+            'range' => $grid['period'] ?? null,
             'period' => (string) __('report.period_range', [
                 'from' => $reader->date($grid['period']['from'] ?? null),
                 'to' => $reader->date($grid['period']['to'] ?? null),
@@ -199,7 +200,7 @@ final class TimesheetPdf
             'stamp' => (string) __('report.signatures.stamp', [], $locale),
             'labels' => [
                 'no' => $t('no'), 'id' => $t('id'), 'name' => $t('name'), 'department' => $t('department'),
-                'position' => $t('position'), 'shift' => $t('shift'),
+                'position' => $t('position'), 'shift' => (string) __('report.fields.shift', [], $locale),
                 'device' => $t('device'), 'status' => $t('status_line'), 'filters' => $t('filters'),
                 'days' => $t('section_days'), 'summary' => $t('section_summary'), 'legend' => $t('legend'),
                 'rules' => $t('rules'), 'totals' => $t('totals'), 'grand_total' => $t('grand_total'),

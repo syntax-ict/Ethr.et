@@ -198,7 +198,7 @@ it('lists a person spelled differently on the card with the full identity line',
 
 it('warns about a person who carries another badge, was hired after the first punch, or has attendance of their own', function () {
     [$tenant, $device] = badgeSugOrganisation();
-    $person = badgeSugStaff($tenant, 'Seblewengel Mekonen Tesfaye', ['badge_number' => 'W-77', 'hire_date' => '2026-11-11']);
+    $person = badgeSugStaff($tenant, 'Seblewengel Mekonen Tesfaye', ['badge_number' => 'W-77', 'hire_date' => '2026-11-11', 'created_at' => '2026-09-01 08:00:00']);
     AttendanceRecord::factory()->create([
         'tenant_id' => $tenant->id, 'employee_id' => $person->id, 'date' => '2026-11-11', 'status' => AttendanceStatus::PRESENT,
     ]);
@@ -219,6 +219,35 @@ it('warns about a person who carries another badge, was hired after the first pu
         ['code' => 'hired_after', 'value' => '2026-11-10'],
         ['code' => 'own_attendance', 'value' => 1],
     ])->and($identity['badge_number'])->toBe('W-77');
+});
+
+/** @return list<array{code: string, value: string|int|null}> */
+function badgeSugHiredWarnings(string $hireDate, string $createdAtUtc): array
+{
+    [$tenant, $device] = badgeSugOrganisation();
+    badgeSugStaff($tenant, 'Seblewengel Mekonen Tesfaye', ['hire_date' => $hireDate, 'created_at' => $createdAtUtc]);
+    badgeSugHold($tenant, $device, 'R030');
+    badgeSugName($tenant, $device, 'R030', 'Seblewongel Mekonnen');
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+    return test()->getJson(badgeSugUrl($tenant))->assertOk()->json('data.0.name_matches.0.identity.warnings');
+}
+
+it('does not warn of a late hire date that is only the day the record was created', function () {
+    expect(badgeSugHiredWarnings('2026-11-15', '2026-11-15 09:00:00'))->toBe([]);
+});
+
+it('still warns of a late hire date that is not the day the record was created', function () {
+    expect(badgeSugHiredWarnings('2026-11-15', '2026-11-01 09:00:00'))->toBe([
+        ['code' => 'hired_after', 'value' => '2026-11-10'],
+    ]);
+});
+
+it('reads the creation day in the organisation time zone, so a late UTC evening is the next local day', function () {
+    expect(badgeSugHiredWarnings('2026-11-16', '2026-11-15 22:30:00'))->toBe([])
+        ->and(badgeSugHiredWarnings('2026-11-15', '2026-11-15 22:30:00'))->toBe([
+            ['code' => 'hired_after', 'value' => '2026-11-10'],
+        ]);
 });
 
 it('warns of nothing for a person with no other badge, hired earlier, with no attendance on those days', function () {
@@ -345,4 +374,84 @@ it('still records a badge when the terminal name is the exact one, so the test a
 
     expect($result)->not->toBeNull()
         ->and(UnmatchedDevicePunch::query()->where('status', UnmatchedDevicePunch::PENDING)->count())->toBe(0);
+});
+
+// "Add as a new employee" prefills the hire date. It must be the day the
+// terminal stamped on the first punch, not the day ETHR received it, or saving
+// the new employee warns that they were hired after their own punches.
+
+/** @param  array<string, string>  $stamps  idempotency key => occurred_raw */
+function badgeSugHoldRaw(Tenant $tenant, Device $device, string $badge, array $stamps, string $receivedAt): void
+{
+    foreach ($stamps as $key => $raw) {
+        $punch = UnmatchedDevicePunch::create([
+            'tenant_id' => $tenant->id,
+            'device_id' => $device->id,
+            'badge' => $badge,
+            'punch_type' => 'check_in',
+            'occurred_raw' => $raw,
+            'idempotency_key' => "raw-{$device->id}-{$badge}-{$key}",
+            'status' => UnmatchedDevicePunch::PENDING,
+        ]);
+        DB::table('unmatched_device_punches')->where('id', $punch->id)->update(['created_at' => $receivedAt]);
+    }
+}
+
+it('lists the day the terminal stamped as first_day, even when the punches were received a day later', function () {
+    [$tenant, $device] = badgeSugOrganisation();
+    badgeSugHoldRaw($tenant, $device, '8801', [
+        'a' => '2026-11-19T08:00:00+03:00',
+        'b' => '2026-11-18 17:30:00',
+    ], '2026-11-19 05:00:00');
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+    $row = test()->getJson(badgeSugUrl($tenant))->assertOk()->json('data.0');
+
+    expect($row['first_day'])->toBe('2026-11-18')
+        ->and(substr($row['first_seen'], 0, 10))->toBe('2026-11-19');
+});
+
+it('ignores a malformed time stamp for first_day, and is null when none is valid', function () {
+    [$tenant, $device] = badgeSugOrganisation();
+    badgeSugHoldRaw($tenant, $device, '8801', ['a' => 'garbage-xx', 'b' => '', 'c' => '2026-11-18 17:30:00'], '2026-11-19 05:00:00');
+    badgeSugHoldRaw($tenant, $device, '8802', ['a' => 'garbage-xx', 'b' => '18/11/2026 08:00'], '2026-11-19 06:00:00');
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+    $rows = collect(test()->getJson(badgeSugUrl($tenant))->assertOk()->json('data'))->keyBy('badge');
+
+    expect($rows['8801']['first_day'])->toBe('2026-11-18')
+        ->and($rows['8802']['first_day'])->toBeNull();
+});
+
+it('gives first_day to a viewer who cannot manage attendance', function () {
+    [$tenant, $device] = badgeSugOrganisation();
+    $viewer = badgeSugStaff($tenant, 'Plain Viewer');
+    badgeSugHoldRaw($tenant, $device, '8801', ['a' => '2026-11-18 17:30:00'], '2026-11-19 05:00:00');
+    test()->actingAs(createScopedUser($tenant, $viewer->id, 'department', ['device.viewAny']));
+
+    $row = test()->getJson(badgeSugUrl($tenant))->assertOk()->json('data.0');
+
+    expect($row['first_day'])->toBe('2026-11-18')
+        ->and($row['match'])->toBeNull();
+});
+
+it('warns of no hire after the punches for an employee hired on first_day, which the receipt day would have', function () {
+    [$tenant, $device] = badgeSugOrganisation();
+    badgeSugHoldRaw($tenant, $device, '8801', ['a' => '2026-11-18 08:00:00'], '2026-11-19 05:00:00');
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+    $firstDay = test()->getJson(badgeSugUrl($tenant))->assertOk()->json('data.0.first_day');
+
+    $warnings = function (string $hireDate) use ($tenant, $device): array {
+        $person = badgeSugStaff($tenant, 'New Person '.$hireDate, ['hire_date' => $hireDate, 'created_at' => '2026-10-01 08:00:00']);
+
+        return test()->getJson(badgeSugUrl($tenant).'/preview?'.http_build_query([
+            'device_public_id' => $device->public_id,
+            'badge' => '8801',
+            'employee_public_id' => $person->public_id,
+        ]))->assertOk()->json('warnings');
+    };
+
+    expect($warnings($firstDay))->toBe([])
+        ->and($warnings('2026-11-19'))->toBe([['code' => 'hired_after', 'value' => '2026-11-18']]);
 });

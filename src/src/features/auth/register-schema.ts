@@ -37,6 +37,11 @@ export const registerSchema = z
     admin_phone: adminPhone,
     password: z.string().min(8, "auth.password_requirements"),
     password_confirmation: z.string().min(8, "auth.password_requirements"),
+    // The server refuses a sign-up without it (RegisterTenantRequest) and
+    // records the version accepted (LegalDocuments::VERSION).
+    accept_terms: z
+      .boolean()
+      .refine((accepted) => accepted, "auth.accept_terms_required"),
   })
   .refine((data) => data.password === data.password_confirmation, {
     message: "auth.passwords_no_match",

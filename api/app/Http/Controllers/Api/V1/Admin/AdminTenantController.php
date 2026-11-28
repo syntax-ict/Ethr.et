@@ -255,6 +255,8 @@ class AdminTenantController extends Controller
             'showcase_consented_at' => $tenant->showcase_consented_at?->toIso8601String(),
             'showcase_hidden' => $tenant->showcase_hidden_at !== null,
             'showcase_established' => $tenant->isEstablished(),
+            'terms_accepted_version' => $tenant->terms_accepted_version,
+            'terms_accepted_at' => $tenant->terms_accepted_at?->toIso8601String(),
             'deleted_at' => $tenant->deleted_at?->toIso8601String(),
             'usage' => [
                 'employees' => $tenant->employees_count,

@@ -16,6 +16,7 @@ import {
   type UnmatchedBadge,
 } from "@/features/devices/api";
 import { useBringInPunches } from "@/features/devices/bring-in";
+import { AssignBadgeDialog } from "@/features/devices/components/assign-badge-dialog";
 import { BringInProgress } from "@/features/devices/components/bring-in-progress";
 import { fetchEmployeeImportTemplate } from "@/features/employees/api";
 import { employeeTemplateText } from "@/features/employees/components/import-column-guide";
@@ -54,6 +55,34 @@ export function heldSinceDate(firstSeen: string, timeZone: string): string {
   return Number.isNaN(at.getTime())
     ? firstSeen.slice(0, 10)
     : todayIn(timeZone, at);
+}
+
+/**
+ * How far before the day ETHR received a punch the terminal's own stamp is
+ * trusted for a hire date. A terminal that uploads late is a day or two behind;
+ * one whose clock reset (to 2000, say) is years behind, and a hire date taken
+ * from it would also silence the hired_after warning that exists to catch it.
+ */
+const TERMINAL_DAY_WINDOW_DAYS = 7;
+
+/**
+ * The hire date a new employee made from a held badge starts with: the day the
+ * terminal stamped on the first punch when that is no later than the day ETHR
+ * received it and within a week of it, otherwise the day it was received. A
+ * terminal that uploads late must not push the hire date past its own punches,
+ * and one whose clock runs ahead or far behind must not move it at all. Both
+ * days are `Y-m-d`, so string order is date order.
+ */
+export function heldHireDate(
+  receivedDay: string,
+  terminalDay: string | null | undefined,
+): string {
+  if (!terminalDay || terminalDay >= receivedDay) return receivedDay;
+  const gap =
+    (Date.parse(`${receivedDay}T00:00:00Z`) -
+      Date.parse(`${terminalDay}T00:00:00Z`)) /
+    86_400_000;
+  return gap <= TERMINAL_DAY_WINDOW_DAYS ? terminalDay : receivedDay;
 }
 
 /**
@@ -207,6 +236,8 @@ function UnmatchedRow({
   // suggestion fills it without asking the server for anyone.
   const [employee, setEmployee] = useState<PickedEmployee | null>(null);
   const [confirmDismiss, setConfirmDismiss] = useState(false);
+  // Who the open confirmation is about. Assign is never one click: replaying writes attendance.
+  const [confirming, setConfirming] = useState<string | null>(null);
   const bringIn = useBringInPunches();
   const dismiss = useDismissUnmatchedBadge();
   const assigning = bringIn.state.phase === "running";
@@ -262,13 +293,15 @@ function UnmatchedRow({
   const isNew = match?.outcome === "new";
   const canBeBadgeNumber = BADGE_NUMBER.test(row.badge);
 
-  function onAssign(employeePublicId: string) {
+  function onAssign(employeePublicId: string, acceptWarnings: boolean) {
     toldDone.current = false;
+    setConfirming(null);
     bringIn.start([
       {
         ...target,
         employee_public_id: employeePublicId,
         punches: row.punches,
+        acceptWarnings,
       },
     ]);
   }
@@ -277,17 +310,27 @@ function UnmatchedRow({
   useEffect(() => {
     if (bringIn.state.phase !== "done" || toldDone.current) return;
     toldDone.current = true;
+    if (bringIn.state.needsCheck > 0) return;
     toast.success(
       t("devices_page.unmatched.assigned", undefined, {
         count: bringIn.state.replayed,
       }),
     );
-  }, [bringIn.state.phase, bringIn.state.replayed, t]);
+  }, [
+    bringIn.state.phase,
+    bringIn.state.replayed,
+    bringIn.state.needsCheck,
+    t,
+  ]);
 
+  const hireDate = heldHireDate(
+    heldSinceDate(row.first_seen, timeZone),
+    row.first_day,
+  );
   const newEmployeeHref = `/employees/new?${new URLSearchParams({
     badge: row.badge,
     device: row.device_public_id,
-    hire_date: heldSinceDate(row.first_seen, timeZone),
+    hire_date: hireDate,
   }).toString()}`;
 
   return (
@@ -353,13 +396,21 @@ function UnmatchedRow({
           onStop={bringIn.stop}
           onCarryOn={bringIn.carryOn}
         />
+        {bringIn.state.needsCheck > 0 && (
+          <p className="text-sm text-foreground" role="status">
+            {t(
+              "devices_page.unmatched.changed_since_check",
+              "Something changed since the check. Open Assign again to read the warnings.",
+            )}
+          </p>
+        )}
       </div>
       {canManage && (
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
           {holder ? (
             <Button
               size="sm"
-              onClick={() => onAssign(holder.employee_public_id)}
+              onClick={() => setConfirming(holder.employee_public_id)}
               disabled={assigning || carrying}
             >
               {assigning && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
@@ -392,13 +443,24 @@ function UnmatchedRow({
               </div>
               <Button
                 size="sm"
-                onClick={() => employee && onAssign(employee.public_id)}
+                onClick={() => employee && setConfirming(employee.public_id)}
                 disabled={employee === null || assigning || carrying}
               >
                 {assigning && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
                 {t("devices_page.unmatched.assign")}
               </Button>
             </>
+          )}
+          {confirming !== null && (
+            <AssignBadgeDialog
+              open
+              onOpenChange={(open) => !open && setConfirming(null)}
+              badge={row.badge}
+              deviceName={row.device_name}
+              devicePublicId={row.device_public_id}
+              employeePublicId={confirming}
+              onConfirm={(accept) => onAssign(confirming, accept)}
+            />
           )}
           <Button
             size="sm"

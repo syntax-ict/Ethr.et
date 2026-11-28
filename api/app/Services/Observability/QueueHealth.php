@@ -60,6 +60,20 @@ class QueueHealth
     /** Kept well beyond any plausible staleness threshold so absence means "never ran", not "expired". */
     private const HEARTBEAT_TTL_SECONDS = 86400;
 
+    /**
+     * A map of task name to its last failure. The older single-value key
+     * `ethr:schedule:last_task_failure` may still sit in a production cache and
+     * is deliberately never read: a stale value must not turn anything red.
+     */
+    private const TASK_FAILURES_KEY = 'ethr:schedule:task_failures';
+
+    /**
+     * A failure older than this is dropped. Every real task runs at least
+     * daily and records again when it fails, so only a task that was removed
+     * from the schedule could otherwise stay red forever.
+     */
+    private const TASK_FAILURE_MAX_AGE_SECONDS = 172800;
+
     private const DRAIN_KEY = 'ethr:queue:last_drain_at';
 
     private const EXTERNAL_TICK_KEY = 'ethr:cron:last_external_tick_at';
@@ -85,6 +99,91 @@ class QueueHealth
     public function lastDrain(): ?Carbon
     {
         return $this->readMoment(self::DRAIN_KEY);
+    }
+
+    /**
+     * Record that a scheduled task failed (ScheduleCatchUpCommand). The
+     * heartbeat is an in-process callback, so it stays green while every
+     * `Schedule::command` child exits non-zero; this is what says otherwise.
+     * It stays recorded until the same task succeeds (recordTaskSuccess), so a
+     * daily task that failed once is still visible between monitor polls.
+     * Name and exit code only: the health endpoint is public.
+     */
+    public function recordTaskFailure(string $task, ?int $exitCode): void
+    {
+        $failures = $this->readTaskFailures();
+        $failures[$task] = [
+            'task' => $task,
+            'exit_code' => $exitCode,
+            'at' => now()->toIso8601String(),
+        ];
+
+        HealthSignals::store()->put(self::TASK_FAILURES_KEY, $failures, self::TICK_TTL_SECONDS);
+    }
+
+    /** A healthy tick costs one read: nothing is written unless the task was failing. */
+    public function recordTaskSuccess(string $task): void
+    {
+        $failures = $this->readTaskFailures();
+
+        if (! array_key_exists($task, $failures)) {
+            return;
+        }
+
+        unset($failures[$task]);
+
+        if ($failures === []) {
+            HealthSignals::store()->forget(self::TASK_FAILURES_KEY);
+
+            return;
+        }
+
+        HealthSignals::store()->put(self::TASK_FAILURES_KEY, $failures, self::TICK_TTL_SECONDS);
+    }
+
+    /**
+     * Tasks whose last run failed and that have not succeeded since, newest
+     * failure first. Entries older than 48 hours are ignored.
+     *
+     * @return list<array{task: string, exit_code: int|null, at: Carbon}>
+     */
+    public function failingTasks(): array
+    {
+        $failing = [];
+
+        foreach ($this->readTaskFailures() as $entry) {
+            if (! is_array($entry) || ! isset($entry['task'], $entry['at'])) {
+                continue;
+            }
+
+            try {
+                $at = Carbon::parse($entry['at']);
+            } catch (Throwable) {
+                continue;
+            }
+
+            if ($at->diffInSeconds(now(), false) > self::TASK_FAILURE_MAX_AGE_SECONDS) {
+                continue;
+            }
+
+            $failing[] = [
+                'task' => (string) $entry['task'],
+                'exit_code' => isset($entry['exit_code']) ? (int) $entry['exit_code'] : null,
+                'at' => $at,
+            ];
+        }
+
+        usort($failing, fn (array $a, array $b): int => $b['at']->getTimestamp() <=> $a['at']->getTimestamp());
+
+        return $failing;
+    }
+
+    /** @return array<string, mixed> */
+    private function readTaskFailures(): array
+    {
+        $value = HealthSignals::store()->get(self::TASK_FAILURES_KEY);
+
+        return is_array($value) ? $value : [];
     }
 
     /** Record that the scheduler ran. Called once a minute by routes/console.php. */
@@ -152,7 +251,8 @@ class QueueHealth
      *     problems: array<int, string>,
      *     scheduler: array<string, mixed>,
      *     queues: array<string, mixed>,
-     *     failed_jobs: int|null
+     *     failed_jobs: int|null,
+     *     failing_tasks: list<array{task: string, exit_code: int|null, at: string}>
      * }
      */
     public function snapshot(int $schedulerStaleSeconds = 900, int $oldestJobSeconds = 1800): array
@@ -179,6 +279,17 @@ class QueueHealth
             $problems[] = 'scheduler has never run — is the external cron caller configured (CRON_TOKEN and base URL)?';
         } elseif ($ageSeconds > $schedulerStaleSeconds) {
             $problems[] = sprintf('scheduler last ran %ds ago (threshold %ds)', $ageSeconds, $schedulerStaleSeconds);
+        }
+
+        $failingTasks = $this->failingTasks();
+
+        foreach ($failingTasks as $failure) {
+            $problems[] = sprintf(
+                'scheduled task "%s" is failing%s, last failed at %s',
+                $failure['task'],
+                $failure['exit_code'] === null ? '' : sprintf(' (exit %d)', $failure['exit_code']),
+                $failure['at']->toIso8601String(),
+            );
         }
 
         // ── Queues ───────────────────────────────────────────────────────────
@@ -237,6 +348,11 @@ class QueueHealth
             'last_drain_at' => $this->lastDrain()?->toIso8601String(),
             'oldest_waiting_seconds' => $oldestOverall,
             'failed_jobs' => $failed,
+            'failing_tasks' => array_map(fn (array $f): array => [
+                'task' => $f['task'],
+                'exit_code' => $f['exit_code'],
+                'at' => $f['at']->toIso8601String(),
+            ], $failingTasks),
         ];
     }
 }

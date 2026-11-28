@@ -1141,6 +1141,24 @@ function TenantDetail({ id }: { id: string }) {
               label={t("admin_tenant_detail_page.updated")}
               value={formatDateTime(tenant.updated_at)}
             />
+            <Row
+              label={t("admin_tenant_detail_page.terms_accepted")}
+              value={
+                tenant.terms_accepted_at && tenant.terms_accepted_version
+                  ? t(
+                      "admin_tenant_detail_page.terms_accepted_value",
+                      "Version :version, :when",
+                      {
+                        version: tenant.terms_accepted_version,
+                        when: formatDateTime(tenant.terms_accepted_at),
+                      },
+                    )
+                  : t(
+                      "admin_tenant_detail_page.terms_not_recorded",
+                      "Not recorded (registered before 25 Nov 2026)",
+                    )
+              }
+            />
           </CardContent>
         </Card>
 

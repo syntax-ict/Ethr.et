@@ -72,6 +72,20 @@ function status(overrides: Partial<OperationsStatus> = {}): OperationsStatus {
         other_bytes: 104 * 1024 ** 2,
       },
     },
+    sweeps: {
+      title_access: {
+        last_sweep_at: NOW,
+        tenants_scanned: 3,
+        admins: 4,
+        held: 0,
+        waiting: 0,
+        dispatched: 0,
+        remembered: 0,
+        last_notice_at: null,
+        notice_held: null,
+        notice_notified: null,
+      },
+    },
     delivery: {
       state: "ok",
       reasons: [],

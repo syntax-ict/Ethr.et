@@ -16,36 +16,41 @@
  * *act of switching* — the menu, the class swap, and persistence across a
  * reload. That is what this file tests, with assertions that can fail.
  */
-import { test, expect } from '@playwright/test';
+import { test, expect } from "@playwright/test";
 
 const THEMES = [
-  { id: 'light', label: 'Light', expectedClass: 'light' },
-  { id: 'dark', label: 'Dark', expectedClass: 'dark' },
-  { id: 'high-contrast', label: 'High Contrast', expectedClass: 'high-contrast' },
+  { id: "light", label: "Light", expectedClass: "light" },
+  { id: "dark", label: "Dark", expectedClass: "dark" },
+  {
+    id: "high-contrast",
+    label: "High Contrast",
+    expectedClass: "high-contrast",
+  },
 ] as const;
 
-test.describe('Theme switching', () => {
-  test.use({ storageState: 'e2e/.auth/admin.json' });
+test.describe("Theme switching", () => {
+  test.use({ storageState: "e2e/.auth/admin.json" });
 
   test.beforeEach(async ({ page }) => {
-    await page.addInitScript(() => localStorage.setItem('locale', 'en'));
+    await page.addInitScript(() => localStorage.setItem("locale", "en"));
   });
 
   // The theme lives in the account menu since 2026-10-19 (it was a header
   // icon of its own, hidden on phones). Opening that menu is the first step.
-  const openThemeChoices = async (page: import('@playwright/test').Page) => {
-    await page.getByRole('button', { name: /account menu/i }).click();
+  // The choices are a radio group, so their role is menuitemradio.
+  const openThemeChoices = async (page: import("@playwright/test").Page) => {
+    await page.getByRole("button", { name: /account menu/i }).click();
   };
 
-  test('the theme control is present and reachable', async ({ page }) => {
-    await page.goto('/dashboard');
-    await page.waitForLoadState('networkidle');
+  test("the theme control is present and reachable", async ({ page }) => {
+    await page.goto("/dashboard");
+    await page.waitForLoadState("networkidle");
 
     // Unconditional: a missing control is a failure, not a skip.
     await openThemeChoices(page);
     for (const theme of THEMES) {
       await expect(
-        page.getByRole('menuitem', { name: theme.label }),
+        page.getByRole("menuitemradio", { name: theme.label }),
       ).toBeVisible();
     }
   });
@@ -54,31 +59,31 @@ test.describe('Theme switching', () => {
     test(`switching to ${theme.id} applies it and persists`, async ({
       page,
     }) => {
-      await page.goto('/dashboard');
-      await page.waitForLoadState('networkidle');
+      await page.goto("/dashboard");
+      await page.waitForLoadState("networkidle");
 
       await openThemeChoices(page);
-      await page.getByRole('menuitem', { name: theme.label }).click();
+      await page.getByRole("menuitemradio", { name: theme.label }).click();
 
       // next-themes is configured with `attribute="class"`, so the class list
       // on <html> is the thing to assert — not `data-theme`.
-      await expect(page.locator('html')).toHaveClass(
+      await expect(page.locator("html")).toHaveClass(
         new RegExp(`\\b${theme.expectedClass}\\b`),
       );
 
       // A theme that resets on navigation is not a preference.
       await page.reload();
-      await page.waitForLoadState('networkidle');
-      await expect(page.locator('html')).toHaveClass(
+      await page.waitForLoadState("networkidle");
+      await expect(page.locator("html")).toHaveClass(
         new RegExp(`\\b${theme.expectedClass}\\b`),
       );
     });
   }
 
-  test('dark mode actually repaints the page surface', async ({ page }) => {
-    await page.addInitScript(() => localStorage.setItem('theme', 'dark'));
-    await page.goto('/dashboard');
-    await page.waitForLoadState('networkidle');
+  test("dark mode actually repaints the page surface", async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem("theme", "dark"));
+    await page.goto("/dashboard");
+    await page.waitForLoadState("networkidle");
 
     const bg = await page.evaluate(
       () => getComputedStyle(document.body).backgroundColor,
@@ -96,16 +101,21 @@ test.describe('Theme switching', () => {
   // `.dark` class, so a reader on a light phone who chose Dark got a mix. The
   // hero scene carries `dark:fill-background`; its computed fill must be the
   // same whichever scheme the OS reports once the app theme is dark.
-  test('dark: utilities follow the picked theme, not the OS scheme', async ({ browser }) => {
-    const fillUnder = async (colorScheme: 'light' | 'dark') => {
-      const context = await browser.newContext({ colorScheme, storageState: { cookies: [], origins: [] } });
+  test("dark: utilities follow the picked theme, not the OS scheme", async ({
+    browser,
+  }) => {
+    const fillUnder = async (colorScheme: "light" | "dark") => {
+      const context = await browser.newContext({
+        colorScheme,
+        storageState: { cookies: [], origins: [] },
+      });
       const page = await context.newPage();
       await page.addInitScript(() => {
-        localStorage.setItem('theme', 'dark');
-        localStorage.setItem('locale', 'en');
+        localStorage.setItem("theme", "dark");
+        localStorage.setItem("locale", "en");
       });
-      await page.goto('/en');
-      await page.waitForLoadState('networkidle');
+      await page.goto("/en");
+      await page.waitForLoadState("networkidle");
       await page.reload();
       const fill = await page.evaluate(() => {
         const el = document.querySelector('[class*="dark:fill-background"]');
@@ -115,9 +125,9 @@ test.describe('Theme switching', () => {
       return fill;
     };
 
-    const onLightOs = await fillUnder('light');
-    const onDarkOs = await fillUnder('dark');
-    expect(onLightOs, 'the hero scene was not found').not.toBeNull();
+    const onLightOs = await fillUnder("light");
+    const onDarkOs = await fillUnder("dark");
+    expect(onLightOs, "the hero scene was not found").not.toBeNull();
     expect(onLightOs).toBe(onDarkOs);
   });
 });

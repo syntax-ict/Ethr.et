@@ -21,6 +21,7 @@ use App\Support\Csv;
 use App\Support\ReaderDates;
 use App\Support\RequestBudget;
 use App\Support\TenantTime;
+use App\Support\XlsxDate;
 use Carbon\Carbon;
 use Closure;
 use Illuminate\Database\Eloquent\Builder;
@@ -337,15 +338,19 @@ final class ReportEngine
      * organisation's zone. A spreadsheet keeps what sorts: an ISO date, with
      * the Ethiopian one in the next column for a reader on that calendar, and
      * a local 24-hour time. Check-in and check-out were raw UTC instants.
+     * `$numeric` leaves birr as a number, for a workbook, not as grouped text.
+     * `$realDates` makes the Gregorian date and the check-in and check-out
+     * columns real Excel dates, for a workbook only; the Ethiopian column
+     * stays text, as Excel has no such calendar.
      *
      * @param  array<int, array<string, mixed>>  $rows
      * @return list<array<string, mixed>>
      */
-    public function presentable(array $rows, ?ReaderDates $reader = null, bool $spreadsheet = false): array
+    public function presentable(array $rows, ?ReaderDates $reader = null, bool $spreadsheet = false, bool $numeric = false, bool $realDates = false): array
     {
         $reader ??= ReaderDates::forTenant(null);
 
-        return array_values(array_map(function (array $row) use ($reader, $spreadsheet): array {
+        return array_values(array_map(function (array $row) use ($reader, $spreadsheet, $numeric, $realDates): array {
             $day = is_string($row['date'] ?? null) ? $row['date'] : null;
             $out = [];
             foreach ($row as $field => $value) {
@@ -354,9 +359,14 @@ final class ReportEngine
                 $text = is_string($value) && $value !== '' ? $value : null;
 
                 if (str_ends_with($field, '_cents') && is_numeric($value)) {
-                    $out[$label] = number_format(((int) $value) / 100, 2);
+                    // A workbook keeps birr as a number a column can add up.
+                    $out[$label] = $numeric ? round(((int) $value) / 100, 2) : number_format(((int) $value) / 100, 2);
                 } elseif (in_array($field, self::DATE_FIELDS, true)) {
-                    $out[$label] = $spreadsheet ? ($text ?? '') : ($text === null ? '' : $reader->date($text));
+                    $out[$label] = match (true) {
+                        $spreadsheet && $realDates && $text !== null => XlsxDate::fromDate($text),
+                        $spreadsheet => $text ?? '',
+                        default => $text === null ? '' : $reader->date($text),
+                    };
                     if ($spreadsheet && $reader->calendar === 'ethiopian') {
                         $out[(string) __('report.ethiopian_column', ['label' => $label], $reader->locale)] = $text === null ? '' : $reader->date($text);
                     }
@@ -364,6 +374,7 @@ final class ReportEngine
                     $local = $text === null ? '' : $reader->localStamp($text);
                     $out[$label] = match (true) {
                         $text === null => '',
+                        $spreadsheet && $realDates => XlsxDate::fromStamp($local),
                         $spreadsheet => $local,
                         // A check-out after midnight says which day it fell on.
                         $day !== null && str_starts_with($local, $day) => $reader->time($text),

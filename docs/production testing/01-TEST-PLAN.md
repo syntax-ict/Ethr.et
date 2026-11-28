@@ -388,6 +388,8 @@ and never as PA. What each may run, and what stays with the tester, is in
 [11](11-CLAUDE-CODE-AND-PLAYWRIGHT.md). A green scripted run is L1 evidence only: it does not
 replace the sign-in, isolation or phone cases.
 
+**Attendance accuracy** is measured apart from the E2E cases. File [12](12-ATTENDANCE-ACCURACY.md) describes it: hand-typed golden cases run through the engine by `./scripts/gates.sh accuracy` on any machine with no server, against the rule register [ATTENDANCE-RULES.md](../ATTENDANCE-RULES.md). Those cases were typed from the expected values in 05 and 07, and a change to an expected value there is a change to a golden case.
+
 ## 4. Environments
 
 | Environment | Address | Use |

@@ -523,6 +523,41 @@ describe("<MigrationTerminals> held punches", () => {
     expect(screen.queryByText("Selam Tesfaye")).not.toBeInTheDocument();
   });
 
+  it("says how many badges were left for a check, with a link to the Devices page, and brings in the rest", async () => {
+    const posts: Array<{ badge: string }> = [];
+    server.use(
+      me(["attendance.manage", "device.viewAny"]),
+      http.get(`*/onboarding/migration/batches/${BATCH}/terminals`, () =>
+        HttpResponse.json(terminals({ can_assign: true, held })),
+      ),
+      http.post("*/devices/unmatched-punches/assign", async ({ request }) => {
+        const body = (await request.json()) as { badge: string };
+        posts.push(body);
+        return body.badge === "7777"
+          ? HttpResponse.json(
+              { message: "Confirm.", warnings: ["other_badge"] },
+              { status: 422 },
+            )
+          : HttpResponse.json({ replayed: 1, refused: 0, remaining: 0 });
+      }),
+    );
+    renderPanel();
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Bring in these punches" }),
+    );
+
+    expect(
+      await screen.findByText(/1 badge was left for a check\./),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/1 brought in\./)).toBeInTheDocument();
+    expect(posts.map((p) => p.badge)).toEqual(["7777", "8888"]);
+    expect(screen.getByRole("link", { name: "Open Devices" })).toHaveAttribute(
+      "href",
+      "/devices#unmatched",
+    );
+  });
+
   it("shows how far it has got, and stops when asked, and carries on from there", async () => {
     const posts: unknown[] = [];
     let release: () => void = () => {};

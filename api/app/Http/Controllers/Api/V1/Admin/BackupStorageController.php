@@ -12,9 +12,12 @@ use App\Models\BackupStorageSetting;
 use App\Services\Backup\BackupCipher;
 use App\Services\Backup\BackupConsoleState;
 use App\Services\Backup\BackupStorageDisk;
+use App\Support\MaintenanceLock;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
+use Throwable;
 
 /**
  * Off-host backup storage, configured by the super admin in the platform
@@ -58,6 +61,16 @@ class BackupStorageController extends Controller
             $settings->encryption_key = BackupCipher::generateKey();
         }
 
+        // Who stated where the storage is, and when: restated with every save
+        // that moves it, and withdrawn with the statement.
+        if (! $settings->located_in_ethiopia) {
+            $settings->located_confirmed_at = null;
+            $settings->located_confirmed_by = null;
+        } elseif ($settings->isDirty('located_in_ethiopia') || array_intersect(array_keys($settings->getDirty()), BackupStorageSetting::CONNECTION_FIELDS) !== []) {
+            $settings->located_confirmed_at = now();
+            $settings->located_confirmed_by = $request->user()?->getKey();
+        }
+
         $changed = array_keys($settings->getDirty());
         $reconnected = array_intersect($changed, BackupStorageSetting::CONNECTION_FIELDS) !== [];
         $switchedOff = $reconnected && $settings->enabled;
@@ -75,6 +88,7 @@ class BackupStorageController extends Controller
             'key_generated' => $created,
             'verification_cleared' => $reconnected,
             'copies_switched_off' => $switchedOff,
+            'located_in_ethiopia' => $settings->located_in_ethiopia,
         ]);
 
         return response()->json($console->state());
@@ -136,6 +150,68 @@ class BackupStorageController extends Controller
         AuditLog::record('platform.backup_storage_tested', $settings, ['ok' => $error === null]);
 
         return response()->json($console->state());
+    }
+
+    /**
+     * Back up now, from the console: the same `ethr:backup` the nightly run
+     * performs (room check, off-host copy, prune, disk measure), so the button
+     * proves what the schedule would do. `--off-host` is not passed: it makes
+     * the command fail when no destination is configured, and a local backup
+     * is worth taking on its own.
+     *
+     * Live `max_execution_time` is 30 seconds and a backup plus an upload
+     * outlasts it, so the limit is lifted and a closed tab does not stop it.
+     * It takes the lock the release-step maintenance tasks take, so the two
+     * cannot overlap. Known gap, accepted: the 01:00 scheduled run takes a
+     * different one (the scheduler's `withoutOverlapping()` mutex), so a click
+     * at exactly 01:00 could overlap it.
+     *
+     * A failure is reported in the body, never as a 500.
+     *
+     * @response array{source: 'console'|'env'|'none', enabled: bool, available: bool, blocker: string|null, keep: int, residency_enforced: bool, storage: array<string, mixed>|null, key: array<string, mixed>|null, google_drive: array<string, mixed>, health: array<string, mixed>, run: array{ok: bool, exit_code: int|null, output: string, off_host_copied: bool}}
+     */
+    public function run(BackupConsoleState $console): JsonResponse
+    {
+        Gate::authorize('admin.manage');
+
+        ignore_user_abort(true);
+        @set_time_limit(0);
+
+        $lock = MaintenanceLock::make();
+
+        if (! $lock->get()) {
+            return response()->json([
+                'message' => __('backup.run_already_running'),
+                'run' => ['ok' => false, 'exit_code' => null, 'output' => '', 'off_host_copied' => false],
+            ], 409);
+        }
+
+        $copiedBefore = $console->state()['health']['off_host']['last_copied_at'] ?? null;
+        $exitCode = 1;
+        $output = '';
+
+        try {
+            $exitCode = Artisan::call('ethr:backup', ['--label' => 'console']);
+            $output = Artisan::output();
+        } catch (Throwable $e) {
+            report($e);
+            $output = 'Backup FAILED: '.$e->getMessage();
+        } finally {
+            $lock->release();
+        }
+
+        $state = $console->state();
+        $copiedAfter = $state['health']['off_host']['last_copied_at'] ?? null;
+        $offHostCopied = $copiedAfter !== null && $copiedAfter !== $copiedBefore;
+
+        AuditLog::record('platform.backup_run', null, [
+            'exit_code' => $exitCode,
+            'off_host_copied' => $offHostCopied,
+        ]);
+
+        $outcome = ['ok' => $exitCode === 0, 'exit_code' => $exitCode, 'output' => trim($output), 'off_host_copied' => $offHostCopied];
+
+        return response()->json([...$state, 'run' => $outcome]);
     }
 
     /**

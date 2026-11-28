@@ -38,6 +38,7 @@ function baselineRegister(string $subdomain, string $type): Tenant
         'admin_phone' => '0912345678',
         'password' => 'SecurePass123!',
         'password_confirmation' => 'SecurePass123!',
+        'accept_terms' => true,
         'organization_type' => $type,
     ])->assertCreated();
 

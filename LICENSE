@@ -10,10 +10,14 @@ This file records the licence position already stated in README.md
 ("Proprietary. All rights reserved."). It is a statement of that position, not
 a substitute for legal advice, and it has not been reviewed by counsel.
 
-On the holder named above: the repository is owned by the `syntax-ict`
-organization, and every one of its 160 commits is authored by "ETHIO HR Cloud
-Team". Both refer to the same project; neither is necessarily the registered
-legal entity. **Confirm the correct entity name before this file is relied on**
-— it is the one line here that a lawyer would ask about first. If ETHR
-is to be licensed to customers, distributed, or offered under any other terms,
-those terms need to be drafted separately and reviewed.
+On the holder named above: Syntax Technology is the business that owns and
+operates ETHR. Its registered legal name, legal form and registration number
+are to be confirmed before this file is relied on; it is the one line here that
+a lawyer would ask about first. The repository is held by the `syntax-ict`
+GitHub organization, and the account that pushes a commit is not evidence of
+who wrote it. ETHR has been written by the owner and by contractors and staff;
+their contributions are to be assigned to the business in writing, as set out
+in docs/legal/IP-OWNERSHIP-AND-ASSIGNMENT.md, and the third-party components it
+incorporates remain under their own licences (docs/legal/THIRD-PARTY-LICENSES.md).
+If ETHR is to be licensed to customers, distributed, or offered under any other
+terms, those terms need to be drafted separately and reviewed.

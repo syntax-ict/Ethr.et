@@ -13719,6 +13719,12 @@
                                                     "first_seen": {
                                                         "type": "string"
                                                     },
+                                                    "first_day": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
                                                     "last_seen": {
                                                         "type": "string"
                                                     },
@@ -13884,6 +13890,7 @@
                                                     "badge",
                                                     "punches",
                                                     "first_seen",
+                                                    "first_day",
                                                     "last_seen",
                                                     "match",
                                                     "recording_itself",
@@ -13957,6 +13964,9 @@
                             }
                         }
                     },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
                     },
@@ -13965,9 +13975,6 @@
                     },
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
-                    },
-                    "422": {
-                        "$ref": "#/components/responses/ValidationException"
                     }
                 }
             }
@@ -14014,6 +14021,186 @@
                     },
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
+        "/devices/unmatched-punches/preview": {
+            "get": {
+                "x-abilities": [
+                    "read"
+                ],
+                "operationId": "unmatchedPunch.preview",
+                "summary": "What assigning this badge to this person would do, read without changing\nanything: the held punches and their days, who the person is, and what\nspeaks against it. The assign request enforces the same warnings",
+                "tags": [
+                    "Unmatched Punch"
+                ],
+                "parameters": [
+                    {
+                        "name": "device_public_id",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "minLength": 26,
+                            "maxLength": 26
+                        }
+                    },
+                    {
+                        "name": "badge",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "maxLength": 64
+                        }
+                    },
+                    {
+                        "name": "employee_public_id",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "minLength": 26,
+                            "maxLength": 26
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "punches": {
+                                            "type": "integer"
+                                        },
+                                        "first_day": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "last_day": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "employee": {
+                                            "type": "object",
+                                            "properties": {
+                                                "public_id": {
+                                                    "type": "string"
+                                                },
+                                                "name": {
+                                                    "type": "string"
+                                                },
+                                                "employee_code": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "department": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "position": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "branch": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "hire_date": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "status": {
+                                                    "type": "string"
+                                                },
+                                                "badge_number": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "public_id",
+                                                "name",
+                                                "employee_code",
+                                                "department",
+                                                "position",
+                                                "branch",
+                                                "hire_date",
+                                                "status",
+                                                "badge_number"
+                                            ]
+                                        },
+                                        "warnings": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "code": {
+                                                        "type": "string"
+                                                    },
+                                                    "value": {
+                                                        "anyOf": [
+                                                            {
+                                                                "type": "string"
+                                                            },
+                                                            {
+                                                                "type": "integer"
+                                                            },
+                                                            {
+                                                                "type": "null"
+                                                            }
+                                                        ]
+                                                    }
+                                                },
+                                                "required": [
+                                                    "code",
+                                                    "value"
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "punches",
+                                        "first_day",
+                                        "last_day",
+                                        "employee",
+                                        "warnings"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
                     },
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
@@ -38781,6 +38968,11 @@
                                     "type": "string"
                                 }
                             },
+                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
                             "text/csv": {
                                 "schema": {
                                     "type": "string"
@@ -40726,6 +40918,145 @@
                         "description": "",
                         "content": {
                             "application/pdf": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Content-Disposition": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
+        "/reports/timesheet/xlsx": {
+            "get": {
+                "x-abilities": [
+                    "read",
+                    "reports"
+                ],
+                "operationId": "report.timesheetXlsx",
+                "summary": "The same timesheet as an Excel workbook: a sheet of the days and a\nsheet of the summary, for the same people and by the same filters as the\nPDF. A list longer than the screen's own limit is a 422 that says how\nto narrow it",
+                "tags": [
+                    "Dashboards & Reporting"
+                ],
+                "parameters": [
+                    {
+                        "name": "from",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "to",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "month",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "department",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "maxLength": 64
+                        }
+                    },
+                    {
+                        "name": "branch",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "maxLength": 64
+                        }
+                    },
+                    {
+                        "name": "shift",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "maxLength": 64
+                        }
+                    },
+                    {
+                        "name": "employment_status",
+                        "in": "query",
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "$ref": "#/components/schemas/EmployeeStatus"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 100
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
                                 "schema": {
                                     "type": "string"
                                 }
@@ -49278,6 +49609,9 @@
                         "type": "string",
                         "minLength": 26,
                         "maxLength": 26
+                    },
+                    "accept_warnings": {
+                        "type": "boolean"
                     }
                 },
                 "required": [
@@ -53834,7 +54168,8 @@
                         "type": "string",
                         "enum": [
                             "csv",
-                            "pdf"
+                            "pdf",
+                            "xlsx"
                         ]
                     },
                     "columns": {

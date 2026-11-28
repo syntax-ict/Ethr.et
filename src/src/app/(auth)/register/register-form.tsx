@@ -118,6 +118,7 @@ export function RegisterForm() {
       admin_phone: "",
       password: "",
       password_confirmation: "",
+      accept_terms: false,
     },
     mode: "onBlur",
   });
@@ -145,9 +146,13 @@ export function RegisterForm() {
   );
   const hasError_password = Boolean(errors.password || fieldErrors.password);
   const hasError_password_confirmation = Boolean(errors.password_confirmation);
+  const hasError_accept_terms = Boolean(
+    errors.accept_terms || fieldErrors.accept_terms,
+  );
 
   const password = watch("password");
   const passwordConfirmation = watch("password_confirmation");
+  const acceptTerms = watch("accept_terms");
   const subdomain = watch("subdomain");
   const orgName = watch("organization_name");
   const orgKind = watch("organization_kind");
@@ -240,7 +245,8 @@ export function RegisterForm() {
     adminName.trim().length >= 2 &&
     /\S+@\S+\.\S+/.test(adminEmail) &&
     isAdminPhone(adminPhone);
-  const step3Valid = password.length >= 8 && password === passwordConfirmation;
+  const step3Valid =
+    password.length >= 8 && password === passwordConfirmation && acceptTerms;
 
   async function goNext() {
     setServerError("");
@@ -308,6 +314,9 @@ export function RegisterForm() {
         admin_phone: data.admin_phone,
         password: data.password,
         password_confirmation: data.password_confirmation,
+        // The schema has already refused anything but a ticked box; the
+        // contract types the field as an `accepted` value, not a boolean.
+        ...(data.accept_terms ? { accept_terms: true as const } : {}),
       });
 
       localStorage.setItem("tenant", data.subdomain.toLowerCase());
@@ -844,6 +853,66 @@ export function RegisterForm() {
                     errors.password_confirmation.message!,
                     "Passwords do not match",
                   )}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-start gap-2.5">
+                {/*
+                  Native, like the rest of this form before hydration: a
+                  Radix checkbox is a button that does nothing until React
+                  has loaded (auth-forms-pre-hydration.test.tsx).
+                */}
+                <input
+                  id="accept_terms"
+                  type="checkbox"
+                  aria-invalid={hasError_accept_terms || undefined}
+                  aria-describedby={
+                    hasError_accept_terms ? "accept_terms-error" : undefined
+                  }
+                  {...register("accept_terms")}
+                  className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded"
+                />
+                <label
+                  htmlFor="accept_terms"
+                  className="text-sm leading-snug text-muted-foreground"
+                >
+                  {t("auth.accept_terms_prefix", "I agree to the")}{" "}
+                  <Link
+                    prefetch={false}
+                    href={`/${locale}/terms`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium text-primary hover:underline"
+                  >
+                    {t("auth.accept_terms_link", "Terms of Service")}
+                  </Link>{" "}
+                  {t("auth.accept_terms_join", "and the")}{" "}
+                  <Link
+                    prefetch={false}
+                    href={`/${locale}/privacy`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium text-primary hover:underline"
+                  >
+                    {t("auth.accept_privacy_link", "Privacy Policy")}
+                  </Link>
+                  {t("auth.accept_terms_suffix", ".")}
+                </label>
+              </div>
+              {hasError_accept_terms && (
+                <p
+                  id="accept_terms-error"
+                  role="alert"
+                  className="text-xs text-destructive"
+                >
+                  {errors.accept_terms
+                    ? t(
+                        errors.accept_terms.message!,
+                        "Accept the Terms of Service and the Privacy Policy to create your organization.",
+                      )
+                    : fieldErrors.accept_terms[0]}
                 </p>
               )}
             </div>

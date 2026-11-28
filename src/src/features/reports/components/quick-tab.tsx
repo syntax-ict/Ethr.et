@@ -9,6 +9,7 @@ import {
 } from "@/features/reports/field-labels";
 import {
   Download,
+  FileSpreadsheet,
   Loader2,
   Users,
   Clock,
@@ -23,6 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  downloadReportExcel,
   useGenerateReport,
   useReportPresets,
   type ReportConfig,
@@ -263,6 +265,7 @@ export function QuickTab() {
   const [running, setRunning] = useState<string | null>(null);
   // The settings the result on screen was run with, for its printed period.
   const [ranWith, setRanWith] = useState<ReportConfig | undefined>(undefined);
+  const [excelBusy, setExcelBusy] = useState(false);
 
   function handleGenerate(preset: ReportPreset) {
     const config = forMonth(preset.config, month);
@@ -295,6 +298,22 @@ export function QuickTab() {
         note: reportCutNote(t, result),
       }),
     );
+  }
+
+  async function downloadExcel() {
+    const result = generate.data;
+    if (!ranWith || !result?.data?.length) return;
+    setExcelBusy(true);
+    try {
+      await downloadReportExcel(
+        { ...ranWith, format: "xlsx" },
+        `${running ?? result.source}-${new Date().toISOString().split("T")[0]}.xlsx`,
+      );
+    } catch (err) {
+      toast.error(apiErrorMessage(err, t("reports_page.excel_failed")));
+    } finally {
+      setExcelBusy(false);
+    }
   }
 
   if (presets.isError) {
@@ -453,7 +472,16 @@ export function QuickTab() {
 
       {generate.data && (
         <>
-          <div className="flex justify-end print:hidden">
+          <div className="flex justify-end gap-2 print:hidden">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={downloadExcel}
+              disabled={excelBusy}
+            >
+              <FileSpreadsheet className="mr-2 h-3 w-3" />{" "}
+              {t("reports_page.download_excel")}
+            </Button>
             <Button size="sm" onClick={downloadCsv}>
               <Download className="mr-2 h-3 w-3" />{" "}
               {t("reports_page.download_csv")}

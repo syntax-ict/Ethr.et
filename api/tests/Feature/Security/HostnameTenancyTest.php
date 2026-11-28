@@ -298,6 +298,7 @@ it('refuses to register a tenant on a reserved subdomain', function () {
         'admin_phone' => '0912345678',
         'password' => 'Str0ng-Passw0rd!',
         'password_confirmation' => 'Str0ng-Passw0rd!',
+        'accept_terms' => true,
     ])
         ->assertStatus(422)
         ->assertJsonPath('errors.subdomain.0', 'That subdomain is reserved. Please choose another.');

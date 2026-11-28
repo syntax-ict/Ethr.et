@@ -194,6 +194,13 @@ test.describe("Announcements: reading a story", () => {
     // its content gets. Anything too wide scrolls sideways inside it instead,
     // which is what a reader on a phone would be stuck with.
     await page.setViewportSize({ width: 375, height: 812 });
+    // The panel slides in from the right, so wait for that to end: measured
+    // mid-slide, its right edge is still off the screen.
+    await pane.evaluate((el) =>
+      Promise.all(
+        el.getAnimations().map((a) => a.finished.catch(() => undefined)),
+      ),
+    );
     const box = await pane.evaluate((el) => ({
       scrollWidth: el.scrollWidth,
       clientWidth: el.clientWidth,

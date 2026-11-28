@@ -12,6 +12,7 @@
 #   ./scripts/gates.sh coverage    backend line coverage (needs PCOV or Xdebug)
 #   ./scripts/gates.sh mysql       the backend suite against MariaDB, not SQLite
 #   ./scripts/gates.sh concurrency punches racing from separate processes, on MariaDB
+#   ./scripts/gates.sh accuracy    hand-typed golden attendance cases against the engine, no server needed
 #   ./scripts/gates.sh lighthouse  Lighthouse CI over the public pages
 #   ./scripts/gates.sh e2e         Playwright over a running stack (desktop Chromium)
 #   ./scripts/gates.sh e2e-attendance  the attendance-to-payslip journeys, same stack
@@ -423,6 +424,23 @@ concurrency_gate() {
     )
 }
 
+# The attendance golden cases (tests/Accuracy, api/phpunit.accuracy.xml):
+# punches with hand-typed expected values, read back through the engine's own
+# functions. Opt-in like `concurrency`, so the collection count of the Unit and
+# Feature suites is unchanged, but it needs no server: SQLite and the array
+# cache, the same as the backend suite.
+accuracy_gate() {
+    if ! have_php; then
+        no_php_msg
+        return 1
+    fi
+
+    (
+        cd "$API_DIR" || return 1
+        php -d memory_limit=-1 vendor/bin/pest -c phpunit.accuracy.xml
+    )
+}
+
 lighthouse_gate() {
     (
         cd "$WEB_DIR" || return 1
@@ -557,6 +575,12 @@ fi
 # fixtures, so it must not share that suite's database.
 if [[ "$SCOPE" == "concurrency" ]]; then
     run_gate "Pest (attendance, concurrent punches)" concurrency_gate
+fi
+
+# Opt-in for the same reason: it keeps the Unit and Feature collection count
+# unchanged. Needs no server.
+if [[ "$SCOPE" == "accuracy" ]]; then
+    run_gate "Pest (attendance, golden cases)" accuracy_gate
 fi
 
 # Opt-in, never part of `all` — see the comment above composer_audit_gate.

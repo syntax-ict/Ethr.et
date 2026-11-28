@@ -500,6 +500,63 @@ describe("Monthly timesheet screen", () => {
     );
   });
 
+  it("downloads the same month and filters as an Excel workbook", async () => {
+    serve(sheet());
+    let asked: URLSearchParams | null = null;
+    server.use(
+      http.get("*/api/v1/reports/timesheet/xlsx", ({ request }) => {
+        asked = new URL(request.url).searchParams;
+        return new HttpResponse(new Blob(["PK"]), {
+          headers: {
+            "Content-Type":
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          },
+        });
+      }),
+    );
+    window.history.replaceState(
+      null,
+      "",
+      "/reports/timesheet?from=2026-10-12&to=2026-10-14&department=01HDEP",
+    );
+    saved.blob.mockClear();
+    const user = userEvent.setup();
+    render(<TimesheetView />, { wrapper: Wrap });
+    await screen.findAllByText("Abebe Kebede");
+
+    await user.click(screen.getByRole("button", { name: "Download Excel" }));
+
+    await waitFor(() => expect(saved.blob).toHaveBeenCalled());
+    expect(saved.blob.mock.calls[0][0]).toBe("timesheet-2026-10-12.xlsx");
+    expect(asked!.get("from")).toBe("2026-10-12");
+    expect(asked!.get("department")).toBe("01HDEP");
+    expect(asked!.get("page")).toBeNull();
+  });
+
+  it("says the Excel file could not be made in the reader's language", async () => {
+    serve(sheet());
+    server.use(
+      http.get("*/api/v1/reports/timesheet/xlsx", () =>
+        HttpResponse.json(
+          { type: "server_error", status: 500 },
+          { status: 500 },
+        ),
+      ),
+    );
+    toasts.error.mockClear();
+    const user = userEvent.setup();
+    render(<TimesheetView />, { wrapper: Wrap });
+    await screen.findAllByText("Abebe Kebede");
+
+    await user.click(screen.getByRole("button", { name: "Download Excel" }));
+
+    await waitFor(() =>
+      expect(toasts.error).toHaveBeenCalledWith(
+        "The Excel file could not be made. Try again, or choose a department.",
+      ),
+    );
+  });
+
   it("says a CSV is one page when there are several, and carries every column of the sheet", async () => {
     serve(
       sheet({
