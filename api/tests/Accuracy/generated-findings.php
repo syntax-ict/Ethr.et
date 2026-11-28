@@ -12,4 +12,7 @@ declare(strict_types=1);
  */
 
 return [
+    // The engine defect of golden cases GC-REST-001 and GC-REST-002 (BASELINE 25bs):
+    // late and early minutes on a record of a day that is not a working day.
+    '20261160/2026-02-22/late#1' => 'S1 worked on a Sunday, in at 08:45:11: the engine says 15 minutes late on the record; the day has no scheduled hours (AR-MIN-06).',
 ];

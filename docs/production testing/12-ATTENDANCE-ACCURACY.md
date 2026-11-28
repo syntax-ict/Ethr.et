@@ -21,17 +21,17 @@ A number for one of them says nothing about the others. A conformance figure of 
 | Layer | What it does | Measure | Status |
 |---|---|---|---|
 | Rule register | Every rule with an id, a source and a state: Decided, Implemented or Undecided | all | Built: [ATTENDANCE-RULES.md](../ATTENDANCE-RULES.md) |
-| Golden cases | Hand-typed expected values, run through the engine | Conformance | Built: 79 cases, sections 3 to 5 |
+| Golden cases | Hand-typed expected values, run through the engine | Conformance | Built: 81 cases, sections 3 to 5 |
 | Independent oracle | A second implementation of the rules, written from the register alone, run on the same cases | Conformance | Built: section 3a |
-| Generated run | Seeded employee-months compared with the oracle | Conformance | Not built yet |
-| Properties | Replay, duplicate, zone, channel and order do not change the answer | Robustness | Not built yet |
+| Generated run | Seeded employee-months, engine against oracle, every field of every day | Conformance | Built: section 3b |
+| Properties | Replay, zone, delayed arrival and method do not change the answer; invariants on every day | Robustness | Built: section 3c (methods through the engine, not through each HTTP channel: that is the simulated month) |
 | Mutation testing | Whether the tests notice a deliberately wrong engine | Strength of the tests | Not built yet |
 | Simulated month over HTTP | A seeded month through the real device webhook and queue | Robustness | Not built yet |
 | Displayed figures | The numbers on each screen compared with the expected ones | Conformance | Not built yet |
 | Production check | A read-only look at one known day on the QA organisation | Real-world agreement | Not built yet |
 | Backtest | A real month replayed and compared with HR's signed sheet | Real-world agreement | Not built yet |
 
-No accuracy percentage exists yet. The golden cases are a fixed list, not a sample, so a pass rate over them does not estimate how often the engine is right on real days.
+The golden cases are a fixed list, not a sample, so a pass rate over them does not estimate how often the engine is right. The generated run (section 3b) gives agreement rates between the engine and the oracle over a seeded sample of employee-days: that is a conformance figure, how often two independent readings of the register agree, not how often the engine matches what HR would sign. Only the backtest measures that.
 
 ## 3. Run the golden cases
 
@@ -74,6 +74,37 @@ All of them run under `./scripts/gates.sh accuracy`. `ORACLE_CASE=GC-A,GC-B` run
 **Shown to fail, both ways (2026-11-28).** With the engine's grace comparison changed from "at or before" to "before", GC-STATUS-003 and GC-ZONE-002 failed and the oracle outvoted the engine. With the oracle's night window moved to start at 23:00, GC-OT-004 and GC-OT-012 failed in `OracleCasesTest` (night 60 expected, oracle said normal 330). Both files were restored.
 
 What the oracle is not: ground truth. It was written in the same week as the hand values, from the same register, so a misreading of the register that both share passes. That is what the real-data backtest, the last layer in section 2, is for.
+
+## 3b. Generated months
+
+`api/tests/Accuracy/Generator/MonthGenerator.php` builds one person's calendar month from a seed, in the golden-case format without `expect`: a shift (S1, S2, S3, or rarely none), a zone (mostly Addis, sometimes Dubai or Bogota), sometimes a branch holiday, a holiday elsewhere, leave, a hire or termination date inside the month, automatic check-out, and for each day a behaviour (on time, late, early, both, overtime, a forgotten check-out, a lunch out and in, a second session, a double tap, Automatic punches, a manual or CSV entry, absent, work on a day off), by every method. The same seed always gives the same month, and punches are in arrival order.
+
+`GeneratedMonthsTest.php` sends each month through the engine as the golden cases do, reads the engine back in the oracle's shape (`accuracyEngineAnswer()` in `Support/engine.php`), asks the oracle for every date of the month, and compares every field of every employee-day. A field the oracle marks undecided or has no opinion on is counted, by rule, and not compared. The same month also checks that the timesheet ledger is consistent and equals payroll's figures.
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `ACCURACY_MONTHS` | 70 (about 2,100 employee-days) | Months to generate |
+| `ACCURACY_SEED` | 20261128 | Base seed; month *i* uses seed + *i* |
+
+To replay one month: `ACCURACY_SEED=<its seed> ACCURACY_MONTHS=1 vendor/bin/pest -c phpunit.accuracy.xml tests/Accuracy/GeneratedMonthsTest.php` from `api/`.
+
+**The report** is written to `api/storage/framework/testing/accuracy/` (ignored by git): `summary.md` and `summary.json` with, per field, the employee-days compared, agreed and disagreed, the undecided ones by rule, and the agreement rate with a 95% Wilson interval; and one file per disagreeing day, `<seed>-<date>.php`, holding that day's generated case with `expect` set to `'TODO: type by hand'`. To turn a disagreement into a golden case, type the expected values by hand from the register, never from either side's answer. In CI the report is the `attendance-accuracy-report` artifact of the `attendance-accuracy` job.
+
+A disagreement fails the run unless its `seed/date/field` is listed in `api/tests/Accuracy/generated-findings.php`, each listed one tied to a golden case and a finding; a listed one that no longer disagrees fails until it is removed.
+
+## 3c. Properties
+
+`PropertiesTest.php` runs a smaller set of generated months (`ACCURACY_PROPERTY_MONTHS`, default 15) through the engine alone and fails if:
+
+1. sending every punch a second time with the same key changes any field;
+2. the same month in another zone (Addis to Dubai and to Bogota, wall-clock times kept) gives another answer;
+3. live punches arriving 30 minutes late, in the same order, give other records (months with automatic check-out are skipped);
+4. changing every live punch's method to another live method changes the record state;
+5. on any day, worked minutes are negative or longer than the record, an overtime bucket is negative, late or early minutes are not zero on a day that is not a working day, or two live records of one work date overlap without a conflict.
+
+A violation names the seed, the date and the property and is written to the same report directory. `property-findings.php` lists triaged ones, as above.
+
+**Test state the engine keeps between months.** `AttendanceRecord` keeps a static per-process cache of each tenant's zone. Tests reuse tenant ids, so without a reset a month read the previous month's zone (measured: overtime 60 minutes off, and 232 false zone violations). `accuracyForgetProcessState()` clears it before each month; the cause is a separate fix.
 
 ### Read a failing case
 
