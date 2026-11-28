@@ -1099,8 +1099,10 @@ final class PayrollEngine
             return null;
         }
 
+        // Since 1.11: on a working day overtime starts at the later of the
+        // shift's end and the check-in, not at the shift's end (AR-OT-01).
         $log = [
-            'version' => '1.10',
+            'version' => '1.11',
             'calculated_at' => now()->toIso8601String(),
             // Since 1.4: every amount is an exact fraction rounded once, half
             // away from zero (App\Support\Cents), not a float passed to round().
