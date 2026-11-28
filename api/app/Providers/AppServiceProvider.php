@@ -482,6 +482,11 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perHour(5)->by('backup-key:'.($request->user()?->id ?: $request->ip()));
         });
 
+        // Each run is a full backup and, when configured, an upload.
+        RateLimiter::for('backup-run', function (Request $request) {
+            return Limit::perHour(4)->by('backup-run:'.($request->user()?->id ?: $request->ip()));
+        });
+
         RateLimiter::for('webhooks-test', function (Request $request) {
             return Limit::perHour(10)->by('tenant:'.($request->user()?->tenant_id ?: $request->ip()));
         });
