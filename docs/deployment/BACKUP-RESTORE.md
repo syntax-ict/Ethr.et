@@ -198,6 +198,10 @@ The answer is JSON with one entry per step (`command`, `exit_code`, `output`) an
 `"status": "ok"` only when all of them passed. Then do steps 2–5 of *After any restore,
 verify* above by hand.
 
+These are bash commands. From Windows PowerShell, replace `--data ''` with `--data '{}'` and add
+`-H 'Content-Type: application/json'`: PowerShell 5.1 drops the empty argument and the token is
+then never sent ([PLESK-GO-LIVE.md](PLESK-GO-LIVE.md), *Keep `--data ''`*).
+
 ```bash
 read -rs TOKEN   # paste MAINTENANCE_TOKEN, then Enter
 curl -sS -X POST "https://<HOST>/api/v1/maintenance/backups" --data '' \
