@@ -5,19 +5,17 @@ declare(strict_types=1);
 use App\Enums\LeaveStatus;
 use App\Enums\UserRole;
 use App\Models\AttendanceRecord;
-use App\Models\Employee;
 use App\Models\EmployeeCostSharing;
 use App\Models\EmployeeLoan;
 use App\Models\LeaveRequest;
 use App\Models\LeaveType;
 use App\Models\PayrollEntry;
 use App\Models\PayrollRule;
-use App\Models\PayrollRun;
 use App\Models\Shift;
 use App\Services\Accounting\AccountingExportService;
-use App\Services\Payroll\PayrollEngine;
 use App\Services\Payroll\RunRegisterService;
 use Carbon\Carbon;
+use Tests\Support\PayrollGolden;
 
 /**
  * Worked payslips, asserted to the cent (docs/payroll/ACCOUNTANT-SIGN-OFF.md).
@@ -33,24 +31,6 @@ use Carbon\Carbon;
  *   7,000.01 – 10,000 25% · 10,000.01 – 14,000 30% · over 14,000 35%
  * Pension: employee 7%, employer 11% of basic salary.
  */
-function goldenEmployee(int $tenantId, string $code, int $basicCents): Employee
-{
-    return Employee::factory()->create([
-        'tenant_id' => $tenantId,
-        'employee_code' => $code,
-        'salary_cents' => $basicCents,
-        'hire_date' => '2025-01-01',
-        'status' => 'confirmed',
-    ]);
-}
-
-function goldenRun(int $tenantId, int $userId): PayrollRun
-{
-    return app(PayrollEngine::class)->process(
-        $tenantId, Carbon::parse('2026-10-01'), Carbon::parse('2026-10-31'), $userId,
-    )->run;
-}
-
 it('pays one employee in every tax band exactly as the law computes it', function () {
     $tenant = createTenant();
     $user = actingAsUser(['role' => UserRole::FINANCE_ADMIN], $tenant);
@@ -72,10 +52,10 @@ it('pays one employee in every tax band exactly as the law computes it', functio
     ];
 
     foreach ($cases as $code => [$basic]) {
-        goldenEmployee($tenant->id, $code, $basic);
+        PayrollGolden::employee($tenant->id, $code, $basic);
     }
 
-    $run = goldenRun($tenant->id, $user->id);
+    $run = PayrollGolden::run($tenant->id, $user->id);
 
     foreach ($cases as $code => [$basic, $tax, $employeePension, $employerPension, $net]) {
         $entry = PayrollEntry::query()
@@ -107,7 +87,7 @@ it('pays unpaid leave and allowances as the worked example shows', function () {
 
     // Basic 8,800 ETB; two days of approved unpaid leave; a non-taxable
     // transport allowance of 600 ETB and a taxable position allowance of 10%.
-    $employee = goldenEmployee($tenant->id, 'G7', 880000);
+    $employee = PayrollGolden::employee($tenant->id, 'G7', 880000);
 
     PayrollRule::query()->create([
         'tenant_id' => $tenant->id, 'name' => 'Transport allowance', 'type' => 'fixed', 'category' => 'allowance',
@@ -127,7 +107,7 @@ it('pays unpaid leave and allowances as the worked example shows', function () {
         'status' => LeaveStatus::APPROVED,
     ]);
 
-    $run = goldenRun($tenant->id, $user->id);
+    $run = PayrollGolden::run($tenant->id, $user->id);
     $entry = PayrollEntry::query()->where('payroll_run_id', $run->id)->sole();
 
     // Daily rate 8,800 / 22 = 400; two days = 800; basic after leave 8,000.
@@ -158,7 +138,7 @@ it('pays unpaid leave and allowances as the worked example shows', function () {
 it('pays overtime at the full hourly rate when unpaid leave reduced basic', function () {
     $tenant = createTenant();
     $user = actingAsUser(['role' => UserRole::FINANCE_ADMIN], $tenant);
-    $employee = goldenEmployee($tenant->id, 'G8', 880000);
+    $employee = PayrollGolden::employee($tenant->id, 'G8', 880000);
 
     $unpaid = LeaveType::factory()->create([
         'tenant_id' => $tenant->id, 'code' => 'unpaid', 'name' => 'Unpaid Leave', 'is_paid' => false, 'default_days' => 0,
@@ -177,7 +157,7 @@ it('pays overtime at the full hourly rate when unpaid leave reduced basic', func
         'check_out' => Carbon::parse('2026-10-15 19:30', 'Africa/Addis_Ababa')->utc(),
     ]);
 
-    $run = goldenRun($tenant->id, $user->id);
+    $run = PayrollGolden::run($tenant->id, $user->id);
     $entry = PayrollEntry::query()->where('payroll_run_id', $run->id)->sole();
 
     // Two unpaid days at 8,800 / 22 = 400 leave basic 8,000.
@@ -205,9 +185,9 @@ it('produces a register whose totals tie to the run and to the accounting journa
     $tenant = createTenant();
     $user = actingAsUser(['role' => UserRole::FINANCE_ADMIN], $tenant);
     foreach (['R1' => 350000, 'R2' => 900000, 'R3' => 2500000] as $code => $basic) {
-        goldenEmployee($tenant->id, $code, $basic);
+        PayrollGolden::employee($tenant->id, $code, $basic);
     }
-    $run = goldenRun($tenant->id, $user->id);
+    $run = PayrollGolden::run($tenant->id, $user->id);
 
     $register = app(RunRegisterService::class)->register($run);
     $totals = $register['totals'];
@@ -238,7 +218,7 @@ it('produces a register whose totals tie to the run and to the accounting journa
 it('credits net pay with what employees are paid, and loans and cost sharing to their own accounts', function () {
     $tenant = createTenant();
     $user = actingAsUser(['role' => UserRole::FINANCE_ADMIN], $tenant);
-    $employee = goldenEmployee($tenant->id, 'J1', 2000000);
+    $employee = PayrollGolden::employee($tenant->id, 'J1', 2000000);
     EmployeeLoan::factory()->create([
         'tenant_id' => $tenant->id, 'employee_id' => $employee->id, 'amount_cents' => 1000000,
         'remaining_cents' => 1000000, 'monthly_deduction_cents' => 150000, 'status' => 'active',
@@ -247,7 +227,7 @@ it('credits net pay with what employees are paid, and loans and cost sharing to 
         'tenant_id' => $tenant->id, 'employee_id' => $employee->id, 'total_obligation_cents' => 5000000,
         'outstanding_cents' => 5000000, 'deduction_rate_percent' => '10.00', 'status' => 'active',
     ]);
-    $run = goldenRun($tenant->id, $user->id);
+    $run = PayrollGolden::run($tenant->id, $user->id);
 
     // Gross 20,000. Tax 35% - 2,050 = 4,950. Pension 1,400 / 2,200.
     // Loan 1,500; cost sharing 10% of gross = 2,000.
@@ -266,9 +246,9 @@ it('credits net pay with what employees are paid, and loans and cost sharing to 
 it('serves the register as JSON and as a formula-safe CSV to finance, not to employees', function () {
     $tenant = createTenant();
     $user = actingAsUser(['role' => UserRole::FINANCE_ADMIN], $tenant);
-    $employee = goldenEmployee($tenant->id, 'C1', 350000);
+    $employee = PayrollGolden::employee($tenant->id, 'C1', 350000);
     $employee->update(['name' => '=HYPERLINK("x")']);
-    $run = goldenRun($tenant->id, $user->id);
+    $run = PayrollGolden::run($tenant->id, $user->id);
 
     $this->getJson("/api/v1/payroll/runs/{$run->public_id}/register")
         ->assertOk()
