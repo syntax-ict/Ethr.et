@@ -260,8 +260,10 @@ final class TimesheetLedger
         $counted = $attended->reject(fn (AttendanceRecord $r): bool => isset($duplicates[$r->public_id]));
 
         $workedMinutes = (int) $counted->sum(fn (AttendanceRecord $r): int => $r->workedMinutes());
-        $late = (int) $counted->sum(fn (AttendanceRecord $r): int => $this->attendance->lateMinutes($r, $zone));
-        $early = (int) $counted->sum(fn (AttendanceRecord $r): int => $this->attendance->earlyMinutes($r, $zone));
+        // The cell's kind is the day-off answer: the engine makes no query of its own.
+        $dayOff = $kind === ExpectedDay::REST_DAY || $kind === ExpectedDay::HOLIDAY;
+        $late = (int) $counted->sum(fn (AttendanceRecord $r): int => $this->attendance->lateMinutes($r, $zone, $dayOff));
+        $early = (int) $counted->sum(fn (AttendanceRecord $r): int => $this->attendance->earlyMinutes($r, $zone, $dayOff));
 
         $isLate = $counted->contains(fn (AttendanceRecord $r): bool => $r->status === AttendanceStatus::LATE);
         $isEarly = $early > 0 || $counted->contains(fn (AttendanceRecord $r): bool => $r->status === AttendanceStatus::EARLY_LEAVE);
