@@ -11,7 +11,10 @@ use App\Models\PayrollEntry;
 use App\Models\PayrollRun;
 use App\Models\Shift;
 use App\Models\Tenant;
+use App\Services\Report\ReportEngine;
+use App\Support\ReaderDates;
 use App\Support\Xlsx;
+use App\Support\XlsxDate;
 use Carbon\Carbon;
 
 /*
@@ -293,4 +296,184 @@ test('the timesheet workbook follows the same gates and the same organisation as
     actingAsUser(['role' => UserRole::HR_ADMIN], $other);
     $names = xlRead(test()->get(xlUrl($other, 'timesheet/xlsx', 'from=2026-10-12&to=2026-10-25'))->assertOk()->getContent());
     expect(json_encode($names['sheets']))->not->toContain('Abebe')->not->toContain('Hana');
+});
+
+/**
+ * One cell of a workbook's first sheet as the raw XML says it: its type
+ * attribute, its value and the number format its style resolves to.
+ *
+ * @return array{type: string, value: string, format: ?string}
+ */
+function xlDateCell(string $bytes, string $reference): array
+{
+    $path = tempnam(sys_get_temp_dir(), 'xl-date-');
+    file_put_contents($path, $bytes);
+    $zip = new ZipArchive;
+    expect($zip->open($path))->toBeTrue();
+    $sheet = new SimpleXMLElement((string) $zip->getFromName('xl/worksheets/sheet1.xml'));
+    $styles = new SimpleXMLElement((string) $zip->getFromName('xl/styles.xml'));
+    $zip->close();
+    unlink($path);
+
+    $cell = $sheet->xpath("//*[local-name()='c'][@r='{$reference}']");
+    expect($cell)->not->toBeEmpty();
+    $cell = $cell[0];
+
+    $codes = [];
+    foreach ($styles->numFmts->numFmt ?? [] as $format) {
+        $codes[(string) $format['numFmtId']] = (string) $format['formatCode'];
+    }
+    $xf = $styles->cellXfs->xf[(int) $cell['s']];
+    $id = (string) $xf['numFmtId'];
+
+    return ['type' => (string) $cell['t'], 'value' => (string) $cell->v, 'format' => $codes[$id] ?? null];
+}
+
+/** The `<cols>` the first sheet declares, as [min => [max, width]]. */
+function xlDateWidths(string $bytes): array
+{
+    $path = tempnam(sys_get_temp_dir(), 'xl-width-');
+    file_put_contents($path, $bytes);
+    $zip = new ZipArchive;
+    expect($zip->open($path))->toBeTrue();
+    $sheet = new SimpleXMLElement((string) $zip->getFromName('xl/worksheets/sheet1.xml'));
+    $zip->close();
+    unlink($path);
+
+    $widths = [];
+    foreach ($sheet->cols->col ?? [] as $col) {
+        $widths[(int) $col['min']] = [(int) $col['max'], (float) $col['width']];
+    }
+
+    return $widths;
+}
+
+/** The workbook of one employee hired on a known day, whose code looks like a date too. */
+function xlHireDateBook(array $settings = []): string
+{
+    $tenant = createTenant($settings === [] ? [] : ['settings' => $settings]);
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+    Employee::factory()->create(['tenant_id' => $tenant->id, 'name' => 'Abebe Kebede', 'employee_code' => '2026-11-27', 'hire_date' => '2026-11-27']);
+
+    return xlExport($tenant, ['source' => 'employees', 'columns' => ['name', 'employee_code', 'hire_date']])->assertOk()->getContent();
+}
+
+test('a hire date in a workbook is a real date a column can sort, shown as yyyy-mm-dd', function () {
+    $book = xlHireDateBook(['calendar' => 'gregorian']);
+
+    $cell = xlDateCell($book, 'C2');
+    expect($cell['type'])->toBe('')
+        ->and($cell['value'])->toBe('46353')
+        ->and($cell['format'])->toBe('yyyy-mm-dd')
+        // 46353 days after 1899-12-30 is 2026-11-27.
+        ->and((new DateTimeImmutable('1899-12-30'))->modify('+46353 days')->format('Y-m-d'))->toBe('2026-11-27');
+});
+
+test('a code that merely looks like a date stays text in a workbook', function () {
+    $book = xlHireDateBook(['calendar' => 'gregorian']);
+
+    $sheet = array_values(xlRead($book)['sheets'])[0];
+    expect($sheet[2]['B'])->toBe(['s', '2026-11-27']);
+});
+
+test('the date column of a workbook is wide enough for its date', function () {
+    $widths = xlDateWidths(xlHireDateBook(['calendar' => 'gregorian']));
+
+    expect($widths)->toHaveKey(3)
+        ->and($widths[3][0])->toBe(3)
+        ->and($widths[3][1])->toBeGreaterThanOrEqual(12.0);
+});
+
+test('an Ethiopian reader gets the Gregorian date as a date and the Ethiopian one as text', function () {
+    $book = xlHireDateBook(['calendar' => 'ethiopian']);
+    $sheet = array_values(xlRead($book)['sheets'])[0];
+
+    expect(xlRowText($sheet, 1))->toBe(['Name', 'Employee code', 'Hire date', 'Hire date (Ethiopian calendar)'])
+        ->and(xlDateCell($book, 'C2')['value'])->toBe('46353')
+        ->and(xlDateCell($book, 'C2')['format'])->toBe('yyyy-mm-dd')
+        ->and($sheet[2]['D'][0])->toBe('s')
+        ->and($sheet[2]['D'][1])->not->toBe('')
+        ->and($sheet[2]['D'][1])->not->toBe('2026-11-27');
+});
+
+test('an empty date is an empty cell and a value that is not a date stays the text it is', function () {
+    $book = Xlsx::render([Xlsx::table('Rows', [
+        ['Day' => XlsxDate::fromDate('2026-11-27'), 'Other' => XlsxDate::fromDate('2026-02-31'), 'Third' => XlsxDate::fromDate('soon')],
+        ['Day' => null, 'Other' => XlsxDate::fromDate('2026-11-27'), 'Third' => XlsxDate::fromStamp('2026-11-27 8:15')],
+    ])]);
+    $sheet = array_values(xlRead($book)['sheets'])[0];
+
+    expect($sheet[2]['B'])->toBe(['s', '2026-02-31'])
+        ->and($sheet[2]['C'])->toBe(['s', 'soon'])
+        ->and($sheet[3]['A'] ?? null)->toBeNull()
+        ->and(xlDateCell($book, 'B3')['value'])->toBe('46353')
+        ->and($sheet[3]['C'])->toBe(['s', '2026-11-27 8:15']);
+});
+
+test('an employee with no hire date has an empty cell, not text', function () {
+    $rows = app(ReportEngine::class)->presentable(
+        [['name' => 'No Date', 'hire_date' => null], ['name' => 'Gap', 'hire_date' => '']],
+        ReaderDates::forTenant(null),
+        spreadsheet: true,
+        realDates: true,
+    );
+    $sheet = array_values(xlRead(Xlsx::render([Xlsx::table('Rows', $rows)]))['sheets'])[0];
+
+    expect($rows[0]['Hire date'])->toBe('')
+        ->and($rows[1]['Hire date'])->toBe('')
+        ->and($sheet[2]['A'][1])->toBe('No Date')
+        ->and($sheet[2]['B'] ?? null)->toBeNull()
+        ->and($sheet[3]['B'] ?? null)->toBeNull();
+});
+
+test('check-in and check-out in a workbook are date-times on the organisation clock, and the CSV is unchanged', function () {
+    $tenant = createTenant(['settings' => ['calendar' => 'gregorian']]);
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+    $shift = Shift::factory()->default()->create(['tenant_id' => $tenant->id]);
+    $employee = Employee::factory()->create(['tenant_id' => $tenant->id, 'hire_date' => '2025-01-01']);
+    AttendanceRecord::factory()->create([
+        'tenant_id' => $tenant->id, 'employee_id' => $employee->id, 'shift_id' => $shift->id, 'date' => '2026-11-27',
+        'check_in' => Carbon::parse('2026-11-27 05:15', 'UTC'),
+        'check_out' => Carbon::parse('2026-11-27 14:30', 'UTC'),
+        'status' => AttendanceStatus::PRESENT,
+    ]);
+
+    $body = ['source' => 'attendance', 'columns' => ['employee_code', 'date', 'check_in', 'check_out'], 'from' => '2026-11-27', 'to' => '2026-11-27'];
+    $book = xlExport($tenant, $body)->assertOk()->getContent();
+    $sheet = array_values(xlRead($book)['sheets'])[0];
+    expect(xlRowText($sheet, 1))->toBe(['Employee code', 'Date', 'Check-in', 'Check-out']);
+
+    // Africa/Addis_Ababa is UTC+3: 05:15Z is 08:15, 14:30Z is 17:30.
+    $in = xlDateCell($book, 'C2');
+    $out = xlDateCell($book, 'D2');
+    expect($in['format'])->toBe('yyyy-mm-dd hh:mm')
+        ->and($out['format'])->toBe('yyyy-mm-dd hh:mm')
+        ->and($in['type'])->toBe('')
+        ->and((float) $in['value'])->toEqualWithDelta(46353 + (8 * 60 + 15) / 1440, 0.000001)
+        ->and((float) $out['value'])->toEqualWithDelta(46353 + (17 * 60 + 30) / 1440, 0.000001)
+        ->and(xlDateCell($book, 'B2')['format'])->toBe('yyyy-mm-dd');
+
+    $widths = xlDateWidths($book);
+    expect($widths[2][1])->toBeGreaterThanOrEqual(12.0)
+        ->and($widths[3][1])->toBeGreaterThanOrEqual(18.0)
+        ->and($widths[4][1])->toBeGreaterThanOrEqual(18.0);
+
+    $csv = test()->postJson(xlUrl($tenant, 'export'), [...$body, 'format' => 'csv'])->getContent();
+    expect($csv)->toContain(',2026-11-27,2026-11-27 08:15,2026-11-27 17:30');
+});
+
+test('the timesheet workbook has no date cells', function () {
+    ['tenant' => $tenant] = xlTimesheetFixture();
+    actingAsUser(['role' => UserRole::HR_ADMIN], $tenant);
+
+    $bytes = test()->get(xlUrl($tenant, 'timesheet/xlsx', 'from=2026-10-12&to=2026-10-25'))->assertOk()->getContent();
+    $path = tempnam(sys_get_temp_dir(), 'xl-ts-');
+    file_put_contents($path, $bytes);
+    $zip = new ZipArchive;
+    $zip->open($path);
+    $styles = (string) $zip->getFromName('xl/styles.xml');
+    $zip->close();
+    unlink($path);
+
+    expect($styles)->not->toContain('yyyy-mm-dd');
 });
