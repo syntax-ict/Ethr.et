@@ -5574,7 +5574,11 @@ Section 25bk wrote every date and time in a report workbook as text: the ISO `Y-
 - **Tests.** `tests/Feature/Reports/ReportExcelTest.php`: the hire date is serial 46353 with `yyyy-mm-dd`; a date-looking employee code stays text; the date column has a declared width; an Ethiopian reader gets both columns; an empty date is an empty cell and an unreadable one stays text; check-in and check-out are date-times 08:15 and 17:30 with the CSV unchanged; the timesheet workbook declares no date format.
 - **Not verified.** The workbook was not opened in Excel or LibreOffice on this machine; its XML (serial numbers, number formats, `<cols>`) was read back from the zip.
 
-### 25bn. The Attendance rules settings page: reviewed 2026-11-28, plan written, nothing built
+### 25bn. The plain-text part of an email stayed on the old template after a deploy (2026-11-28)
+
+**Seen** on production after the greeting change in #935: a real email carried the new wording in its HTML part ("Hello,") and the old wording ("# Hello!", the old trouble-clicking line) in its text part. **Cause.** `Markdown::render()` compiles the view under a non-default echo format, which gives the HTML part its own compiled file, separate from the text part's; `CompilerEngine` remembers "already checked" by source path, so once the HTML part has rendered, the text part never checks its own file for expiry and runs the stale one until compiled views are cleared, which on production needs the maintenance token. **Changed.** `App\Support\Mail\FreshTextMarkdown` forgets that memory before the text render, and `AppServiceProvider` swaps it in with `extend()` (the framework's own binding sits in a deferred provider, so a plain `singleton()` would be overwritten when it loads). Test: `tests/Feature/Notifications/MailTextPartFreshnessTest.php` rewrites a template after both parts have rendered and asserts the text part follows; it fails without the fix. Needs a deploy, no migration; the stale compiled file is older than the template, so the first text render after the deploy recompiles it.
+
+### 25bo. The Attendance rules settings page: reviewed 2026-11-28, plan written, nothing built
 
 The owner asked for a close look at `/settings/attendance` on production (QA Audit), then for a plan. The review and the plan are one document: [`ATTENDANCE-SETTINGS-REVIEW-2026-11-28.md`](ATTENDANCE-SETTINGS-REVIEW-2026-11-28.md).
 
