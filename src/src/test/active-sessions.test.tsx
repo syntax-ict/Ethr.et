@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { server } from "./msw/server";
@@ -121,6 +127,13 @@ describe("<ActiveSessionsCard>", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /Revoke/ }));
 
+    // Nothing is sent until the question is answered.
+    const dialog = await screen.findByRole("dialog");
+    expect(deletedId).toBeNull();
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Sign out session" }),
+    );
+
     // The refetch is the security property. Without it the revoked session is
     // still on screen and the user has no reason to think otherwise.
     await waitFor(() =>
@@ -166,6 +179,11 @@ describe("<ActiveSessionsCard>", () => {
 
     fireEvent.click(
       screen.getByRole("button", { name: /Sign out all other sessions/ }),
+    );
+    fireEvent.click(
+      within(await screen.findByRole("dialog")).getByRole("button", {
+        name: "Sign out other sessions",
+      }),
     );
 
     await waitFor(() =>
@@ -307,6 +325,11 @@ describe("<TrustedDevicesCard>", () => {
       "button.text-destructive",
     ) as HTMLButtonElement;
     fireEvent.click(removeButton);
+    fireEvent.click(
+      within(await screen.findByRole("dialog")).getByRole("button", {
+        name: "Remove device",
+      }),
+    );
 
     // A device that still appears trusted is a device the user believes is
     // still skipping MFA.

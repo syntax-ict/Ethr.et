@@ -60,10 +60,12 @@ import { useT } from "@/lib/i18n/useT";
 import { toast } from "sonner";
 import { apiErrorMessage } from "@/lib/api/error-message";
 import { ErrorState } from "@/components/shared/error-state";
+import { useConfirm } from "@/components/shared/use-confirm";
 import { KioskLockGuide } from "@/features/kiosk/components/kiosk-lock-guide";
 
 export default function KioskSessionsPage() {
   const { t } = useT();
+  const { requestConfirm, confirmDialog } = useConfirm();
   const { formatDate, formatDateTime } = useDateFormatters();
   const [page, setPage] = useState(1);
   const [showRegister, setShowRegister] = useState(false);
@@ -144,7 +146,26 @@ export default function KioskSessionsPage() {
     );
   }
 
-  function handleRegenerate(publicId: string) {
+  async function handleRegenerate(publicId: string, name: string) {
+    if (
+      !(await requestConfirm({
+        title: t(
+          "attendance.kiosks_page.regenerate_confirm_title",
+          "Regenerate the token for :name?",
+          { name },
+        ),
+        description: t(
+          "attendance.kiosks_page.regenerate_confirm_description",
+          "The terminal using the current token stops working until the new one is entered on it. The old token cannot be restored.",
+        ),
+        confirmLabel: t(
+          "attendance.kiosks_page.regenerate_confirm",
+          "Regenerate token",
+        ),
+        variant: "destructive",
+      }))
+    )
+      return;
     regenerate.mutate(publicId, {
       onSuccess: (data) => {
         if (data.token) setShowToken(data.token);
@@ -167,7 +188,26 @@ export default function KioskSessionsPage() {
     });
   }
 
-  function handleDelete(publicId: string) {
+  async function handleDelete(publicId: string, name: string) {
+    if (
+      !(await requestConfirm({
+        title: t(
+          "attendance.kiosks_page.delete_confirm_title",
+          "Delete the kiosk :name?",
+          { name },
+        ),
+        description: t(
+          "attendance.kiosks_page.delete_confirm_description",
+          "Any terminal using this kiosk stops working. This cannot be undone.",
+        ),
+        confirmLabel: t(
+          "attendance.kiosks_page.delete_confirm",
+          "Delete kiosk",
+        ),
+        variant: "destructive",
+      }))
+    )
+      return;
     remove.mutate(publicId, {
       onSuccess: () => toast.success(t("attendance.kiosks_page.deleted")),
       onError: (err) =>
@@ -280,7 +320,9 @@ export default function KioskSessionsPage() {
                             </DropdownMenuItem>
                           )}
                           <DropdownMenuItem
-                            onClick={() => handleRegenerate(k.public_id)}
+                            onClick={() =>
+                              handleRegenerate(k.public_id, k.name)
+                            }
                           >
                             <RefreshCw className="mr-2 h-3.5 w-3.5" />{" "}
                             {t("attendance.kiosks_page.regenerate_token")}
@@ -294,7 +336,7 @@ export default function KioskSessionsPage() {
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
                             className="text-destructive"
-                            onClick={() => handleDelete(k.public_id)}
+                            onClick={() => handleDelete(k.public_id, k.name)}
                           >
                             <Trash2 className="mr-2 h-3.5 w-3.5" />{" "}
                             {t("common.delete")}
@@ -492,6 +534,7 @@ export default function KioskSessionsPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        {confirmDialog}
       </div>
     </RoleGate>
   );

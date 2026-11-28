@@ -1,5 +1,11 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { server } from "./msw/server";
@@ -50,6 +56,40 @@ describe("<DashboardDigestDialog>", () => {
     renderDialog();
 
     expect(await screen.findByText("weekly")).toBeInTheDocument();
+  });
+
+  it("cancels a digest only after the question is confirmed", async () => {
+    let deleted = 0;
+    server.use(
+      http.get("*/dashboard/digests", () =>
+        HttpResponse.json({
+          digests: [
+            {
+              public_id: "01HZDIGEST0000000000000001",
+              branch_name: null,
+              frequency: "weekly",
+              recipients: ["ceo@example.com"],
+              next_run_at: "2026-08-25T06:00:00Z",
+              last_run_at: null,
+            },
+          ],
+        }),
+      ),
+      http.delete("*/dashboard/digests/01HZDIGEST0000000000000001", () => {
+        deleted += 1;
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    renderDialog();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Cancel" }));
+    const confirm = (await screen.findAllByRole("dialog")).at(-1)!;
+    expect(deleted).toBe(0);
+    fireEvent.click(
+      within(confirm).getByRole("button", { name: "Cancel digest" }),
+    );
+
+    await waitFor(() => expect(deleted).toBe(1));
   });
 
   it("schedules a new digest with the entered recipient", async () => {
