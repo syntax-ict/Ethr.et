@@ -7,7 +7,6 @@ namespace App\Services\Device;
 use App\Enums\AttendanceStatus;
 use App\Models\Employee;
 use App\Models\Tenant;
-use App\Models\UnmatchedDevicePunch;
 use App\Support\TenantTime;
 use Illuminate\Support\Facades\DB;
 
@@ -142,46 +141,19 @@ final class BadgeSuggestionDetails
 
     private static function key(int $deviceId, string $badge): string
     {
-        return $deviceId.':'.mb_strtolower($badge);
+        return HeldBadgeDays::key($deviceId, $badge);
     }
 
     /**
-     * The days each badge punched on, from the device's own time stamp. The
-     * first ten characters of `occurred_raw` are the date in both formats the
-     * adapters store ("2026-11-17T09:00:00+03:00", "2026-11-17 09:00:00"), and
-     * a row that does not start with one is left out.
+     * The days each badge punched on, from the device's own time stamp
+     * (HeldBadgeDays, shared with the list's `first_day`).
      *
      * @param  list<array{device_id: int, badge: string}>  $badges
      * @param  list<int>  $tenantIds
      */
     private function readDays(array $badges, array $tenantIds): void
     {
-        if ($badges === [] || $tenantIds === []) {
-            return;
-        }
-
-        $wanted = [];
-        foreach ($badges as $badge) {
-            $wanted[self::key($badge['device_id'], $badge['badge'])] = true;
-        }
-
-        $rows = UnmatchedDevicePunch::query()
-            ->whereIn('tenant_id', $tenantIds)
-            ->where('status', UnmatchedDevicePunch::PENDING)
-            ->whereIn('device_id', array_values(array_unique(array_column($badges, 'device_id'))))
-            ->whereIn('badge', array_values(array_unique(array_column($badges, 'badge'))))
-            ->selectRaw('device_id, badge, SUBSTR(occurred_raw, 1, 10) as day')
-            ->groupBy('device_id', 'badge', DB::raw('SUBSTR(occurred_raw, 1, 10)'))
-            ->get();
-
-        foreach ($rows as $row) {
-            $key = self::key((int) $row->getAttribute('device_id'), (string) $row->getAttribute('badge'));
-            $day = (string) $row->getAttribute('day');
-
-            if (isset($wanted[$key]) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $day) === 1) {
-                $this->days[$key][] = $day;
-            }
-        }
+        $this->days = HeldBadgeDays::read($badges, $tenantIds);
     }
 
     /**

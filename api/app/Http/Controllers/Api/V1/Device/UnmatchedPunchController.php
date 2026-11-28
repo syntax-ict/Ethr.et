@@ -14,6 +14,7 @@ use App\Models\User;
 use App\Services\Device\AssignPreview;
 use App\Services\Device\BadgeSuggestionDetails;
 use App\Services\Device\DevicePunchRecorder;
+use App\Services\Device\HeldBadgeDays;
 use App\Services\Device\TerminalNames;
 use App\Services\Device\UnmatchedPunches;
 use App\Services\Identity\IdentityMatch;
@@ -66,6 +67,14 @@ class UnmatchedPunchController extends Controller
         // The people the page names, read once, with what is told of each.
         $details = $manages ? $this->details($groups, $devices, $matches, $nameMatches) : null;
 
+        // The device-stamped day each badge first punched on, for every viewer:
+        // "Add as a new employee" needs only the right to create one. It is read
+        // by the same code as the hired_after warning (HeldBadgeDays).
+        $days = HeldBadgeDays::read(
+            array_map(fn (array $group): array => ['device_id' => $group['device_id'], 'badge' => $group['badge']], $groups),
+            array_values(array_unique($devices->pluck('tenant_id')->map(fn ($id): int => (int) $id)->all())),
+        );
+
         $data = [];
         foreach ($groups as $index => $group) {
             $device = $devices->get($group['device_id']);
@@ -79,6 +88,7 @@ class UnmatchedPunchController extends Controller
                 'badge' => $group['badge'],
                 'punches' => $group['punches'],
                 'first_seen' => $group['first_seen'],
+                'first_day' => HeldBadgeDays::earliest($days, $group['device_id'], $group['badge']),
                 'last_seen' => $group['last_seen'],
                 'match' => $this->matchWithIdentity($match, $details, $group),
                 'recording_itself' => ($this->recording[$index] ?? false) === true,

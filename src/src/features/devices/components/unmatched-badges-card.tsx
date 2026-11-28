@@ -58,6 +58,34 @@ export function heldSinceDate(firstSeen: string, timeZone: string): string {
 }
 
 /**
+ * How far before the day ETHR received a punch the terminal's own stamp is
+ * trusted for a hire date. A terminal that uploads late is a day or two behind;
+ * one whose clock reset (to 2000, say) is years behind, and a hire date taken
+ * from it would also silence the hired_after warning that exists to catch it.
+ */
+const TERMINAL_DAY_WINDOW_DAYS = 7;
+
+/**
+ * The hire date a new employee made from a held badge starts with: the day the
+ * terminal stamped on the first punch when that is no later than the day ETHR
+ * received it and within a week of it, otherwise the day it was received. A
+ * terminal that uploads late must not push the hire date past its own punches,
+ * and one whose clock runs ahead or far behind must not move it at all. Both
+ * days are `Y-m-d`, so string order is date order.
+ */
+export function heldHireDate(
+  receivedDay: string,
+  terminalDay: string | null | undefined,
+): string {
+  if (!terminalDay || terminalDay >= receivedDay) return receivedDay;
+  const gap =
+    (Date.parse(`${receivedDay}T00:00:00Z`) -
+      Date.parse(`${terminalDay}T00:00:00Z`)) /
+    86_400_000;
+  return gap <= TERMINAL_DAY_WINDOW_DAYS ? terminalDay : receivedDay;
+}
+
+/**
  * The first word of the name a terminal sent, to open the picker already
  * searched. The given name alone, because the father's name is where
  * spellings differ most, and the picker's search is one match on the text.
@@ -295,10 +323,14 @@ function UnmatchedRow({
     t,
   ]);
 
+  const hireDate = heldHireDate(
+    heldSinceDate(row.first_seen, timeZone),
+    row.first_day,
+  );
   const newEmployeeHref = `/employees/new?${new URLSearchParams({
     badge: row.badge,
     device: row.device_public_id,
-    hire_date: heldSinceDate(row.first_seen, timeZone),
+    hire_date: hireDate,
   }).toString()}`;
 
   return (
