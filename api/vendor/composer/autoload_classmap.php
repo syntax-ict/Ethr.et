@@ -1291,6 +1291,7 @@ return array(
     'App\\Support\\Mail\\MailHealth' => $baseDir . '/app/Support/Mail/MailHealth.php',
     'App\\Support\\Mail\\ResilientSmtpTransport' => $baseDir . '/app/Support/Mail/ResilientSmtpTransport.php',
     'App\\Support\\Mail\\SmtpTransportWithCaFile' => $baseDir . '/app/Support/Mail/SmtpTransportWithCaFile.php',
+    'App\\Support\\MaintenanceLock' => $baseDir . '/app/Support/MaintenanceLock.php',
     'App\\Support\\MarketingClaims' => $baseDir . '/app/Support/MarketingClaims.php',
     'App\\Support\\MarketingContent' => $baseDir . '/app/Support/MarketingContent.php',
     'App\\Support\\MarketingImage' => $baseDir . '/app/Support/MarketingImage.php',

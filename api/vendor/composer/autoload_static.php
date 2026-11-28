@@ -1953,6 +1953,7 @@ class ComposerStaticInit4084be8d735b2ecc40754476bcec958c
         'App\\Support\\Mail\\MailHealth' => __DIR__ . '/../..' . '/app/Support/Mail/MailHealth.php',
         'App\\Support\\Mail\\ResilientSmtpTransport' => __DIR__ . '/../..' . '/app/Support/Mail/ResilientSmtpTransport.php',
         'App\\Support\\Mail\\SmtpTransportWithCaFile' => __DIR__ . '/../..' . '/app/Support/Mail/SmtpTransportWithCaFile.php',
+        'App\\Support\\MaintenanceLock' => __DIR__ . '/../..' . '/app/Support/MaintenanceLock.php',
         'App\\Support\\MarketingClaims' => __DIR__ . '/../..' . '/app/Support/MarketingClaims.php',
         'App\\Support\\MarketingContent' => __DIR__ . '/../..' . '/app/Support/MarketingContent.php',
         'App\\Support\\MarketingImage' => __DIR__ . '/../..' . '/app/Support/MarketingImage.php',
