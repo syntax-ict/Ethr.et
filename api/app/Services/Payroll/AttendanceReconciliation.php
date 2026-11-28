@@ -8,6 +8,7 @@ use App\Enums\AttendanceStatus;
 use App\Enums\ConflictResolutionStatus;
 use App\Enums\CorrectionKind;
 use App\Enums\CorrectionStatus;
+use App\Enums\ExpectedDay;
 use App\Enums\LeaveStatus;
 use App\Enums\OrgScope;
 use App\Enums\OvertimeRequestStatus;
@@ -23,6 +24,7 @@ use App\Models\Tenant;
 use App\Models\UnmatchedDevicePunch;
 use App\Models\User;
 use App\Services\Attendance\AttendanceEngine;
+use App\Services\Attendance\ExpectedDays;
 use App\Support\AttendanceRules;
 use App\Support\TenantTime;
 use Carbon\Carbon;
@@ -84,6 +86,7 @@ final class AttendanceReconciliation
         private readonly PayrollEngine $payroll,
         private readonly AttendanceEngine $attendance,
         private readonly StatutoryRules $statutoryRules,
+        private readonly ExpectedDays $expectedDays,
     ) {}
 
     /** The organisation's mode: `off`, `advisory` or `required`. */
@@ -230,6 +233,7 @@ final class AttendanceReconciliation
         $leave = $this->pendingLeave($tenantId, $ids, $first, $last);
         $overtimeRequests = $this->pendingOvertime($tenantId, $ids, $first, $last);
         $records = $this->recordsToReview($tenantId, $ids, $first, $last, $today, $lateness);
+        $daysOff = $lateness ? $this->daysOff($employees, $records, $first, $last) : [];
         $integrity = $this->openIntegrity($tenantId, $ids, $first, $last);
         $conflicts = $this->openConflicts($tenantId, $ids, $first, $last);
 
@@ -266,7 +270,10 @@ final class AttendanceReconciliation
             }
 
             foreach ($records[$employee->id] ?? [] as $record) {
-                $exceptions[] = $this->recordException($record, $claims['by_record'][$record->id] ?? [], $lateness, $zone);
+                $exception = $this->recordException($record, $claims['by_record'][$record->id] ?? [], $lateness, $zone, isset($daysOff[$employee->id][$record->date->format('Y-m-d')]));
+                if ($exception !== null) {
+                    $exceptions[] = $exception;
+                }
             }
 
             ['by_day' => $byDay] = $rules !== null
@@ -342,12 +349,13 @@ final class AttendanceReconciliation
      * newest correction filed against it.
      *
      * The times come first: lateness read from a punch still open, or from
-     * a check-out auto check-out wrote, is not yet worth deciding.
+     * a check-out auto check-out wrote, is not yet worth deciding. A late or
+     * early record on a day off is no exception (AR-MIN-06): null.
      *
      * @param  list<AttendanceCorrection>  $corrections  newest first
-     * @return array{type: string, date: string, state: string, minutes: int|null, record_public_id: string|null, request_kind: string|null, request_public_id: string|null, source: string|null}
+     * @return array{type: string, date: string, state: string, minutes: int|null, record_public_id: string|null, request_kind: string|null, request_public_id: string|null, source: string|null}|null
      */
-    private function recordException(AttendanceRecord $record, array $corrections, bool $lateness, string $zone): array
+    private function recordException(AttendanceRecord $record, array $corrections, bool $lateness, string $zone, bool $dayOff): ?array
     {
         $day = $record->date->format('Y-m-d');
         $autoClosed = ! empty($record->metadata['auto_checkout']) && empty($record->metadata['is_corrected']);
@@ -357,6 +365,10 @@ final class AttendanceReconciliation
             $lateness && $record->status === AttendanceStatus::LATE => self::TYPE_LATE,
             default => self::TYPE_EARLY,
         };
+
+        if ($dayOff && in_array($type, [self::TYPE_LATE, self::TYPE_EARLY], true)) {
+            return null;
+        }
 
         // A lateness decision settles a late or early record; a correction of
         // its times settles an open or auto-closed one.
@@ -369,7 +381,7 @@ final class AttendanceReconciliation
             default => self::STATE_OPEN,
         };
 
-        $minutes = in_array($type, [self::TYPE_LATE, self::TYPE_EARLY], true) ? $this->attendance->missedMinutes($record, $zone) : null;
+        $minutes = in_array($type, [self::TYPE_LATE, self::TYPE_EARLY], true) ? $this->attendance->missedMinutes($record, $zone, false) : null;
 
         return self::item(
             $type,
@@ -380,6 +392,35 @@ final class AttendanceReconciliation
             $latest === null || $state === self::STATE_OPEN ? null : ['correction', (string) $latest->public_id],
             $record->source->value,
         );
+    }
+
+    /**
+     * The days off among the listed records' days, for the employees who have a
+     * late or early record: one batch of lookups, not one per record.
+     *
+     * @param  Collection<int, Employee>  $employees
+     * @param  array<int, list<AttendanceRecord>>  $records  by employee id
+     * @return array<int, array<string, true>> employee id => Y-m-d => true
+     */
+    private function daysOff(Collection $employees, array $records, string $first, string $last): array
+    {
+        $rated = [AttendanceStatus::LATE, AttendanceStatus::EARLY_LEAVE];
+        $who = $employees->filter(fn (Employee $e): bool => collect($records[$e->id] ?? [])->contains(fn (AttendanceRecord $r): bool => in_array($r->status, $rated, true)))->values();
+
+        if ($who->isEmpty()) {
+            return [];
+        }
+
+        $off = [];
+        foreach ($this->expectedDays->between($who, Carbon::parse($first), Carbon::parse($last)) as $day => $kinds) {
+            foreach ($kinds as $employeeId => $kind) {
+                if ($kind === ExpectedDay::REST_DAY || $kind === ExpectedDay::HOLIDAY) {
+                    $off[$employeeId][$day] = true;
+                }
+            }
+        }
+
+        return $off;
     }
 
     /**

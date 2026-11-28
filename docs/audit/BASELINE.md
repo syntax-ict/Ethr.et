@@ -5674,7 +5674,26 @@ No migration. Deploy is code only.
 
 **Not claimed.** The ledger-against-payroll check shares code with payroll, so it is a consistency check, not an independent one. Holidays (4 days), leave days with punches (12), days before hire (7) and after termination (11) are thin in the default run. Not generated: rotations, `break_in`/`break_out` punches, settings other than the defaults, punches arriving out of order, a night record carried in from the month before. Agreement here is between two readings of one register; agreement with what HR signs is the backtest's question.
 
-### 25bu. Accuracy cases for payroll and leave, and a calendar cross-check (2026-11-28)
+### 25bu. Late and early on a day off: rated present, zero minutes, never a lateness deduction (2026-11-28)
+
+**Found by the attendance accuracy suite** (§25bt): golden cases GC-REST-001 and GC-REST-002, outvoted two to one, and 56 disagreements in 17 of 70 generated months (`pattern:day-off-late-early`).
+
+**Cause.** A record on a day with no scheduled hours for the person (a rest day by their shift or rotation, a public holiday of their branch) was rated against the shift as on a working day: shift 08:30 to 17:30 worked 09:00 to 13:00 on a Saturday read `late`, 30 minutes late and 270 early. The timesheet zeroed those minutes, but `AttendanceReconciliation` listed the record as a late arrival with 300 minutes, a lateness decision was accepted up to 300, and the punch answered "Checked in, 30 min late". Lateness could therefore be deducted for work on a day off that payroll also pays as rest-day or holiday overtime.
+
+**Fix** (rules AR-MIN-06 and new AR-STATUS-08):
+- **When rated**: on a day off a record is `present`, never `late` or `early_leave` (check-in, check-out, `reclassify()`, and so rejoin, manual entry and import). A record with no shift stays `pending`.
+- **When read**: `lateMinutes()`, `earlyMinutes()` and `missedMinutes()` are 0 on a day off, so a record stored before the fix and a holiday added after the punch read right. The timesheet passes each cell's kind, so it makes no extra query.
+- **Reconciliation**: such a record is never a late arrival or early departure (it can still be a missed punch or an automatic check-out); one `ExpectedDays::between()` lookup per run, only when lateness deductions are on and a late or early record exists (measured: +7 queries for the whole call, the same with 1, 6 or 9 late records).
+- **Lateness decision**: refused, with the existing message for a record that is not late or early.
+- **Each live punch** now asks `ExpectedDays::onDate()` once (a few queries); a check-out only when it left early.
+
+**Unchanged on purpose**: a day of approved leave (how it is rated is undecided, AR-ABS-08); overtime; worked minutes; the payroll log version; **lateness decisions already approved on such a record**, which stay on the record and are still deducted by payroll (a person made them); stored statuses of old records, which the dashboards and team screens still count as late until the record is next reclassified. No migration, no backfill.
+
+**A date-dependent test.** `AttendanceEngineTest` "attendance status is late when past grace period" punched at today's 09:00 on a Monday-to-Friday shift; it passed on weekdays only, and failed on the Saturday this was written. It is pinned to a Tuesday, with the clock set before the fixture so the shift assignment is in effect.
+
+**Measured.** `DayOffLatenessTest`: 8 tests, 6 red before the fix, 8 green after. `./scripts/gates.sh accuracy`: 269 passed, 4 skipped (undecided), no recorded findings left. Attendance, payroll, reports, dashboard and engine tests: 1,186 passed plus the pinned one. Pint and PHPStan clean.
+
+### 25bv. Accuracy cases for payroll and leave, and a calendar cross-check (2026-11-28)
 
 **Added** (tests and documents only; no application code, migration or deploy): `api/tests/Accuracy/Payroll/`, 103 hand-valued case entries (one is the format's worked example), the harness that runs them through `PayrollEngine::preview()` or `process()` and `approve()`, and `api/tests/Accuracy/Oracle/Payroll/`, an independent oracle in whole cents; `api/tests/Accuracy/Leave/`, 131 hand-valued cases and five seeded properties; `api/tests/Accuracy/Calendar/` and `src/src/test/ethiopian-calendar-table.test.ts`, the PHP and TypeScript Ethiopian calendars against one table counted by a third implementation, 1900 to 2100; `RegisterConsistencyTest`; files 13 and 14 of the production testing pack. `./scripts/gates.sh accuracy` runs the PHP side. `tests/Accuracy` sits outside both testsuites, so the collection count in the root `CLAUDE.md` is unchanged.
 
