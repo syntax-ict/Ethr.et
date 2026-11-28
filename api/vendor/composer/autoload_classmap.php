@@ -1343,6 +1343,7 @@ return array(
     'App\\Support\\WebhookTargets' => $baseDir . '/app/Support/WebhookTargets.php',
     'App\\Support\\WorkingWeek' => $baseDir . '/app/Support/WorkingWeek.php',
     'App\\Support\\Xlsx' => $baseDir . '/app/Support/Xlsx.php',
+    'App\\Support\\XlsxDate' => $baseDir . '/app/Support/XlsxDate.php',
     'App\\Traits\\BelongsToTenant' => $baseDir . '/app/Traits/BelongsToTenant.php',
     'App\\Traits\\DispatchesWebhooks' => $baseDir . '/app/Traits/DispatchesWebhooks.php',
     'App\\Traits\\HasApprovalInstance' => $baseDir . '/app/Traits/HasApprovalInstance.php',

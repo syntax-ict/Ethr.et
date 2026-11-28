@@ -2005,6 +2005,7 @@ class ComposerStaticInit4084be8d735b2ecc40754476bcec958c
         'App\\Support\\WebhookTargets' => __DIR__ . '/../..' . '/app/Support/WebhookTargets.php',
         'App\\Support\\WorkingWeek' => __DIR__ . '/../..' . '/app/Support/WorkingWeek.php',
         'App\\Support\\Xlsx' => __DIR__ . '/../..' . '/app/Support/Xlsx.php',
+        'App\\Support\\XlsxDate' => __DIR__ . '/../..' . '/app/Support/XlsxDate.php',
         'App\\Traits\\BelongsToTenant' => __DIR__ . '/../..' . '/app/Traits/BelongsToTenant.php',
         'App\\Traits\\DispatchesWebhooks' => __DIR__ . '/../..' . '/app/Traits/DispatchesWebhooks.php',
         'App\\Traits\\HasApprovalInstance' => __DIR__ . '/../..' . '/app/Traits/HasApprovalInstance.php',

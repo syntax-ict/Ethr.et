@@ -7,6 +7,7 @@ namespace App\Support;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use OpenSpout\Common\Entity\Cell;
+use OpenSpout\Common\Entity\Cell\DateTimeCell;
 use OpenSpout\Common\Entity\Cell\EmptyCell;
 use OpenSpout\Common\Entity\Cell\NumericCell;
 use OpenSpout\Common\Entity\Cell\StringCell;
@@ -24,8 +25,10 @@ use RuntimeException;
  * A streaming writer: each row is written to a temporary file as it is
  * handed over, so a thousand rows cost the rows being read, not a tree of
  * cell objects, inside the host's memory limit. A cell is a number only when
- * the caller passes a number, so an employee code such as "00123" and a date
- * the reader's calendar produced stay text. A text cell is never a formula,
+ * the caller passes a number, so an employee code such as "00123" stays text,
+ * and a date only when the caller passes an `XlsxDate`, so a string that
+ * merely looks like one stays text too. A date in the Ethiopian calendar is
+ * text, as Excel has no such calendar. A text cell is never a formula,
  * whatever it starts with: the writer's own shortcut reads "=..." as one, so
  * cells are built by type here, as `Csv::cell()` guards a CSV.
  *
@@ -43,6 +46,11 @@ final class Xlsx
 
     /** A workbook never has more characters in a sheet's name than this, and none of the characters below. */
     private const MAX_NAME = 31;
+
+    /** Widths in characters for date cells: Excel shows ##### in a cell narrower than its text. */
+    private const DATE_WIDTH = 12.0;
+
+    private const DATE_TIME_WIDTH = 18.0;
 
     /**
      * @param  list<SheetSpec>  $sheets
@@ -85,15 +93,23 @@ final class Xlsx
                     $writer->addRow(self::row(array_map(strval(...), $spec['header']), $bold));
                 }
 
+                $wide = [];
                 $previous = null;
                 foreach ($spec['rows'] as $row) {
                     if ($previous !== null) {
                         $writer->addRow(self::row(self::values($previous)));
                     }
+                    self::noteDates($row, $wide);
                     $previous = $row;
                 }
                 if ($previous !== null) {
                     $writer->addRow(self::row(self::values($previous), ($spec['bold_last'] ?? false) ? $bold : null));
+                }
+
+                // The writer puts widths ahead of the rows only when it closes,
+                // so they can be set after a streamed sheet has been read.
+                foreach ($wide as $column => $width) {
+                    $sheet->setColumnWidth(max($width, mb_strlen($spec['header'][$column - 1] ?? '') + 2.0), $column);
                 }
 
                 $foot = $spec['foot'] ?? [];
@@ -125,15 +141,35 @@ final class Xlsx
      * which turns any string that starts with "=" into a formula: a name such
      * as =HYPERLINK(...) must arrive as a name.
      *
-     * @param  list<int|float|string|null>  $values
+     * @param  list<int|float|string|XlsxDate|null>  $values
      */
     private static function row(array $values, ?Style $style = null): Row
     {
-        return new Row(array_map(static fn (int|float|string|null $value): Cell => match (true) {
+        return new Row(array_map(static fn (int|float|string|XlsxDate|null $value): Cell => match (true) {
             $value === null || $value === '' => new EmptyCell(null, $style),
             is_string($value) => new StringCell($value, $style),
+            $value instanceof XlsxDate => new DateTimeCell($value->value, ($style ?? new Style)->withFormat(
+                $value->withTime ? XlsxDate::DATE_TIME_FORMAT : XlsxDate::DATE_FORMAT,
+            )),
             default => new NumericCell($value, $style),
         }, $values));
+    }
+
+    /**
+     * The columns, by 1-based number, that hold a date or a date and time in
+     * this row, with the width each needs: the wider kind wins.
+     *
+     * @param  list<mixed>  $row
+     * @param  array<int, float>  $wide
+     */
+    private static function noteDates(array $row, array &$wide): void
+    {
+        foreach ($row as $index => $value) {
+            if ($value instanceof XlsxDate) {
+                $width = $value->withTime ? self::DATE_TIME_WIDTH : self::DATE_WIDTH;
+                $wide[$index + 1] = max($wide[$index + 1] ?? 0.0, $width);
+            }
+        }
     }
 
     /**
@@ -159,16 +195,18 @@ final class Xlsx
     }
 
     /**
-     * A cell the way a person reads it: a number stays a number, nothing
-     * becomes the empty cell, anything else is text.
+     * A cell the way a person reads it: a number stays a number, a date the
+     * caller marked stays a date, nothing becomes the empty cell, anything
+     * else is text.
      *
      * @param  list<mixed>  $row
-     * @return list<int|float|string|null>
+     * @return list<int|float|string|XlsxDate|null>
      */
     private static function values(array $row): array
     {
-        return array_map(static fn (mixed $value): int|float|string|null => match (true) {
+        return array_map(static fn (mixed $value): int|float|string|XlsxDate|null => match (true) {
             $value === null => null,
+            $value instanceof XlsxDate => $value,
             is_bool($value) => $value ? 'TRUE' : 'FALSE',
             is_int($value), is_float($value) => $value,
             default => (string) $value,
