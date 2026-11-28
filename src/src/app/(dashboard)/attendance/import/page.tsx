@@ -219,9 +219,8 @@ export default function AttendanceImportPage() {
               }}
               onDragLeave={() => setDragOver(false)}
               onDrop={handleDrop}
-              onClick={() => fileRef.current?.click()}
               className={cn(
-                "flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed p-12 transition-colors",
+                "flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-12 transition-colors",
                 dragOver
                   ? "border-primary bg-primary/5"
                   : "border-muted-foreground/25 hover:border-primary/50 hover:bg-muted/50",
@@ -242,7 +241,16 @@ export default function AttendanceImportPage() {
                   <p className="mt-4 text-sm font-medium text-foreground">
                     {t("attendance.import_page.drop_hint")}
                   </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="mt-3"
+                    onClick={() => fileRef.current?.click()}
+                  >
+                    {t("attendance.import_page.choose_file", "Choose a file")}
+                  </Button>
+                  <p className="mt-2 text-xs text-muted-foreground">
                     {t("attendance.import_page.supports_hint")}
                   </p>
                 </>
@@ -251,6 +259,11 @@ export default function AttendanceImportPage() {
                 ref={fileRef}
                 type="file"
                 accept=".csv,.txt"
+                aria-label={t(
+                  "attendance.import_page.choose_file",
+                  "Choose a file",
+                )}
+                tabIndex={-1}
                 onChange={handleInputChange}
                 className="hidden"
               />

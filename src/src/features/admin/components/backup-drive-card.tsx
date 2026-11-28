@@ -24,6 +24,7 @@ import {
 } from "@/features/admin/backups";
 import { useDateFormatters } from "@/lib/hooks/useTenantTimezone";
 import { useT } from "@/lib/i18n/useT";
+import { useConfirm } from "@/components/shared/use-confirm";
 
 /**
  * Google Drive as the fallback for off-host backups, under the storage cards
@@ -38,6 +39,7 @@ import { useT } from "@/lib/i18n/useT";
  */
 export function BackupDriveCard({ state }: { state: BackupDriveState }) {
   const { t } = useT();
+  const { requestConfirm, confirmDialog } = useConfirm();
   const { timeAgo } = useDateFormatters();
   const save = useSaveBackupDrive();
   const connect = useConnectBackupDrive();
@@ -179,6 +181,36 @@ export function BackupDriveCard({ state }: { state: BackupDriveState }) {
         toast.error(
           backupErrorDetail(err) ??
             t("admin_backups.key_failed", "Could not show the key"),
+        ),
+    });
+  }
+
+  async function confirmDisconnect() {
+    if (
+      !(await requestConfirm({
+        title: t(
+          "admin_backups.drive_disconnect_confirm_title",
+          "Disconnect Google Drive?",
+        ),
+        description: t(
+          "admin_backups.drive_disconnect_confirm_description",
+          "Backups stop being copied to Google Drive until it is connected and tested again. Files already there stay in your Drive.",
+        ),
+        confirmLabel: t(
+          "admin_backups.drive_disconnect_confirm",
+          "Disconnect Google Drive",
+        ),
+        variant: "destructive",
+      }))
+    )
+      return;
+    disconnect.mutate(undefined, {
+      onSuccess: () =>
+        toast.success(t("admin_backups.drive_disconnected", "Disconnected")),
+      onError: (err) =>
+        toast.error(
+          backupErrorDetail(err) ??
+            t("admin_backups.save_failed", "Could not save"),
         ),
     });
   }
@@ -386,19 +418,7 @@ export function BackupDriveCard({ state }: { state: BackupDriveState }) {
           {state.connected && (
             <Button
               variant="ghost"
-              onClick={() =>
-                disconnect.mutate(undefined, {
-                  onSuccess: () =>
-                    toast.success(
-                      t("admin_backups.drive_disconnected", "Disconnected"),
-                    ),
-                  onError: (err) =>
-                    toast.error(
-                      backupErrorDetail(err) ??
-                        t("admin_backups.save_failed", "Could not save"),
-                    ),
-                })
-              }
+              onClick={confirmDisconnect}
               disabled={disconnect.isPending}
             >
               <Unplug className="mr-2 h-4 w-4" />
@@ -554,6 +574,7 @@ export function BackupDriveCard({ state }: { state: BackupDriveState }) {
           </div>
         )}
       </CardContent>
+      {confirmDialog}
     </Card>
   );
 }

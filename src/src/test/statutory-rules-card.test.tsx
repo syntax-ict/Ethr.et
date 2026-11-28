@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
@@ -164,6 +164,13 @@ describe("<StatutoryRulesCard>", () => {
 
     await user.click(screen.getByRole("button", { name: /reset to default/i }));
 
+    // The click only asks; the rule is deleted on the confirming button.
+    const dialog = await screen.findByRole("dialog");
+    expect(deleted).toEqual([]);
+    await user.click(
+      within(dialog).getByRole("button", { name: "Reset to default" }),
+    );
+
     await waitFor(() =>
       expect(deleted).toEqual(["payroll.working_days_per_month"]),
     );
@@ -191,6 +198,12 @@ describe("<StatutoryRulesCard>", () => {
     ).toBeInTheDocument();
     await user.click(
       screen.getByRole("button", { name: /use the law's rates/i }),
+    );
+
+    const dialog = await screen.findByRole("dialog");
+    expect(calls).not.toContain("use-law");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Use the law's rates" }),
     );
 
     await waitFor(() => expect(calls).toContain("use-law"));

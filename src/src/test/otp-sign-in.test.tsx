@@ -78,11 +78,8 @@ describe("OTP sign-in", () => {
       await screen.findByText(/verification code has been sent/i),
     ).toBeInTheDocument();
 
-    const digitInputs = container.querySelectorAll(
-      'input[inputmode="numeric"]',
-    );
-    "123456".split("").forEach((digit, i) => {
-      fireEvent.change(digitInputs[i], { target: { value: digit } });
+    fireEvent.change(container.querySelector("#otp-code") as HTMLInputElement, {
+      target: { value: "123456" },
     });
 
     fireEvent.click(
@@ -105,11 +102,8 @@ describe("OTP sign-in", () => {
     fireEvent.click(screen.getByRole("button", { name: /send code/i }));
     await screen.findByText(/code sent/i);
 
-    const digitInputs = container.querySelectorAll(
-      'input[inputmode="numeric"]',
-    );
-    "654321".split("").forEach((digit, i) => {
-      fireEvent.change(digitInputs[i], { target: { value: digit } });
+    fireEvent.change(container.querySelector("#otp-code") as HTMLInputElement, {
+      target: { value: "654321" },
     });
     fireEvent.click(
       screen.getByRole("button", { name: /verify and sign in/i }),
@@ -142,11 +136,8 @@ describe("OTP sign-in", () => {
     fireEvent.click(screen.getByRole("button", { name: /send code/i }));
     await screen.findByText(/code sent/i);
 
-    const digitInputs = container.querySelectorAll(
-      'input[inputmode="numeric"]',
-    );
-    "000000".split("").forEach((digit, i) => {
-      fireEvent.change(digitInputs[i], { target: { value: digit } });
+    fireEvent.change(container.querySelector("#otp-code") as HTMLInputElement, {
+      target: { value: "000000" },
     });
     fireEvent.click(
       screen.getByRole("button", { name: /verify and sign in/i }),

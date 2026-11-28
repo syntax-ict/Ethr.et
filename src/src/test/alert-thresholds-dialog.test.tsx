@@ -1,5 +1,11 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { server } from "./msw/server";
@@ -63,6 +69,42 @@ describe("<AlertThresholdsDialog>", () => {
     expect(row).toHaveTextContent("Turnover rate");
     expect(row).toHaveTextContent("exceeds 5");
     expect(row).toHaveTextContent("warning");
+  });
+
+  it("removes a rule only after the question is confirmed", async () => {
+    let deleted = 0;
+    server.use(
+      http.get("*/dashboard/alert-thresholds", () =>
+        HttpResponse.json({
+          thresholds: [
+            {
+              public_id: "01HZALERT0000000000000001",
+              metric: "turnover_rate",
+              operator: "gt",
+              threshold_value: 5,
+              severity: "warning",
+            },
+          ],
+        }),
+      ),
+      http.delete(
+        "*/dashboard/alert-thresholds/01HZALERT0000000000000001",
+        () => {
+          deleted += 1;
+          return new HttpResponse(null, { status: 204 });
+        },
+      ),
+    );
+    renderDialog();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Remove" }));
+    const confirm = (await screen.findAllByRole("dialog")).at(-1)!;
+    expect(deleted).toBe(0);
+    fireEvent.click(
+      within(confirm).getByRole("button", { name: "Remove rule" }),
+    );
+
+    await waitFor(() => expect(deleted).toBe(1));
   });
 
   it("creates a new rule with the entered value", async () => {

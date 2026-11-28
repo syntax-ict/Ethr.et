@@ -422,10 +422,11 @@ export function OtpForm() {
           )}
 
           <div className="space-y-2">
-            <Label className="sr-only">
+            <Label htmlFor="otp-code" className="sr-only">
               {t("auth.otp_code_label", "Verification code")}
             </Label>
             <OtpCodeInput
+              id="otp-code"
               key={resetKey}
               digits={digits}
               onChange={setDigits}
